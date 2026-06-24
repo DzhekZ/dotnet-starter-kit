@@ -11,12 +11,32 @@ var appPrefix = builder.Environment.ApplicationName
 #pragma warning restore CA1308
 
 // Postgres + pgAdmin sidecar (auto-discovers registered databases); persistent so volumes and saved state survive restarts.
-var postgresServer = builder.AddPostgres("postgres")
+var pgUsername = builder.AddParameter("pg-username", "postgres", secret: true);
+var pgPassword = builder.AddParameter("pg-password", "postgres", secret: true);
+
+var postgresServer = builder.AddPostgres("postgres",pgUsername,pgPassword)
+    .WithImage("postgres:latest")
+    .WithEndpoint(
+        "tcp",
+        e =>
+        {
+            e.Port = 5432;
+            e.TargetPort = 5432;
+            e.IsProxied = true;
+            e.IsExternal = false;
+        })
+    .WithArgs(
+        "-c",
+        "wal_level=logical",
+        "-c",
+        "max_prepared_transactions=10")
+    .WithEnvironment("PGDATA", "/var/lib/postgresql/postgres-data")
     .WithDataVolume($"{appPrefix}-postgres-data")
     .WithLifetime(ContainerLifetime.Persistent)
     .WithPgAdmin(pa => pa
         .WithHostPort(5050)
-        .WithLifetime(ContainerLifetime.Persistent));
+        .WithLifetime(ContainerLifetime.Persistent)
+        .WithImage("dpage/pgadmin4:latest"));
 
 var postgres = postgresServer.AddDatabase("fsh-db");
 
@@ -81,10 +101,40 @@ var minioInit = builder.AddContainer("minio-init", "minio/mc")
 
 var minioApiEndpoint = minio.GetEndpoint("api");
 
+
+// Messaging Services
+var rabbitmqUsername = builder.AddParameter("rabbitmq-username", "guest", secret: true);
+var rabbitmqPassword = builder.AddParameter("rabbitmq-password", "guest", secret: true);
+
+var rabbitmq = builder.AddRabbitMQ("rabbitmq", rabbitmqUsername, rabbitmqPassword)
+    .WithManagementPlugin()
+    .WithEndpoint(
+        "tcp",
+        e =>
+        {
+            e.TargetPort = 5672;
+            e.Port = 5672;
+            e.IsProxied = true;
+            e.IsExternal = false;
+        })
+    .WithEndpoint(
+        "management",
+        e =>
+        {
+            e.TargetPort = 15672;
+            e.Port = 15672;
+            e.IsProxied = true;
+            e.IsExternal = true;
+        })
+    .WithLifetime(ContainerLifetime.Persistent);
+
+
 // DB migrator: applies pending migrations + seeds the root admin (admin@root.com), then exits; the API waits for its completion so it never starts against an unmigrated DB. Seed password is a dev-only default.
 var migrator = builder.AddProject<Projects.FSH_Starter_DbMigrator>($"{appPrefix}-db-migrator")
     .WithReference(postgres)
     .WaitFor(postgres)
+    .WithReference(rabbitmq)
+    .WaitFor(rabbitmq)
     .WithEnvironment("DatabaseOptions__Provider", "POSTGRESQL")
     .WithEnvironment("DatabaseOptions__ConnectionString", postgres.Resource.ConnectionStringExpression)
     .WithEnvironment("DatabaseOptions__MigrationsAssembly", "FSH.Starter.Migrations.PostgreSQL")
@@ -92,16 +142,16 @@ var migrator = builder.AddProject<Projects.FSH_Starter_DbMigrator>($"{appPrefix}
     .WithArgs("apply", "--seed");
 
 // Demo seeder (dev-only): provisions the acme/globex tenants + demo-login users via seed-demo. DOTNET_ENVIRONMENT=Development is required (console host ignores ASPNETCORE_ENVIRONMENT) or seed-demo refuses to run.
-var demoSeeder = builder.AddProject<Projects.FSH_Starter_DbMigrator>($"{appPrefix}-demo-seeder")
-    .WithReference(postgres)
-    .WaitFor(postgres)
-    .WaitForCompletion(migrator)
-    .WithEnvironment("DOTNET_ENVIRONMENT", "Development")
-    .WithEnvironment("DatabaseOptions__Provider", "POSTGRESQL")
-    .WithEnvironment("DatabaseOptions__ConnectionString", postgres.Resource.ConnectionStringExpression)
-    .WithEnvironment("DatabaseOptions__MigrationsAssembly", "FSH.Starter.Migrations.PostgreSQL")
-    .WithEnvironment("Seed__DemoPassword", "Password123!")
-    .WithArgs("seed-demo");
+////var demoSeeder = builder.AddProject<Projects.FSH_Starter_DbMigrator>($"{appPrefix}-demo-seeder")
+////    .WithReference(postgres)
+////    .WaitFor(postgres)
+////    .WaitForCompletion(migrator)
+////    .WithEnvironment("DOTNET_ENVIRONMENT", "Development")
+////    .WithEnvironment("DatabaseOptions__Provider", "POSTGRESQL")
+////    .WithEnvironment("DatabaseOptions__ConnectionString", postgres.Resource.ConnectionStringExpression)
+////    .WithEnvironment("DatabaseOptions__MigrationsAssembly", "FSH.Starter.Migrations.PostgreSQL")
+////    .WithEnvironment("Seed__DemoPassword", "Password123!")
+////    .WithArgs("seed-demo");
 
 // API Service
 var api = builder.AddProject<Projects.FSH_Starter_Api>($"{appPrefix}-api")
@@ -110,7 +160,9 @@ var api = builder.AddProject<Projects.FSH_Starter_Api>($"{appPrefix}-api")
     .WaitFor(redis)
     .WaitForCompletion(minioInit)
     .WaitForCompletion(migrator)
-    .WaitForCompletion(demoSeeder)
+    //.WaitForCompletion(demoSeeder)
+    .WithReference(rabbitmq)
+    .WaitFor(rabbitmq)
     .WithExternalHttpEndpoints()
     .WithEnvironment("DatabaseOptions__Provider", "POSTGRESQL")
     .WithEnvironment("DatabaseOptions__ConnectionString", apiPgConnection)
