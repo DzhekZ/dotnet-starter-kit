@@ -1,4 +1,5 @@
-using Aspire.Hosting.ApplicationModel;
+// Set builder variable to the result of calling the CreateBuilder method on the DistributedApplication class, passing in the args parameter.
+using System.Net.Sockets;
 
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -45,7 +46,7 @@ var apiPgConnection = ReferenceExpression.Create(
     $"{postgres.Resource.ConnectionStringExpression};Minimum Pool Size=5");
 
 // Valkey (BSD-3 Redis fork) as a plain container: Aspire 13.4.0 AddRedis() forces TLS-by-default in run mode and never materializes the container, so we drop to plain RESP over TCP. Name stays "redis" so config keys don't churn.
-var redis = builder.AddContainer("redis", "valkey/valkey", "9.1.0")
+var redis = builder.AddContainer("redis", "valkey/valkey", "latest")
     .WithEndpoint(targetPort: 6379, scheme: "tcp", name: "tcp")
     .WithVolume($"{appPrefix}-redis-data", "/data")
     .WithLifetime(ContainerLifetime.Persistent);
@@ -128,6 +129,22 @@ var rabbitmq = builder.AddRabbitMQ("rabbitmq", rabbitmqUsername, rabbitmqPasswor
         })
     .WithLifetime(ContainerLifetime.Persistent);
 
+// Papercut SMTP container for email testing
+var papercut = builder.AddContainer("papercut", "jijiechen/papercut", "latest")
+  .WithEndpoint("smtp", e =>
+  {
+      e.TargetPort = 25;   // container port
+      e.Port = 25;         // host port
+      e.Protocol = ProtocolType.Tcp;
+      e.UriScheme = "smtp";
+  })
+  .WithEndpoint("ui", e =>
+  {
+      e.TargetPort = 37408;
+      e.Port = 37408;
+      e.UriScheme = "http";
+  });
+
 
 // DB migrator: applies pending migrations + seeds the root admin (admin@root.com), then exits; the API waits for its completion so it never starts against an unmigrated DB. Seed password is a dev-only default.
 var migrator = builder.AddProject<Projects.FSH_Starter_DbMigrator>($"{appPrefix}-db-migrator")
@@ -163,6 +180,7 @@ var api = builder.AddProject<Projects.FSH_Starter_Api>($"{appPrefix}-api")
     //.WaitForCompletion(demoSeeder)
     .WithReference(rabbitmq)
     .WaitFor(rabbitmq)
+    .WaitFor(papercut)
     .WithExternalHttpEndpoints()
     .WithEnvironment("DatabaseOptions__Provider", "POSTGRESQL")
     .WithEnvironment("DatabaseOptions__ConnectionString", apiPgConnection)
@@ -174,12 +192,12 @@ var api = builder.AddProject<Projects.FSH_Starter_Api>($"{appPrefix}-api")
     .WithEnvironment("HangfireOptions__Password", "Password123!")
     // SMTP via Ethereal (https://ethereal.email) — fake catch-all inbox for local dev (nothing delivered); mirrors appsettings.Development.json. Safe to commit: throwaway test creds.
     .WithEnvironment("MailOptions__UseSendGrid", "false")
-    .WithEnvironment("MailOptions__From", "nicole.lueilwitz0@ethereal.email")
-    .WithEnvironment("MailOptions__DisplayName", "Mukesh Murugan")
-    .WithEnvironment("MailOptions__Smtp__Host", "smtp.ethereal.email")
-    .WithEnvironment("MailOptions__Smtp__Port", "587")
-    .WithEnvironment("MailOptions__Smtp__UserName", "nicole.lueilwitz0@ethereal.email")
-    .WithEnvironment("MailOptions__Smtp__Password", "x4VJz2r9x2NDss9KpC")
+    //.WithEnvironment("MailOptions__From", "nicole.lueilwitz0@ethereal.email")
+    //.WithEnvironment("MailOptions__DisplayName", "Mukesh Murugan")
+    //.WithEnvironment("MailOptions__Smtp__Host", "smtp.ethereal.email")
+    //.WithEnvironment("MailOptions__Smtp__Port", "587")
+    //.WithEnvironment("MailOptions__Smtp__UserName", "nicole.lueilwitz0@ethereal.email")
+    //.WithEnvironment("MailOptions__Smtp__Password", "x4VJz2r9x2NDss9KpC")
     .WithEnvironment("Storage__Provider", "s3")
     .WithEnvironment("Storage__S3__Bucket", MinioBucket)
     .WithEnvironment("Storage__S3__Region", "us-east-1")
@@ -187,7 +205,8 @@ var api = builder.AddProject<Projects.FSH_Starter_Api>($"{appPrefix}-api")
     .WithEnvironment("Storage__S3__AccessKey", minioUser)
     .WithEnvironment("Storage__S3__SecretKey", minioPassword)
     .WithEnvironment("Storage__S3__ForcePathStyle", "true")
-    .WithEnvironment("Storage__S3__PublicBaseUrl", ReferenceExpression.Create($"{minioApiEndpoint}/{MinioBucket}"));
+    .WithEnvironment("Storage__S3__PublicBaseUrl", ReferenceExpression.Create($"{minioApiEndpoint}/{MinioBucket}"))
+    .WithEnvironment("Papercut__Smtp__Url", papercut.GetEndpoint("smtp"));
 
 //#if (frontend)
 // Admin console (React + Vite). Target the API's HTTPS endpoint directly — UseHttpsRedirection's 307 to https is cross-origin and strips the Authorization header.

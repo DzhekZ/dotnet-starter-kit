@@ -15,11 +15,11 @@ public static class Extensions
 
         // One SendGrid client (and its HttpClient) shared process-wide — per-send construction leaks
         // sockets under load. The factory is lazy, so it's only built when SendGrid is actually used.
-        services.AddSingleton<ISendGridClient>(sp =>
-        {
-            var options = sp.GetRequiredService<IOptions<MailOptions>>().Value;
-            return new SendGridClient(options.SendGrid?.ApiKey ?? string.Empty);
-        });
+        ////services.AddSingleton<ISendGridClient>(sp =>
+        ////{
+        ////    var options = sp.GetRequiredService<IOptions<MailOptions>>().Value;
+        ////    return new SendGridClient(options.SendGrid?.ApiKey ?? string.Empty);
+        ////});
 
         services.AddTransient<IMailService>(sp =>
         {
