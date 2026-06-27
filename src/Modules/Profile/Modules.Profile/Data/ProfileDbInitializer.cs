@@ -4,16 +4,16 @@ using Microsoft.Extensions.Logging;
 
 namespace FSH.Modules.Profile.Data;
 
-public sealed class CatalogDbInitializer(
-    CatalogDbContext dbContext,
-    ILogger<CatalogDbInitializer> logger) : IDbInitializer
+public sealed class ProfileDbInitializer(
+    ProfileDbContext dbContext,
+    ILogger<ProfileDbInitializer> logger) : IDbInitializer
 {
     public async Task MigrateAsync(CancellationToken cancellationToken)
     {
         if ((await dbContext.Database.GetPendingMigrationsAsync(cancellationToken).ConfigureAwait(false)).Any())
         {
             await dbContext.Database.MigrateAsync(cancellationToken).ConfigureAwait(false);
-            logger.LogInformation("[Catalog] applied migrations");
+            logger.LogInformation("[Profile] applied migrations");
         }
     }
 
@@ -22,7 +22,7 @@ public sealed class CatalogDbInitializer(
     /// catalog and is expected to be populated by the operator via the API / UI.
     /// Demo content for the <c>acme</c> and <c>globex</c> tenants lives in the
     /// DbMigrator's <c>seed-demo</c> command, which calls
-    /// <see cref="CatalogSeedData"/> directly under a tenant-scoped DbContext.
+    /// <see cref="ProfileSeedData"/> directly under a tenant-scoped DbContext.
     /// </summary>
     public Task SeedAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 }

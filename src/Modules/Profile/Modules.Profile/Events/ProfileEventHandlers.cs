@@ -4,12 +4,12 @@ using Microsoft.Extensions.Logging;
 
 namespace FSH.Modules.Profile.Events;
 
-public sealed class CatalogEventHandlers(ILogger<CatalogEventHandlers> logger) :
-    INotificationHandler<ProductCreatedDomainEvent>,
-    INotificationHandler<ProductPriceChangedDomainEvent>,
-    INotificationHandler<ProductStockAdjustedDomainEvent>
+public sealed class ProfileEventHandlers(ILogger<ProfileEventHandlers> logger) :
+    INotificationHandler<ProfileCreatedDomainEvent>,
+    INotificationHandler<ProfilePriceChangedDomainEvent>,
+    INotificationHandler<ProfileStockAdjustedDomainEvent>
 {
-    public ValueTask Handle(ProductCreatedDomainEvent notification, CancellationToken cancellationToken)
+    public ValueTask Handle(ProfileCreatedDomainEvent notification, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(notification);
         if (logger.IsEnabled(LogLevel.Information))
@@ -19,7 +19,7 @@ public sealed class CatalogEventHandlers(ILogger<CatalogEventHandlers> logger) :
         return default;
     }
 
-    public ValueTask Handle(ProductPriceChangedDomainEvent notification, CancellationToken cancellationToken)
+    public ValueTask Handle(ProfilePriceChangedDomainEvent notification, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(notification);
         if (logger.IsEnabled(LogLevel.Information))
@@ -29,7 +29,7 @@ public sealed class CatalogEventHandlers(ILogger<CatalogEventHandlers> logger) :
         return default;
     }
 
-    public ValueTask Handle(ProductStockAdjustedDomainEvent notification, CancellationToken cancellationToken)
+    public ValueTask Handle(ProfileStockAdjustedDomainEvent notification, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(notification);
         if (logger.IsEnabled(LogLevel.Information))

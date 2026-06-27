@@ -3,6 +3,7 @@ using FSH.Framework.Persistence;
 using FSH.Framework.Shared.Constants;
 using FSH.Framework.Web.Modules;
 using FSH.Modules.Profile.Contracts.Authorization;
+using FSH.Modules.Profile.Data;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
@@ -23,15 +24,15 @@ public sealed class ProfileModule : IModule
 
         PermissionConstants.Register(ProfilePermissions.All);
 
-        builder.Services.AddHeroDbContext<CatalogDbContext>();
-        builder.Services.AddScoped<IDbInitializer, CatalogDbInitializer>();
+        builder.Services.AddHeroDbContext<ProfileDbContext>();
+        builder.Services.AddScoped<IDbInitializer, ProfileDbInitializer>();
 
         // OwnerType=Product policy for Files module attachments (product images).
         ////builder.Services.AddScoped<IFileAccessPolicy, ProductFileAccessPolicy>();
 
         builder.Services.AddHealthChecks()
-            .AddDbContextCheck<CatalogDbContext>(
-                name: "db:catalog",
+            .AddDbContextCheck<ProfileDbContext>(
+                name: "db:profile",
                 failureStatus: HealthStatus.Unhealthy);
     }
 
@@ -51,7 +52,7 @@ public sealed class ProfileModule : IModule
 
         var group = endpoints
             .MapGroup("api/v{version:apiVersion}/profile")
-            .WithTags("Catalog")
+            .WithTags("Profile")
             .WithApiVersionSet(versionSet)
             .RequireAuthorization();
 

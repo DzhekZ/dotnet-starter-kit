@@ -4,9 +4,9 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace FSH.Modules.Profile.Data.Configurations;
 
-public sealed class ProductImageConfiguration : IEntityTypeConfiguration<ProductImage>
+public sealed class ProfileImageConfiguration : IEntityTypeConfiguration<ProfileImage>
 {
-    public void Configure(EntityTypeBuilder<ProductImage> builder)
+    public void Configure(EntityTypeBuilder<ProfileImage> builder)
     {
         ArgumentNullException.ThrowIfNull(builder);
         builder.ToTable("ProductImages");

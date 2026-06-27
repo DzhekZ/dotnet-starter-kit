@@ -2,7 +2,7 @@ using FSH.Framework.Core.Domain;
 
 namespace FSH.Modules.Profile.Domain;
 
-public sealed class Brand : AggregateRoot<Guid>, ISoftDeletable
+public sealed class Position : AggregateRoot<Guid>, ISoftDeletable
 {
     public string Name { get; private set; } = default!;
     public string Slug { get; private set; } = default!;
@@ -29,13 +29,13 @@ public sealed class Brand : AggregateRoot<Guid>, ISoftDeletable
         UpdatedAtUtc = DateTime.UtcNow;
     }
 
-    private Brand() { }
+    private Position() { }
 
-    public static Brand Create(string name, string? description, string? logoUrl)
+    public static Position Create(string name, string? description, string? logoUrl)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
 
-        return new Brand
+        return new Position
         {
             Id = Guid.CreateVersion7(),
             Name = name.Trim(),

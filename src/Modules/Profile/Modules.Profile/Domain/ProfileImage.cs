@@ -3,7 +3,7 @@ using FSH.Framework.Core.Domain;
 namespace FSH.Modules.Profile.Domain;
 
 /// <summary>
-/// A product image. Owned by <see cref="Product"/> (cascade-deleted with the parent).
+/// A product image. Owned by <see cref="ProfileItem"/> (cascade-deleted with the parent).
 /// <para>
 /// <b>Url</b> is the durable, persisted public URL — captured at attach time from the Files
 /// module's <c>BuildPublicUrl</c> output so the product page doesn't need to re-fetch a
@@ -16,10 +16,10 @@ namespace FSH.Modules.Profile.Domain;
 /// </para>
 /// <para>
 /// <b>IsThumbnail</b>: exactly one image per product carries <c>true</c>. The product's
-/// "cover" image. <see cref="Product.SetThumbnail"/> enforces uniqueness within the aggregate.
+/// "cover" image. <see cref="ProfileItem.SetThumbnail"/> enforces uniqueness within the aggregate.
 /// </para>
 /// </summary>
-public sealed class ProductImage : BaseEntity<Guid>
+public sealed class ProfileImage : BaseEntity<Guid>
 {
     public Guid ProductId { get; private set; }
     public Guid? FileAssetId { get; private set; }
@@ -28,9 +28,9 @@ public sealed class ProductImage : BaseEntity<Guid>
     public int SortOrder { get; private set; }
     public DateTime CreatedAtUtc { get; private set; }
 
-    private ProductImage() { }
+    private ProfileImage() { }
 
-    internal static ProductImage Create(
+    internal static ProfileImage Create(
         Guid productId,
         Guid? fileAssetId,
         string url,
@@ -38,7 +38,7 @@ public sealed class ProductImage : BaseEntity<Guid>
         int sortOrder)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(url);
-        return new ProductImage
+        return new ProfileImage
         {
             Id = Guid.CreateVersion7(),
             ProductId = productId,

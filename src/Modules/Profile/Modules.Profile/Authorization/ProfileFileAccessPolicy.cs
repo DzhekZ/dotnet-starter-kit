@@ -13,9 +13,9 @@ namespace FSH.Modules.Profile.Authorization;
 /// - Delete: uploader-only. A future refinement could grant Catalog.Products.Update holders
 ///   delete rights too once we wire IUserPermissionService here.
 /// </summary>
-public sealed class ProductFileAccessPolicy : IFileAccessPolicy
+public sealed class ProfileFileAccessPolicy : IFileAccessPolicy
 {
-    public string OwnerType => "Product";
+    public string OwnerType => "Profile";
 
     public Task<bool> CanAttachAsync(Guid? ownerId, string currentUserId, CancellationToken cancellationToken)
         => Task.FromResult(!string.IsNullOrEmpty(currentUserId));

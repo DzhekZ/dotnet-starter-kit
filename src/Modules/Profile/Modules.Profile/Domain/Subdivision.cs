@@ -2,12 +2,12 @@ using FSH.Framework.Core.Domain;
 
 namespace FSH.Modules.Profile.Domain;
 
-public sealed class Category : AggregateRoot<Guid>, ISoftDeletable
+public sealed class Subdivision : AggregateRoot<Guid>, ISoftDeletable
 {
     public string Name { get; private set; } = default!;
     public string Slug { get; private set; } = default!;
     public string? Description { get; private set; }
-    public Guid? ParentCategoryId { get; private set; }
+    public Guid? ParentSubdivisionId { get; private set; }
     public DateTime CreatedAtUtc { get; private set; }
     public DateTime? UpdatedAtUtc { get; private set; }
 
@@ -24,19 +24,19 @@ public sealed class Category : AggregateRoot<Guid>, ISoftDeletable
         UpdatedAtUtc = DateTime.UtcNow;
     }
 
-    private Category() { }
+    private Subdivision() { }
 
-    public static Category Create(string name, string? description, Guid? parentCategoryId)
+    public static Subdivision Create(string name, string? description, Guid? parentCategoryId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
 
-        return new Category
+        return new Subdivision
         {
             Id = Guid.CreateVersion7(),
             Name = name.Trim(),
             Slug = Slugify(name),
             Description = description?.Trim(),
-            ParentCategoryId = parentCategoryId,
+            ParentSubdivisionId = parentCategoryId,
             CreatedAtUtc = DateTime.UtcNow
         };
     }
@@ -52,7 +52,7 @@ public sealed class Category : AggregateRoot<Guid>, ISoftDeletable
         Name = name.Trim();
         Slug = Slugify(name);
         Description = description?.Trim();
-        ParentCategoryId = parentCategoryId;
+        ParentSubdivisionId = parentCategoryId;
         UpdatedAtUtc = DateTime.UtcNow;
     }
 

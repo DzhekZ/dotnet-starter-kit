@@ -3,14 +3,14 @@ using FSH.Modules.Profile.Domain.Events;
 
 namespace FSH.Modules.Profile.Domain;
 
-public sealed class Product : AggregateRoot<Guid>, ISoftDeletable
+public sealed class ProfileItem : AggregateRoot<Guid>, ISoftDeletable
 {
     public string Sku { get; private set; } = default!;
     public string Name { get; private set; } = default!;
     public string Slug { get; private set; } = default!;
     public string? Description { get; private set; }
-    public Guid BrandId { get; private set; }
-    public Guid CategoryId { get; private set; }
+    public Guid PositionId { get; private set; }
+    public Guid SubdivisionId { get; private set; }
     public Money Price { get; private set; } = default!;
     public int Stock { get; private set; }
     public bool IsActive { get; private set; }
@@ -23,8 +23,8 @@ public sealed class Product : AggregateRoot<Guid>, ISoftDeletable
 
     // EF populates this via the navigation property; aggregate methods mutate through the
     // private list so invariants (single thumbnail, contiguous SortOrder) hold.
-    private readonly List<ProductImage> _images = [];
-    public IReadOnlyList<ProductImage> Images => _images;
+    private readonly List<ProfileImage> _images = [];
+    public IReadOnlyList<ProfileImage> Images => _images;
 
     /// <summary>The thumbnail (cover) image URL, or null when the product has no images.</summary>
     public string? ThumbnailUrl => _images.FirstOrDefault(i => i.IsThumbnail)?.Url;
@@ -38,14 +38,14 @@ public sealed class Product : AggregateRoot<Guid>, ISoftDeletable
         UpdatedAtUtc = DateTime.UtcNow;
     }
 
-    private Product() { }
+    private ProfileItem() { }
 
-    public static Product Create(
+    public static ProfileItem Create(
         string sku,
         string name,
         string? description,
-        Guid brandId,
-        Guid categoryId,
+        Guid positionId,
+        Guid subdivisionId,
         Money price,
         int stock)
     {
@@ -56,24 +56,24 @@ public sealed class Product : AggregateRoot<Guid>, ISoftDeletable
         {
             throw new ArgumentOutOfRangeException(nameof(stock), "Stock cannot be negative.");
         }
-        if (brandId == Guid.Empty)
+        if (positionId == Guid.Empty)
         {
-            throw new ArgumentException("BrandId is required.", nameof(brandId));
+            throw new ArgumentException("PositionId is required.", nameof(positionId));
         }
-        if (categoryId == Guid.Empty)
+        if (subdivisionId == Guid.Empty)
         {
-            throw new ArgumentException("CategoryId is required.", nameof(categoryId));
+            throw new ArgumentException("SubdivisionId is required.", nameof(subdivisionId));
         }
 
-        var product = new Product
+        var product = new ProfileItem
         {
             Id = Guid.CreateVersion7(),
             Sku = sku.Trim().ToUpperInvariant(),
             Name = name.Trim(),
             Slug = Slugify(name),
             Description = description?.Trim(),
-            BrandId = brandId,
-            CategoryId = categoryId,
+            PositionId = positionId,
+            SubdivisionId = subdivisionId,
             Price = price,
             Stock = stock,
             IsActive = true,
@@ -81,7 +81,7 @@ public sealed class Product : AggregateRoot<Guid>, ISoftDeletable
         };
 
         product.AddDomainEvent(DomainEvent.Create((id, ts) =>
-            new ProductCreatedDomainEvent(product.Id, product.Sku, product.Name, id, ts)));
+            new ProfileCreatedDomainEvent(product.Id, product.Sku, product.Name, id, ts)));
 
         return product;
     }
@@ -89,25 +89,25 @@ public sealed class Product : AggregateRoot<Guid>, ISoftDeletable
     public void Update(
         string name,
         string? description,
-        Guid brandId,
-        Guid categoryId,
+        Guid positionId,
+        Guid subdivisionId,
         bool isActive)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
-        if (brandId == Guid.Empty)
+        if (positionId == Guid.Empty)
         {
-            throw new ArgumentException("BrandId is required.", nameof(brandId));
+            throw new ArgumentException("PositionId is required.", nameof(positionId));
         }
-        if (categoryId == Guid.Empty)
+        if (subdivisionId == Guid.Empty)
         {
-            throw new ArgumentException("CategoryId is required.", nameof(categoryId));
+            throw new ArgumentException("SubdivisionId is required.", nameof(subdivisionId));
         }
 
         Name = name.Trim();
         Slug = Slugify(name);
         Description = description?.Trim();
-        BrandId = brandId;
-        CategoryId = categoryId;
+        PositionId = positionId;
+        SubdivisionId = subdivisionId;
         IsActive = isActive;
         UpdatedAtUtc = DateTime.UtcNow;
     }
@@ -125,7 +125,7 @@ public sealed class Product : AggregateRoot<Guid>, ISoftDeletable
         UpdatedAtUtc = DateTime.UtcNow;
 
         AddDomainEvent(DomainEvent.Create((id, ts) =>
-            new ProductPriceChangedDomainEvent(Id, oldAmount, newPrice.Amount, newPrice.Currency, id, ts)));
+            new ProfilePriceChangedDomainEvent(Id, oldAmount, newPrice.Amount, newPrice.Currency, id, ts)));
     }
 
     public void AdjustStock(int delta)
@@ -142,7 +142,7 @@ public sealed class Product : AggregateRoot<Guid>, ISoftDeletable
         UpdatedAtUtc = DateTime.UtcNow;
 
         AddDomainEvent(DomainEvent.Create((id, ts) =>
-            new ProductStockAdjustedDomainEvent(Id, oldStock, newStock, delta, id, ts)));
+            new ProfileStockAdjustedDomainEvent(Id, oldStock, newStock, delta, id, ts)));
     }
 
     // ─── Image management ─────────────────────────────────────────────────
@@ -151,12 +151,12 @@ public sealed class Product : AggregateRoot<Guid>, ISoftDeletable
     /// Attach a new image. The first image attached is automatically the thumbnail; subsequent
     /// images come in non-thumbnail and the caller can promote one via <see cref="SetThumbnail"/>.
     /// </summary>
-    public ProductImage AddImage(Guid? fileAssetId, string url)
+    public ProfileImage AddImage(Guid? fileAssetId, string url)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(url);
         bool isFirst = _images.Count == 0;
         int order = isFirst ? 0 : _images.Max(i => i.SortOrder) + 1;
-        var image = ProductImage.Create(Id, fileAssetId, url, isThumbnail: isFirst, sortOrder: order);
+        var image = ProfileImage.Create(Id, fileAssetId, url, isThumbnail: isFirst, sortOrder: order);
         _images.Add(image);
         UpdatedAtUtc = DateTime.UtcNow;
         return image;

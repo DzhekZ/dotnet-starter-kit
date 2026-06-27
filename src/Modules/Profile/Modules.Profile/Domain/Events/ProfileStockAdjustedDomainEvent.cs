@@ -2,7 +2,7 @@ using FSH.Framework.Core.Domain;
 
 namespace FSH.Modules.Profile.Domain.Events;
 
-public sealed record ProductStockAdjustedDomainEvent(
+public sealed record ProfileStockAdjustedDomainEvent(
     Guid ProductId,
     int OldStock,
     int NewStock,

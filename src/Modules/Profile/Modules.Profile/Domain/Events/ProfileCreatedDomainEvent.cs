@@ -2,10 +2,9 @@ using FSH.Framework.Core.Domain;
 
 namespace FSH.Modules.Profile.Domain.Events;
 
-public sealed record ProductPriceChangedDomainEvent(
+public sealed record ProfileCreatedDomainEvent(
     Guid ProductId,
-    decimal OldAmount,
-    decimal NewAmount,
-    string Currency,
+    string Sku,
+    string Name,
     Guid EventId,
     DateTimeOffset OccurredOnUtc) : DomainEvent(EventId, OccurredOnUtc);

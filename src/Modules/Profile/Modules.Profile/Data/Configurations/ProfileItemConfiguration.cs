@@ -4,9 +4,9 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace FSH.Modules.Profile.Data.Configurations;
 
-public sealed class ProductConfiguration : IEntityTypeConfiguration<Product>
+public sealed class ProfileItemConfiguration : IEntityTypeConfiguration<ProfileItem>
 {
-    public void Configure(EntityTypeBuilder<Product> builder)
+    public void Configure(EntityTypeBuilder<ProfileItem> builder)
     {
         ArgumentNullException.ThrowIfNull(builder);
         builder.ToTable("Products");
@@ -34,11 +34,11 @@ public sealed class ProductConfiguration : IEntityTypeConfiguration<Product>
         // Derived from the Images collection — not a column.
         builder.Ignore(x => x.ThumbnailUrl);
 
-        builder.Property(x => x.BrandId).IsRequired();
-        builder.HasIndex(x => x.BrandId);
+        builder.Property(x => x.PositionId).IsRequired();
+        builder.HasIndex(x => x.PositionId);
 
-        builder.Property(x => x.CategoryId).IsRequired();
-        builder.HasIndex(x => x.CategoryId);
+        builder.Property(x => x.SubdivisionId).IsRequired();
+        builder.HasIndex(x => x.SubdivisionId);
 
         builder.Property(x => x.Stock).IsRequired();
         builder.Property(x => x.IsActive).IsRequired();
