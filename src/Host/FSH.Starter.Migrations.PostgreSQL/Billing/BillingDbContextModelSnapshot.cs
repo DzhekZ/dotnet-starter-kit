@@ -154,7 +154,8 @@ namespace FSH.Starter.Migrations.PostgreSQL.Billing
 
                     b.HasIndex("TenantId", "PeriodYear", "PeriodMonth", "Purpose")
                         .IsUnique()
-                        .HasDatabaseName("ux_invoices_tenant_period_purpose");
+                        .HasDatabaseName("ux_invoices_tenant_period_purpose")
+                        .HasFilter("\"Purpose\" <> 2");
 
                     b.ToTable("Invoices", "billing");
                 });
@@ -239,6 +240,62 @@ namespace FSH.Starter.Migrations.PostgreSQL.Billing
                     b.ToTable("Subscriptions", "billing");
                 });
 
+            modelBuilder.Entity("FSH.Modules.Billing.Domain.TopupRequest", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
+
+                    b.Property<DateTime?>("CompletedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(8)
+                        .HasColumnType("character varying(8)");
+
+                    b.Property<DateTime?>("DecidedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DecisionNote")
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<Guid?>("InvoiceId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<string>("RequestedBy")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("TenantId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("InvoiceId");
+
+                    b.HasIndex("TenantId", "Status");
+
+                    b.ToTable("TopupRequests", "billing");
+                });
+
             modelBuilder.Entity("FSH.Modules.Billing.Domain.UsageSnapshot", b =>
                 {
                     b.Property<Guid>("Id")
@@ -277,6 +334,90 @@ namespace FSH.Starter.Migrations.PostgreSQL.Billing
                     b.ToTable("UsageSnapshots", "billing");
                 });
 
+            modelBuilder.Entity("FSH.Modules.Billing.Domain.Wallet", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("Balance")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(8)
+                        .HasColumnType("character varying(8)");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("TenantId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_wallets_tenantid");
+
+                    b.ToTable("Wallets", "billing");
+                });
+
+            modelBuilder.Entity("FSH.Modules.Billing.Domain.WalletTransaction", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ReferenceId")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("TenantId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<Guid>("WalletId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ReferenceId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_wallet_transactions_topup_reference")
+                        .HasFilter("\"Kind\" = 0");
+
+                    b.HasIndex("TenantId");
+
+                    b.HasIndex("WalletId", "CreatedAtUtc");
+
+                    b.ToTable("WalletTransactions", "billing");
+                });
+
             modelBuilder.Entity("FSH.Modules.Billing.Domain.InvoiceLineItem", b =>
                 {
                     b.HasOne("FSH.Modules.Billing.Domain.Invoice", null)
@@ -286,9 +427,23 @@ namespace FSH.Starter.Migrations.PostgreSQL.Billing
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("FSH.Modules.Billing.Domain.WalletTransaction", b =>
+                {
+                    b.HasOne("FSH.Modules.Billing.Domain.Wallet", null)
+                        .WithMany("Transactions")
+                        .HasForeignKey("WalletId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("FSH.Modules.Billing.Domain.Invoice", b =>
                 {
                     b.Navigation("LineItems");
+                });
+
+            modelBuilder.Entity("FSH.Modules.Billing.Domain.Wallet", b =>
+                {
+                    b.Navigation("Transactions");
                 });
 #pragma warning restore 612, 618
         }

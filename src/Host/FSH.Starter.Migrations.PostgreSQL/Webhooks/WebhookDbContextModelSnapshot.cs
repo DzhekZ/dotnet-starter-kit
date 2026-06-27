@@ -18,7 +18,7 @@ namespace FSH.Starter.Migrations.PostgreSQL.Webhooks
 #pragma warning disable 612, 618
             modelBuilder
                 .HasDefaultSchema("webhooks")
-                .HasAnnotation("ProductVersion", "10.0.5")
+                .HasAnnotation("ProductVersion", "10.0.8")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -89,7 +89,7 @@ namespace FSH.Starter.Migrations.PostgreSQL.Webhooks
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean");
 
-                    b.Property<string>("SecretHash")
+                    b.Property<string>("ProtectedSecret")
                         .HasMaxLength(512)
                         .HasColumnType("character varying(512)");
 
