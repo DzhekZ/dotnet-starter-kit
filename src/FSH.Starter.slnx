@@ -1,6 +1,6 @@
 <Solution>
   <Folder Name="/BuildingBlocks/">
-<Project Path="BuildingBlocks/Caching/Caching.csproj" />
+    <Project Path="BuildingBlocks/Caching/Caching.csproj" />
     <Project Path="BuildingBlocks/Core/Core.csproj" />
     <Project Path="BuildingBlocks/Eventing.Abstractions/Eventing.Abstractions.csproj" />
     <Project Path="BuildingBlocks/Eventing/Eventing.csproj" />
@@ -45,6 +45,10 @@
     <Project Path="Modules/Notifications/Modules.Notifications.Contracts/Modules.Notifications.Contracts.csproj" />
     <Project Path="Modules/Notifications/Modules.Notifications/Modules.Notifications.csproj" />
   </Folder>
+  <Folder Name="/Modules/Profile/">
+    <Project Path="Modules/Profile/Modules.Profile.Contracts/Modules.Profile.Contracts.csproj" Id="87594e13-17b8-40a8-aa1f-f4934dcc7d19" />
+    <Project Path="Modules/Profile/Modules.Profile/Modules.Profile.csproj" Id="e877c866-a92e-4f05-83b7-adab657d094b" />
+  </Folder>
   <Folder Name="/Modules/Tickets/">
     <Project Path="Modules/Tickets/Modules.Tickets.Contracts/Modules.Tickets.Contracts.csproj" />
     <Project Path="Modules/Tickets/Modules.Tickets/Modules.Tickets.csproj" />
@@ -69,17 +73,17 @@
     <Project Path="Tests/Architecture.Tests/Architecture.Tests.csproj" />
     <Project Path="Tests/Auditing.Tests/Auditing.Tests.csproj" />
     <Project Path="Tests/Billing.Tests/Billing.Tests.csproj" />
+    <Project Path="Tests/Caching.Tests/Caching.Tests.csproj" />
     <Project Path="Tests/Catalog.Tests/Catalog.Tests.csproj" />
     <Project Path="Tests/Chat.Tests/Chat.Tests.csproj" />
-    <Project Path="Tests/Webhooks.Tests/Webhooks.Tests.csproj" />
     <Project Path="Tests/Files.Tests/Files.Tests.csproj" />
     <Project Path="Tests/Framework.Tests/Framework.Tests.csproj" />
-    <Project Path="Tests/Caching.Tests/Caching.Tests.csproj" />
     <Project Path="Tests/Generic.Tests/Generic.Tests.csproj" />
     <Project Path="Tests/Identity.Tests/Identity.Tests.csproj" />
-    <Project Path="Tests/Integration.Tests/Integration.Tests.csproj" />
     <Project Path="Tests/Integration.Middleware.Tests/Integration.Middleware.Tests.csproj" />
+    <Project Path="Tests/Integration.Tests/Integration.Tests.csproj" />
     <Project Path="Tests/Multitenancy.Tests/Multitenancy.Tests.csproj" Id="985345a2-edb4-4ef9-9a1b-59b704f523b6" />
+    <Project Path="Tests/Webhooks.Tests/Webhooks.Tests.csproj" />
   </Folder>
   <!--#if (includeTools) -->
   <Folder Name="/Tools/">

@@ -1,0 +1,20 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>FSH.Modules.Profile</RootNamespace>
+    <AssemblyName>FSH.Modules.Profile</AssemblyName>
+    <NoWarn>$(NoWarn);CA1031;CA1812;CA1859;S3267</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\BuildingBlocks\Persistence\Persistence.csproj" />
+    <ProjectReference Include="..\..\..\BuildingBlocks\Web\Web.csproj" />
+    <ProjectReference Include="..\..\Files\Modules.Files.Contracts\Modules.Files.Contracts.csproj" />
+    <ProjectReference Include="..\Modules.Profile.Contracts\Modules.Profile.Contracts.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Features\v1\Profiles\" />
+  </ItemGroup>
+
+</Project>
