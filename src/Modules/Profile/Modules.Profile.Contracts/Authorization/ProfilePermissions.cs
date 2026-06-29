@@ -4,9 +4,9 @@ namespace FSH.Modules.Profile.Contracts.Authorization
 {
     public static class ProfilePermissions
     {
-        public static class Brands
+        public static class Positions
         {
-            public const string Resource = "Profile.Brands";
+            public const string Resource = "Profile.Positions";
             public const string View = $"Permissions.{Resource}.View";
             public const string Create = $"Permissions.{Resource}.Create";
             public const string Update = $"Permissions.{Resource}.Update";
@@ -14,9 +14,9 @@ namespace FSH.Modules.Profile.Contracts.Authorization
             public const string Restore = $"Permissions.{Resource}.Restore";
         }
 
-        public static class Categories
+        public static class Subdivisions
         {
-            public const string Resource = "Profile.Categories";
+            public const string Resource = "Profile.Subdivisions";
             public const string View = $"Permissions.{Resource}.View";
             public const string Create = $"Permissions.{Resource}.Create";
             public const string Update = $"Permissions.{Resource}.Update";
@@ -24,9 +24,9 @@ namespace FSH.Modules.Profile.Contracts.Authorization
             public const string Restore = $"Permissions.{Resource}.Restore";
         }
 
-        public static class Products
+        public static class Profiles
         {
-            public const string Resource = "Profile.Products";
+            public const string Resource = "Profile.Profiles";
             public const string View = $"Permissions.{Resource}.View";
             public const string Create = $"Permissions.{Resource}.Create";
             public const string Update = $"Permissions.{Resource}.Update";
@@ -37,24 +37,24 @@ namespace FSH.Modules.Profile.Contracts.Authorization
 
         public static IReadOnlyList<FshPermission> All { get; } =
         [
-            new("View Brands",    ActionConstants.View,   Brands.Resource, IsBasic: true),
-            new("Create Brands",  ActionConstants.Create, Brands.Resource),
-            new("Update Brands",  ActionConstants.Update, Brands.Resource),
-            new("Delete Brands",  ActionConstants.Delete, Brands.Resource),
-            new("Restore Brands", "Restore",              Brands.Resource),
+            new("View Positions",    ActionConstants.View,   Positions.Resource, IsBasic: true),
+            new("Create Positions",  ActionConstants.Create, Positions.Resource),
+            new("Update Positions",  ActionConstants.Update, Positions.Resource),
+            new("Delete Positions",  ActionConstants.Delete, Positions.Resource),
+            new("Restore Positions", "Restore",              Positions.Resource),
 
-            new("View Categories",    ActionConstants.View,   Categories.Resource, IsBasic: true),
-            new("Create Categories",  ActionConstants.Create, Categories.Resource),
-            new("Update Categories",  ActionConstants.Update, Categories.Resource),
-            new("Delete Categories",  ActionConstants.Delete, Categories.Resource),
-            new("Restore Categories", "Restore",              Categories.Resource),
+            new("View Subdivisions",    ActionConstants.View,   Subdivisions.Resource, IsBasic: true),
+            new("Create Subdivisions",  ActionConstants.Create, Subdivisions.Resource),
+            new("Update Subdivisions",  ActionConstants.Update, Subdivisions.Resource),
+            new("Delete Subdivisions",  ActionConstants.Delete, Subdivisions.Resource),
+            new("Restore Subdivisions", "Restore",              Subdivisions.Resource),
 
-            new("View Products",        ActionConstants.View,   Products.Resource, IsBasic: true),
-            new("Create Products",      ActionConstants.Create, Products.Resource),
-            new("Update Products",      ActionConstants.Update, Products.Resource),
-            new("Delete Products",      ActionConstants.Delete, Products.Resource),
-            new("Restore Products",     "Restore",              Products.Resource),
-            new("Adjust Product Stock", "AdjustStock",          Products.Resource),
+            new("View Profiles",        ActionConstants.View,   Profiles.Resource, IsBasic: true),
+            new("Create Profiles",      ActionConstants.Create, Profiles.Resource),
+            new("Update Profiles",      ActionConstants.Update, Profiles.Resource),
+            new("Delete Profiles",      ActionConstants.Delete, Profiles.Resource),
+            new("Restore Profiles",     "Restore",              Profiles.Resource),
+            new("Adjust Product Stock", "AdjustStock",          Profiles.Resource),
         ];
     }
 }

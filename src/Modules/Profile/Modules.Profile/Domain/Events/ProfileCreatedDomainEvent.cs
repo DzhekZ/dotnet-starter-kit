@@ -3,7 +3,7 @@ using FSH.Framework.Core.Domain;
 namespace FSH.Modules.Profile.Domain.Events;
 
 public sealed record ProfileCreatedDomainEvent(
-    Guid ProductId,
+    Guid ProfileId,
     string Sku,
     string Name,
     Guid EventId,

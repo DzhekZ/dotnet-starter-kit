@@ -3,7 +3,7 @@ using FSH.Framework.Core.Domain;
 namespace FSH.Modules.Profile.Domain.Events;
 
 public sealed record ProfilePriceChangedDomainEvent(
-    Guid ProductId,
+    Guid ProfileId,
     decimal OldAmount,
     decimal NewAmount,
     string Currency,

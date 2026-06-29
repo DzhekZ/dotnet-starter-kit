@@ -3,7 +3,7 @@ using FSH.Framework.Core.Domain;
 namespace FSH.Modules.Profile.Domain.Events;
 
 public sealed record ProfileStockAdjustedDomainEvent(
-    Guid ProductId,
+    Guid ProfileId,
     int OldStock,
     int NewStock,
     int Delta,

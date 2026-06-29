@@ -14,7 +14,7 @@ public sealed class ProfileEventHandlers(ILogger<ProfileEventHandlers> logger) :
         ArgumentNullException.ThrowIfNull(notification);
         if (logger.IsEnabled(LogLevel.Information))
         {
-            logger.LogInformation("Handling ProductCreatedDomainEvent for ProductId: {ProductId}", notification.ProductId);
+            logger.LogInformation("Handling ProfileCreatedDomainEvent for ProfileId: {ProfileId}", notification.ProfileId);
         }
         return default;
     }
@@ -24,7 +24,7 @@ public sealed class ProfileEventHandlers(ILogger<ProfileEventHandlers> logger) :
         ArgumentNullException.ThrowIfNull(notification);
         if (logger.IsEnabled(LogLevel.Information))
         {
-            logger.LogInformation("Handling ProductPriceChangedDomainEvent for ProductId: {ProductId}", notification.ProductId);
+            logger.LogInformation("Handling ProfilePriceChangedDomainEvent for ProfileId: {ProfileId}", notification.ProfileId);
         }
         return default;
     }
@@ -34,7 +34,7 @@ public sealed class ProfileEventHandlers(ILogger<ProfileEventHandlers> logger) :
         ArgumentNullException.ThrowIfNull(notification);
         if (logger.IsEnabled(LogLevel.Information))
         {
-            logger.LogInformation("Handling ProductStockAdjustedDomainEvent for ProductId: {ProductId}", notification.ProductId);
+            logger.LogInformation("Handling ProfileStockAdjustedDomainEvent for ProfileId: {ProfileId}", notification.ProfileId);
         }
         return default;
     }
