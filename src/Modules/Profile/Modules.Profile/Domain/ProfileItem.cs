@@ -1,22 +1,51 @@
 using FSH.Framework.Core.Domain;
 using FSH.Modules.Profile.Domain.Events;
+using System.Collections.Immutable;
 
 namespace FSH.Modules.Profile.Domain;
 
 public sealed class ProfileItem : AggregateRoot<Guid>, ISoftDeletable
 {
-    public string Sku { get; private set; } = default!;
     public string Name { get; private set; } = default!;
     public string Slug { get; private set; } = default!;
+    public string LastName { get; private set; } = default!;
+    public string FirstName { get; private set; } = default!;
+    public string MiddleName { get; private set; } = default!;
+    public int PersonnelNumber { get; private set; } = default!;  //tabelnyi number
+    public string? CodePerson { get; private set; }
+    public string? Email { get; private set; }
+    public string? Login { get; private set; }
+    public string? AdSid { get; private set; }
+    public DateTime? DateBirth { get; private set; }
+    public DateTime? DateHire { get; private set; }
+    public DateTime? DateDismiss { get; private set; }
+    public int Sex { get; private set; } = default!; //0 - not set, 1 - male, 2 - female, 3 - other
+    public bool IsBoss { get; private set; } = default!;
+    public string? TypeEmployment { get; private set; }
+    public string? Staffing { get; private set; }
+    public string? City { get; private set; }
+    public string? Category { get; private set; }
+    public string? PhoneMobile { get; private set; }
+    public bool PhoneMobileAllowShow { get; private set; } = default!;
+    public string? PhoneWork { get; private set; }
+    public string? Division { get; private set; }
+    public string? Place { get; private set; }
+    public string? WtHcmId { get; private set; }
+    public bool IsDecret { get; private set; } = default!;
+    public bool IsMobilization { get; private set; } = default!;
+    public int Subordinates { get; private set; } = default!;
+    public string? Information { get; private set; }
     public string? Description { get; private set; }
     public Guid PositionId { get; private set; }
     public Guid SubdivisionId { get; private set; }
-    public Money Price { get; private set; } = default!;
-    public int Stock { get; private set; }
+    public Guid HierarchyId { get; private set; }
+
     public bool IsActive { get; private set; }
     public DateTime CreatedAtUtc { get; private set; }
-    public DateTime? UpdatedAtUtc { get; private set; }
+    public DateTime? UpdatedAtUtc { get; private set; } = default!;
 
+
+    // ISoftDeletable implementation
     public bool IsDeleted { get; private set; }
     public DateTimeOffset? DeletedOnUtc { get; private set; }
     public string? DeletedBy { get; private set; }
@@ -38,24 +67,40 @@ public sealed class ProfileItem : AggregateRoot<Guid>, ISoftDeletable
         UpdatedAtUtc = DateTime.UtcNow;
     }
 
-    private ProfileItem() { }
+    private ProfileItem() { } // EF Core
 
     public static ProfileItem Create(
-        string sku,
         string name,
+        int? personnelNumber,
+        string? codePerson,
+        string? email,
+        string? login,
+        string? adSid,
+        DateTime? dateBirth,
+        DateTime? dateHire,
+        DateTime? dateDismiss,
+        int? sex,
+        bool? isBoss,
+        string? typeEmployment,
+        string? staffing,
+        string? city,
+        string? category,
+        string? phoneMobile,
+        bool? phoneMobileAllowShow,
+        string? phoneWork,
+        string? division,
+        string? place,
+        string? wtHcmId,
+        bool? isDecret,
+        bool? isMobilization,
+        int? subordinates,
+        string? information,
         string? description,
         Guid positionId,
         Guid subdivisionId,
-        Money price,
-        int stock)
+        Guid hierarchyId)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(sku);
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
-        ArgumentNullException.ThrowIfNull(price);
-        if (stock < 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(stock), "Stock cannot be negative.");
-        }
         if (positionId == Guid.Empty)
         {
             throw new ArgumentException("PositionId is required.", nameof(positionId));
@@ -64,34 +109,93 @@ public sealed class ProfileItem : AggregateRoot<Guid>, ISoftDeletable
         {
             throw new ArgumentException("SubdivisionId is required.", nameof(subdivisionId));
         }
+        if (hierarchyId == Guid.Empty)
+        {
+            throw new ArgumentException("HierarchyId is required.", nameof(hierarchyId));
+        }
+        if ((sex ?? 0) < 0)
+        {
+            sex = 0;
+        }
+        //split full name to parts
+        var nameParts = SplitFullName(name.Trim());
 
-        var product = new ProfileItem
+        var profile = new ProfileItem
         {
             Id = Guid.CreateVersion7(),
-            Sku = sku.Trim().ToUpperInvariant(),
             Name = name.Trim(),
             Slug = Slugify(name),
+            LastName = nameParts[0],
+            FirstName = nameParts[1],
+            MiddleName = nameParts[2],
+            PersonnelNumber = personnelNumber ?? 0,
+            CodePerson = codePerson?.Trim(),
+            Email = email?.Trim(),
+            Login = login?.Trim(),
+            AdSid = adSid?.Trim(),
+            DateBirth = dateBirth,
+            DateHire = dateHire,
+            DateDismiss = dateDismiss,
+            Sex = sex ?? 0,
+            IsBoss = isBoss ?? false,
+            TypeEmployment = typeEmployment?.Trim(),
+            Staffing = staffing?.Trim(),
+            City = city?.Trim(),
+            Category = category?.Trim(),
+            PhoneMobile = phoneMobile?.Trim(),
+            PhoneMobileAllowShow = phoneMobileAllowShow ?? false,
+            PhoneWork = phoneWork?.Trim(),
+            Division = division?.Trim(),
+            Place = place?.Trim(),
+            WtHcmId = wtHcmId?.Trim(),
+            IsDecret = isDecret ?? false,
+            IsMobilization = isMobilization ?? false,
+            Subordinates = subordinates ?? 0,
+            Information = information?.Trim(),
             Description = description?.Trim(),
             PositionId = positionId,
             SubdivisionId = subdivisionId,
-            Price = price,
-            Stock = stock,
+            HierarchyId = hierarchyId,
             IsActive = true,
             CreatedAtUtc = DateTime.UtcNow
         };
 
-        product.AddDomainEvent(DomainEvent.Create((id, ts) =>
-            new ProfileCreatedDomainEvent(product.Id, product.Sku, product.Name, id, ts)));
+        profile.AddDomainEvent(DomainEvent.Create((id, ts) =>
+            new ProfileCreatedDomainEvent(profile.Id, profile.Slug, profile.Name, id, ts)));
 
-        return product;
+        return profile;
     }
 
     public void Update(
         string name,
+        int? personnelNumber,
+        string? codePerson,
+        string? email,
+        string? login,
+        string? adSid,
+        DateTime? dateBirth,
+        DateTime? dateHire,
+        DateTime? dateDismiss,
+        int? sex,
+        bool? isBoss,
+        string? typeEmployment,
+        string? staffing,
+        string? city,
+        string? category,
+        string? phoneMobile,
+        bool? phoneMobileAllowShow,
+        string? phoneWork,
+        string? division,
+        string? place,
+        string? wtHcmId,
+        bool? isDecret,
+        bool? isMobilization,
+        int? subordinates,
+        string? information,
         string? description,
         Guid positionId,
         Guid subdivisionId,
-        bool isActive)
+        Guid hierarchyId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         if (positionId == Guid.Empty)
@@ -102,47 +206,58 @@ public sealed class ProfileItem : AggregateRoot<Guid>, ISoftDeletable
         {
             throw new ArgumentException("SubdivisionId is required.", nameof(subdivisionId));
         }
+        if (hierarchyId == Guid.Empty)
+        {
+            throw new ArgumentException("HierarchyId is required.", nameof(hierarchyId));
+        }
+        if ((sex ?? 0) < 0)
+        {
+            sex = 0;
+        }
+        //split full name to parts
+        var nameParts = SplitFullName(name.Trim());
 
         Name = name.Trim();
         Slug = Slugify(name);
+        LastName = nameParts[0];
+        FirstName = nameParts[1];
+        MiddleName = nameParts[2];
+        PersonnelNumber = personnelNumber ?? 0;
+        CodePerson = codePerson?.Trim();
+        Email = email?.Trim();
+        Login = login?.Trim();
+        AdSid = adSid?.Trim();
+        DateBirth = dateBirth;
+        DateHire = dateHire;
+        DateDismiss = dateDismiss;
+        Sex = sex ?? 0;
+        IsBoss = isBoss ?? false;
+        TypeEmployment = typeEmployment?.Trim();
+        Staffing = staffing?.Trim();
+        City = city?.Trim();
+        Category = category?.Trim();
+        PhoneMobile = phoneMobile?.Trim();
+        PhoneMobileAllowShow = phoneMobileAllowShow ?? false;
+        PhoneWork = phoneWork?.Trim();
+        Division = division?.Trim();
+        Place = place?.Trim();
+        WtHcmId = wtHcmId?.Trim();
+        IsDecret = isDecret ?? false;
+        IsMobilization = isMobilization ?? false;
+        Subordinates = subordinates ?? 0;
+        Information = information?.Trim();
         Description = description?.Trim();
         PositionId = positionId;
         SubdivisionId = subdivisionId;
-        IsActive = isActive;
+        HierarchyId = hierarchyId;
         UpdatedAtUtc = DateTime.UtcNow;
     }
 
-    public void ChangePrice(Money newPrice)
+    public void Delete(string? deletedBy = null)
     {
-        ArgumentNullException.ThrowIfNull(newPrice);
-        if (newPrice == Price)
-        {
-            return;
-        }
-
-        decimal oldAmount = Price.Amount;
-        Price = newPrice;
-        UpdatedAtUtc = DateTime.UtcNow;
-
-        AddDomainEvent(DomainEvent.Create((id, ts) =>
-            new ProfilePriceChangedDomainEvent(Id, oldAmount, newPrice.Amount, newPrice.Currency, id, ts)));
-    }
-
-    public void AdjustStock(int delta)
-    {
-        int newStock = Stock + delta;
-        if (newStock < 0)
-        {
-            throw new InvalidOperationException(
-                $"Stock adjustment of {delta} would result in negative stock (current: {Stock}).");
-        }
-
-        int oldStock = Stock;
-        Stock = newStock;
-        UpdatedAtUtc = DateTime.UtcNow;
-
-        AddDomainEvent(DomainEvent.Create((id, ts) =>
-            new ProfileStockAdjustedDomainEvent(Id, oldStock, newStock, delta, id, ts)));
+        IsDeleted = true;
+        DeletedOnUtc = TimeProvider.System.GetUtcNow();
+        DeletedBy = deletedBy;
     }
 
     // ─── Image management ─────────────────────────────────────────────────
@@ -228,5 +343,32 @@ public sealed class ProfileItem : AggregateRoot<Guid>, ISoftDeletable
             collapsed = collapsed.Replace("--", "-", StringComparison.Ordinal);
         }
         return collapsed;
+    }
+
+    private static ImmutableList<string> SplitFullName(string value)
+    {
+        List<string> resultParts = [];
+        ReadOnlySpan<char> nameParts = value.AsSpan();
+        foreach (var chunk in nameParts.Split(' '))
+        {
+            ReadOnlySpan<char> segment = nameParts[chunk];
+            resultParts.Add(segment.ToString().Trim());
+        }
+        //must 3 parts. add if need
+        var maxParts = 3;
+        for (var i = 0; i < maxParts - resultParts.Count; i++)
+        {
+            resultParts.Add(string.Empty);
+        }
+        //must 3 parts. collapse to 3 segment
+        if (resultParts.Count > 3)
+        {
+            for (var i = 3; i < resultParts.Count; i++)
+            {
+                resultParts[2] += " " + resultParts[i].Trim();
+            }
+        }
+
+        return [.. resultParts];
     }
 }

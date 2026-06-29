@@ -7,7 +7,6 @@ public sealed class Position : AggregateRoot<Guid>, ISoftDeletable
     public string Name { get; private set; } = default!;
     public string Slug { get; private set; } = default!;
     public string? Description { get; private set; }
-    public string? LogoUrl { get; private set; }
     public DateTime CreatedAtUtc { get; private set; }
     public DateTime? UpdatedAtUtc { get; private set; }
 
@@ -31,7 +30,7 @@ public sealed class Position : AggregateRoot<Guid>, ISoftDeletable
 
     private Position() { }
 
-    public static Position Create(string name, string? description, string? logoUrl)
+    public static Position Create(string name, string? description)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
 
@@ -41,19 +40,17 @@ public sealed class Position : AggregateRoot<Guid>, ISoftDeletable
             Name = name.Trim(),
             Slug = Slugify(name),
             Description = description?.Trim(),
-            LogoUrl = logoUrl?.Trim(),
             CreatedAtUtc = DateTime.UtcNow
         };
     }
 
-    public void Update(string name, string? description, string? logoUrl)
+    public void Update(string name, string? description)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
 
         Name = name.Trim();
         Slug = Slugify(name);
         Description = description?.Trim();
-        LogoUrl = logoUrl?.Trim();
         UpdatedAtUtc = DateTime.UtcNow;
     }
 

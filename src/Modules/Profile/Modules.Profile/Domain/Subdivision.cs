@@ -7,10 +7,12 @@ public sealed class Subdivision : AggregateRoot<Guid>, ISoftDeletable
     public string Name { get; private set; } = default!;
     public string Slug { get; private set; } = default!;
     public string? Description { get; private set; }
+    public string TypeSubdivision { get; private set; } = default!;
     public Guid? ParentSubdivisionId { get; private set; }
     public DateTime CreatedAtUtc { get; private set; }
     public DateTime? UpdatedAtUtc { get; private set; }
 
+    // ISoftDeletable implementation
     public bool IsDeleted { get; private set; }
     public DateTimeOffset? DeletedOnUtc { get; private set; }
     public string? DeletedBy { get; private set; }
@@ -26,9 +28,10 @@ public sealed class Subdivision : AggregateRoot<Guid>, ISoftDeletable
 
     private Subdivision() { }
 
-    public static Subdivision Create(string name, string? description, Guid? parentCategoryId)
+    public static Subdivision Create(string name, string? description, string typeSubdivision, Guid? parentCategoryId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentException.ThrowIfNullOrWhiteSpace(typeSubdivision);
 
         return new Subdivision
         {
@@ -36,14 +39,16 @@ public sealed class Subdivision : AggregateRoot<Guid>, ISoftDeletable
             Name = name.Trim(),
             Slug = Slugify(name),
             Description = description?.Trim(),
+            TypeSubdivision = typeSubdivision.Trim(),
             ParentSubdivisionId = parentCategoryId,
             CreatedAtUtc = DateTime.UtcNow
         };
     }
 
-    public void Update(string name, string? description, Guid? parentCategoryId)
+    public void Update(string name, string? description, string typeSubdivision, Guid? parentCategoryId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentException.ThrowIfNullOrWhiteSpace(typeSubdivision);
         if (parentCategoryId == Id)
         {
             throw new InvalidOperationException("A category cannot be its own parent.");
@@ -52,6 +57,7 @@ public sealed class Subdivision : AggregateRoot<Guid>, ISoftDeletable
         Name = name.Trim();
         Slug = Slugify(name);
         Description = description?.Trim();
+        TypeSubdivision = typeSubdivision.Trim();
         ParentSubdivisionId = parentCategoryId;
         UpdatedAtUtc = DateTime.UtcNow;
     }
