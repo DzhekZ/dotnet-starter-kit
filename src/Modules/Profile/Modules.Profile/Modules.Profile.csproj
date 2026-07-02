@@ -17,4 +17,8 @@
     <Folder Include="Features\v1\Profiles\" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="Microsoft.OpenApi" />
+  </ItemGroup>
+
 </Project>

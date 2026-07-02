@@ -28,6 +28,7 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
+    <PackageReference Include="Microsoft.OpenApi" />
   </ItemGroup>
 
   <ItemGroup>
@@ -53,12 +54,8 @@
   <!-- Share configuration with the API so connection strings + tenant options
        stay in lock-step. Production deployments override via env vars. -->
   <ItemGroup>
-    <None Include="..\FSH.Starter.Api\appsettings.json"
-          Link="appsettings.json"
-          CopyToOutputDirectory="PreserveNewest" />
-    <None Include="..\FSH.Starter.Api\appsettings.Development.json"
-          Link="appsettings.Development.json"
-          CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\FSH.Starter.Api\appsettings.json" Link="appsettings.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\FSH.Starter.Api\appsettings.Development.json" Link="appsettings.Development.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>
