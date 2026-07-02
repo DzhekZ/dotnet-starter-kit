@@ -33,8 +33,4 @@
 	  <Folder Include="Files\" />
 	</ItemGroup>
 
-	<ItemGroup>
-	  <PackageReference Include="Microsoft.OpenApi" />
-	</ItemGroup>
-
 </Project>

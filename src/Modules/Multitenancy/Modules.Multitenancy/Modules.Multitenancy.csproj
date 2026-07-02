@@ -10,7 +10,6 @@
     <PackageReference Include="Finbuckle.MultiTenant.EntityFrameworkCore" />
     <PackageReference Include="FluentValidation" />
 	  <PackageReference Include="Mediator.Abstractions" />
-	  <PackageReference Include="Microsoft.OpenApi" />
   </ItemGroup>
 
   <ItemGroup>

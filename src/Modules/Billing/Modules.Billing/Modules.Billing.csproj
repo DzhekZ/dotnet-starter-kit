@@ -21,7 +21,6 @@
 	</ItemGroup>
 
 	<ItemGroup>
-	  <PackageReference Include="Microsoft.OpenApi" />
 	  <PackageReference Include="QuestPDF" />
 	</ItemGroup>
 

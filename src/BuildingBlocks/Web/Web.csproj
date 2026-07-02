@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
 		<RootNamespace>FSH.Framework.Web</RootNamespace>
@@ -20,7 +20,6 @@
 		<PackageReference Include="Microsoft.FeatureManagement.AspNetCore" />
 		<PackageReference Include="Microsoft.AspNetCore.OpenApi" />
 		<PackageReference Include="Microsoft.AspNetCore.SignalR.StackExchangeRedis" />
-		<PackageReference Include="Microsoft.OpenApi" />
 		<PackageReference Include="Npgsql.OpenTelemetry" />
 		<PackageReference Include="OpenTelemetry.Instrumentation.EntityFrameworkCore" />
 		<PackageReference Include="OpenTelemetry.Instrumentation.StackExchangeRedis" />
