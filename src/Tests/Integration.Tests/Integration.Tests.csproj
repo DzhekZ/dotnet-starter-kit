@@ -29,12 +29,12 @@
         <PackageReference Include="Testcontainers.Redis" />
         <PackageReference Include="Testcontainers.Minio" />
         <PackageReference Include="Hangfire.InMemory" />
-        <PackageReference Include="xunit" />
         <PackageReference Include="xunit.runner.visualstudio">
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
         <PackageReference Include="Shouldly" />
+        <PackageReference Include="xunit.v3" />
     </ItemGroup>
 
     <ItemGroup>
