@@ -6,11 +6,11 @@ namespace FSH.Modules.Billing.Mappings;
 internal static class WalletMappings
 {
     public static WalletTransactionDto ToDto(this WalletTransaction t)
-        => new(t.Id, t.Amount, t.Kind.ToString(), t.Description, t.ReferenceId, t.CreatedAtUtc);
+        => new(t.Id, t.Amount.Amount, t.Kind.ToString(), t.Description, t.ReferenceId, t.CreatedAtUtc);
 
     public static WalletDto ToDto(this Wallet w, int recentCount = 10)
         => new(
-            w.Id, w.TenantId, w.Currency, w.Balance, w.Status.ToString(), w.CreatedAtUtc,
+            w.Id, w.TenantId, w.Currency, w.Balance.Amount, w.Status.ToString(), w.CreatedAtUtc,
             w.Transactions
                 .OrderByDescending(t => t.CreatedAtUtc)
                 .Take(recentCount)
@@ -19,6 +19,6 @@ internal static class WalletMappings
 
     public static TopupRequestDto ToDto(this TopupRequest r)
         => new(
-            r.Id, r.TenantId, r.Amount, r.Currency, r.Note, r.Status.ToString(),
+            r.Id, r.TenantId, r.Amount.Amount, r.Amount.Currency, r.Note, r.Status.ToString(),
             r.InvoiceId, r.RequestedBy, r.DecisionNote, r.CreatedAtUtc, r.DecidedAtUtc, r.CompletedAtUtc);
 }
