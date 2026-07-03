@@ -27,14 +27,13 @@ public sealed class ProfileItemConfiguration : IEntityTypeConfiguration<ProfileI
         builder.Property(x => x.DateBirth).HasColumnType("datetime2");
         builder.Property(x => x.DateHire).HasColumnType("datetime2");
         builder.Property(x => x.DateDismiss).HasColumnType("datetime2");
-        builder.Property(x => x.CodePerson).HasMaxLength(50);
         builder.Property(x => x.Sex).IsRequired();
         builder.Property(x => x.IsBoss).IsRequired();
         builder.Property(x => x.TypeEmployment).HasMaxLength(50);
         builder.Property(x => x.Staffing).HasMaxLength(900);
         builder.Property(x => x.City).HasMaxLength(50);
         builder.Property(x => x.Category).HasMaxLength(50);
-        builder.Property(x => x.PhoneMobile).HasMaxLength(50);
+        builder.Property(x => x.PhoneMobile).HasMaxLength(30);
         builder.Property(x => x.PhoneMobileAllowShow).IsRequired();
         builder.Property(x => x.PhoneWork).HasMaxLength(50);
         builder.Property(x => x.Division).HasMaxLength(50);

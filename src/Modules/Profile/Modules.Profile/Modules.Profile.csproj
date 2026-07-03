@@ -13,8 +13,4 @@
     <ProjectReference Include="..\Modules.Profile.Contracts\Modules.Profile.Contracts.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Features\v1\Profiles\" />
-  </ItemGroup>
-
 </Project>
