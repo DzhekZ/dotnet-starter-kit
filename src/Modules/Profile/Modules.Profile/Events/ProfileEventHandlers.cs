@@ -6,7 +6,7 @@ namespace FSH.Modules.Profile.Events;
 
 public sealed class ProfileEventHandlers(ILogger<ProfileEventHandlers> logger) :
     INotificationHandler<ProfileCreatedDomainEvent>,
-    INotificationHandler<ProfilePriceChangedDomainEvent>,
+    INotificationHandler<ProfileSubordinatesChangedDomainEvent>,
     INotificationHandler<ProfileStockAdjustedDomainEvent>
 {
     public ValueTask Handle(ProfileCreatedDomainEvent notification, CancellationToken cancellationToken)
@@ -19,7 +19,7 @@ public sealed class ProfileEventHandlers(ILogger<ProfileEventHandlers> logger) :
         return default;
     }
 
-    public ValueTask Handle(ProfilePriceChangedDomainEvent notification, CancellationToken cancellationToken)
+    public ValueTask Handle(ProfileSubordinatesChangedDomainEvent notification, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(notification);
         if (logger.IsEnabled(LogLevel.Information))

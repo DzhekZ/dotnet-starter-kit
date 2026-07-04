@@ -15,7 +15,7 @@ public static class ListTrashedProfilesEndpoint
         return endpoints.MapGet("/profiles/trash",
                 async (int? pageNumber, int? pageSize, IMediator mediator, CancellationToken ct) =>
                     Results.Ok(await mediator.Send(
-                        new ListTrashedProductsQuery(pageNumber ?? 1, pageSize ?? 20), ct)))
+                        new ListTrashedProfilesQuery(pageNumber ?? 1, pageSize ?? 20), ct)))
             .WithName("ListTrashedProfiles")
             .WithSummary("List soft-deleted profiles")
             .RequirePermission(ProfilePermissions.Profiles.Restore);

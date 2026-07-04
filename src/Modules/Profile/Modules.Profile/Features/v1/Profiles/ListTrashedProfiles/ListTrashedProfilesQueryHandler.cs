@@ -9,10 +9,10 @@ using Microsoft.EntityFrameworkCore;
 namespace FSH.Modules.Profile.Features.v1.Profiles.ListTrashedProfiles;
 
 public sealed class ListTrashedProfilesQueryHandler(ProfileDbContext dbContext)
-    : IQueryHandler<ListTrashedProductsQuery, PagedResponse<ProfileDto>>
+    : IQueryHandler<ListTrashedProfilesQuery, PagedResponse<ProfileDto>>
 {
     public async ValueTask<PagedResponse<ProfileDto>> Handle(
-        ListTrashedProductsQuery query, CancellationToken cancellationToken)
+        ListTrashedProfilesQuery query, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(query);
 

@@ -1,5 +1,6 @@
 using FSH.Framework.Core.Domain;
 using FSH.Modules.Profile.Domain.Events;
+using System.Collections;
 using System.Collections.Immutable;
 
 namespace FSH.Modules.Profile.Domain;
@@ -195,7 +196,8 @@ public sealed class ProfileItem : AggregateRoot<Guid>, ISoftDeletable
         string? description,
         Guid positionId,
         Guid subdivisionId,
-        Guid hierarchyId)
+        Guid hierarchyId,
+        bool isActive)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         if (positionId == Guid.Empty)
@@ -250,6 +252,7 @@ public sealed class ProfileItem : AggregateRoot<Guid>, ISoftDeletable
         PositionId = positionId;
         SubdivisionId = subdivisionId;
         HierarchyId = hierarchyId;
+        IsActive = isActive;
         UpdatedAtUtc = DateTime.UtcNow;
     }
 
@@ -259,6 +262,40 @@ public sealed class ProfileItem : AggregateRoot<Guid>, ISoftDeletable
         DeletedOnUtc = TimeProvider.System.GetUtcNow();
         DeletedBy = deletedBy;
     }
+
+    public void ChangeSubordinates(int newSubordinates)
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThan(newSubordinates,0);
+        if (newSubordinates == Subordinates)
+        {
+            return;
+        }
+
+        int oldAmount = Subordinates;
+        Subordinates = newSubordinates;
+        UpdatedAtUtc = DateTime.UtcNow;
+
+        AddDomainEvent(DomainEvent.Create((id, ts) =>
+            new ProfileSubordinatesChangedDomainEvent(Id, oldAmount, newSubordinates, id, ts)));
+    }
+
+    public void AdjustStock(int delta)
+    {
+        ////int newStock = Stock + delta;
+        ////if (newStock < 0)
+        ////{
+        ////    throw new InvalidOperationException(
+        ////        $"Stock adjustment of {delta} would result in negative stock (current: {Stock}).");
+        ////}
+
+        int oldStock = Sex;
+        Sex = delta;
+        UpdatedAtUtc = DateTime.UtcNow;
+
+        AddDomainEvent(DomainEvent.Create((id, ts) =>
+            new ProfileStockAdjustedDomainEvent(Id, oldStock, delta, delta, id, ts)));
+    }
+
 
     // ─── Image management ─────────────────────────────────────────────────
 
