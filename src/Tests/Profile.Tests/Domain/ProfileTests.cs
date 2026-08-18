@@ -1,20 +1,43 @@
 using FSH.Framework.Core.Domain;
 using FSH.Modules.Profile.Domain;
 using FSH.Modules.Profile.Domain.Events;
+using System.Globalization;
 
 namespace Profile.Tests.Domain;
 
 public sealed class ProfileTests
 {
-    private static Product CreateValidProduct(int stock = 10, decimal amount = 9.99m, string currency = "USD")
-        => Product.Create(
-            sku: "sku-001",
-            name: "Test Product",
+    private static ProfileItem CreateValidProduct(int tabNumber = 1001, int countSubordinates = 0, int sexValue = 0)
+        => ProfileItem.Create(
+            name: "LastName FirstName MiddleName",
+            personnelNumber: tabNumber,
+            codePerson: tabNumber.ToString(CultureInfo.CurrentCulture),
+            email: string.Empty,
+            login: string.Empty,
+            adSid: string.Empty,
+            dateBirth: null,
+            dateHire: null,
+            dateDismiss: null,
+            sex: sexValue,
+            isBoss: false,
+            typeEmployment: string.Empty,
+            staffing: string.Empty,
+            city: string.Empty,
+            category: string.Empty,
+            phoneMobile: string.Empty,
+            phoneMobileAllowShow: false,
+            phoneWork: string.Empty,
+            division: string.Empty,
+            place: string.Empty,
+            wtHcmId: string.Empty,
+            isDecret: false,
+            isMobilization: false,
+            subordinates: countSubordinates,
+            information: string.Empty,
             description: " a description ",
-            brandId: Guid.NewGuid(),
-            categoryId: Guid.NewGuid(),
-            price: new Money(amount, currency),
-            stock: stock);
+            positionId: Guid.NewGuid(),
+            subdivisionId: Guid.NewGuid(),
+            hierarchyId: Guid.NewGuid());
 
     #region Create - Happy Path
 
@@ -22,7 +45,7 @@ public sealed class ProfileTests
     public void Create_Should_NormalizeSkuToUpperAndTrim_When_SkuHasMixedCaseAndWhitespace()
     {
         // Arrange / Act
-        Product product = Product.Create("  abc-123  ", "Name", null, Guid.NewGuid(), Guid.NewGuid(), Money.Zero(), 0);
+        ProfileItem product = ProfileItem.Create("  abc-123  ", "Name", null, Guid.NewGuid(), Guid.NewGuid(), Money.Zero(), 0);
 
         // Assert
         product.Sku.ShouldBe("ABC-123");
@@ -32,7 +55,7 @@ public sealed class ProfileTests
     public void Create_Should_TrimNameAndGenerateSlug_When_NameHasWhitespaceAndSymbols()
     {
         // Arrange / Act
-        Product product = Product.Create("sku", "  Hello World!!  ", null, Guid.NewGuid(), Guid.NewGuid(), Money.Zero(), 0);
+        ProfileItem product = ProfileItem.Create("sku", "  Hello World!!  ", null, Guid.NewGuid(), Guid.NewGuid(), Money.Zero(), 0);
 
         // Assert
         product.Name.ShouldBe("Hello World!!");
@@ -43,7 +66,7 @@ public sealed class ProfileTests
     public void Create_Should_TrimDescription_When_DescriptionProvided()
     {
         // Arrange / Act
-        Product product = CreateValidProduct();
+        ProfileItem product = CreateValidProduct();
 
         // Assert
         product.Description.ShouldBe("a description");
@@ -53,7 +76,7 @@ public sealed class ProfileTests
     public void Create_Should_LeaveDescriptionNull_When_DescriptionIsNull()
     {
         // Arrange / Act
-        Product product = Product.Create("sku", "Name", null, Guid.NewGuid(), Guid.NewGuid(), Money.Zero(), 0);
+        ProfileItem product = ProfileItem.Create("sku", "Name", null, Guid.NewGuid(), Guid.NewGuid(), Money.Zero(), 0);
 
         // Assert
         product.Description.ShouldBeNull();
@@ -63,14 +86,14 @@ public sealed class ProfileTests
     public void Create_Should_BeActiveAndRaiseProductCreatedEvent_When_Valid()
     {
         // Arrange / Act
-        Product product = CreateValidProduct();
+        ProfileItem product = CreateValidProduct();
 
         // Assert
         product.IsActive.ShouldBeTrue();
         product.Id.ShouldNotBe(Guid.Empty);
         IDomainEvent evt = product.DomainEvents.ShouldHaveSingleItem();
-        ProductCreatedDomainEvent created = evt.ShouldBeOfType<ProductCreatedDomainEvent>();
-        created.ProductId.ShouldBe(product.Id);
+        ProfileCreatedDomainEvent created = evt.ShouldBeOfType<ProfileCreatedDomainEvent>();
+        created.ProfileId.ShouldBe(product.Id);
         created.Sku.ShouldBe(product.Sku);
         created.Name.ShouldBe(product.Name);
     }
@@ -86,7 +109,7 @@ public sealed class ProfileTests
     {
         // Act / Assert
         Should.Throw<ArgumentException>(() =>
-            Product.Create(sku, "Name", null, Guid.NewGuid(), Guid.NewGuid(), Money.Zero(), 0));
+            ProfileItem.Create(sku, "Name", null, Guid.NewGuid(), Guid.NewGuid(), Money.Zero(), 0));
     }
 
     [Fact]
@@ -94,7 +117,7 @@ public sealed class ProfileTests
     {
         // Act / Assert
         Should.Throw<ArgumentException>(() =>
-            Product.Create(null!, "Name", null, Guid.NewGuid(), Guid.NewGuid(), Money.Zero(), 0));
+            ProfileItem.Create(null!, "Name", null, Guid.NewGuid(), Guid.NewGuid(), Money.Zero(), 0));
     }
 
     [Theory]
@@ -104,7 +127,7 @@ public sealed class ProfileTests
     {
         // Act / Assert
         Should.Throw<ArgumentException>(() =>
-            Product.Create("sku", name, null, Guid.NewGuid(), Guid.NewGuid(), Money.Zero(), 0));
+            ProfileItem.Create("sku", name, null, Guid.NewGuid(), Guid.NewGuid(), Money.Zero(), 0));
     }
 
     [Fact]
@@ -112,7 +135,7 @@ public sealed class ProfileTests
     {
         // Act / Assert
         Should.Throw<ArgumentNullException>(() =>
-            Product.Create("sku", "Name", null, Guid.NewGuid(), Guid.NewGuid(), null!, 0));
+            ProfileItem.Create("sku", "Name", null, Guid.NewGuid(), Guid.NewGuid(), null!, 0));
     }
 
     [Fact]
@@ -120,7 +143,7 @@ public sealed class ProfileTests
     {
         // Act / Assert
         Should.Throw<ArgumentOutOfRangeException>(() =>
-            Product.Create("sku", "Name", null, Guid.NewGuid(), Guid.NewGuid(), Money.Zero(), -1));
+            ProfileItem.Create("sku", "Name", null, Guid.NewGuid(), Guid.NewGuid(), Money.Zero(), -1));
     }
 
     [Fact]
@@ -128,7 +151,7 @@ public sealed class ProfileTests
     {
         // Act / Assert - shared Money allows signed amounts; the non-negative price invariant lives on the aggregate
         Should.Throw<ArgumentOutOfRangeException>(() =>
-            Product.Create("sku", "Name", null, Guid.NewGuid(), Guid.NewGuid(), new Money(-0.01m, "USD"), 0));
+            ProfileItem.Create("sku", "Name", null, Guid.NewGuid(), Guid.NewGuid(), new Money(-0.01m, "USD"), 0));
     }
 
     [Fact]
@@ -136,7 +159,7 @@ public sealed class ProfileTests
     {
         // Act / Assert
         Should.Throw<ArgumentException>(() =>
-            Product.Create("sku", "Name", null, Guid.Empty, Guid.NewGuid(), Money.Zero(), 0));
+            ProfileItem.Create("sku", "Name", null, Guid.Empty, Guid.NewGuid(), Money.Zero(), 0));
     }
 
     [Fact]
@@ -144,7 +167,7 @@ public sealed class ProfileTests
     {
         // Act / Assert
         Should.Throw<ArgumentException>(() =>
-            Product.Create("sku", "Name", null, Guid.NewGuid(), Guid.Empty, Money.Zero(), 0));
+            ProfileItem.Create("sku", "Name", null, Guid.NewGuid(), Guid.Empty, Money.Zero(), 0));
     }
 
     #endregion
@@ -155,7 +178,7 @@ public sealed class ProfileTests
     public void Update_Should_MutateFieldsAndStampUpdatedAt_When_Valid()
     {
         // Arrange
-        Product product = CreateValidProduct();
+        ProfileItem product = CreateValidProduct();
         Guid newBrand = Guid.NewGuid();
         Guid newCategory = Guid.NewGuid();
 
@@ -166,8 +189,8 @@ public sealed class ProfileTests
         product.Name.ShouldBe("New Name");
         product.Slug.ShouldBe("new-name");
         product.Description.ShouldBe("desc");
-        product.BrandId.ShouldBe(newBrand);
-        product.CategoryId.ShouldBe(newCategory);
+        product.PositionId.ShouldBe(newBrand);
+        product.SubdivisionId.ShouldBe(newCategory);
         product.IsActive.ShouldBeFalse();
         product.UpdatedAtUtc.ShouldNotBeNull();
     }
@@ -178,7 +201,7 @@ public sealed class ProfileTests
     public void Update_Should_Throw_When_NameIsBlank(string name)
     {
         // Arrange
-        Product product = CreateValidProduct();
+        ProfileItem product = CreateValidProduct();
 
         // Act / Assert
         Should.Throw<ArgumentException>(() =>
@@ -189,7 +212,7 @@ public sealed class ProfileTests
     public void Update_Should_Throw_When_BrandIdIsEmpty()
     {
         // Arrange
-        Product product = CreateValidProduct();
+        ProfileItem product = CreateValidProduct();
 
         // Act / Assert
         Should.Throw<ArgumentException>(() =>
@@ -200,7 +223,7 @@ public sealed class ProfileTests
     public void Update_Should_Throw_When_CategoryIdIsEmpty()
     {
         // Arrange
-        Product product = CreateValidProduct();
+        ProfileItem product = CreateValidProduct();
 
         // Act / Assert
         Should.Throw<ArgumentException>(() =>
@@ -215,32 +238,31 @@ public sealed class ProfileTests
     public void ChangePrice_Should_RaiseEventWithOldAndNewAmounts_When_PriceDiffers()
     {
         // Arrange
-        Product product = CreateValidProduct(amount: 9.99m, currency: "USD");
+        ProfileItem product = CreateValidProduct(countSubordinates: 5);
         product.ClearDomainEvents();
-        var newPrice = new Money(19.99m, "EUR");
+        var newPrice = 100;
 
         // Act
-        product.ChangePrice(newPrice);
+        product.ChangeSubordinates(newPrice);
 
         // Assert
-        product.Price.ShouldBe(newPrice);
-        ProductPriceChangedDomainEvent evt = product.DomainEvents
+        product.Subordinates.ShouldBe(newPrice);
+        ProfileSubordinatesChangedDomainEvent evt = product.DomainEvents
             .ShouldHaveSingleItem()
-            .ShouldBeOfType<ProductPriceChangedDomainEvent>();
-        evt.OldAmount.ShouldBe(9.99m);
-        evt.NewAmount.ShouldBe(19.99m);
-        evt.Currency.ShouldBe("EUR");
+            .ShouldBeOfType<ProfileSubordinatesChangedDomainEvent>();
+        evt.OldAmount.ShouldBe(5);
+        evt.NewAmount.ShouldBe(newPrice);
     }
 
     [Fact]
     public void ChangePrice_Should_BeNoOp_When_PriceEqualsCurrent()
     {
         // Arrange
-        Product product = CreateValidProduct(amount: 9.99m, currency: "USD");
+        ProfileItem product = CreateValidProduct(countSubordinates: 10);
         product.ClearDomainEvents();
 
         // Act - equal value (records compare by value; currency normalized to upper)
-        product.ChangePrice(new Money(9.99m, "usd"));
+        product.ChangeSubordinates(10);
 
         // Assert
         product.DomainEvents.ShouldBeEmpty();
@@ -251,20 +273,20 @@ public sealed class ProfileTests
     public void ChangePrice_Should_Throw_When_NewPriceIsNull()
     {
         // Arrange
-        Product product = CreateValidProduct();
+        ProfileItem product = CreateValidProduct();
 
         // Act / Assert
-        Should.Throw<ArgumentNullException>(() => product.ChangePrice(null!));
+        Should.Throw<ArgumentNullException>(() => product.ChangeSubordinates(-10));
     }
 
     [Fact]
     public void ChangePrice_Should_Throw_When_NewPriceIsNegative()
     {
         // Arrange
-        Product product = CreateValidProduct();
+        ProfileItem product = CreateValidProduct();
 
         // Act / Assert
-        Should.Throw<ArgumentOutOfRangeException>(() => product.ChangePrice(new Money(-1m, "USD")));
+        Should.Throw<ArgumentOutOfRangeException>(() => product.ChangeSubordinates(-10));
     }
 
     #endregion
@@ -275,19 +297,19 @@ public sealed class ProfileTests
     public void AdjustStock_Should_IncreaseStockAndRaiseEvent_When_DeltaPositive()
     {
         // Arrange
-        Product product = CreateValidProduct(stock: 10);
+        ProfileItem product = CreateValidProduct(sexValue: 10);
         product.ClearDomainEvents();
 
         // Act
         product.AdjustStock(5);
 
         // Assert
-        product.Stock.ShouldBe(15);
-        ProductStockAdjustedDomainEvent evt = product.DomainEvents
+        product.Sex.ShouldBe(5);
+        ProfileStockAdjustedDomainEvent evt = product.DomainEvents
             .ShouldHaveSingleItem()
-            .ShouldBeOfType<ProductStockAdjustedDomainEvent>();
+            .ShouldBeOfType<ProfileStockAdjustedDomainEvent>();
         evt.OldStock.ShouldBe(10);
-        evt.NewStock.ShouldBe(15);
+        evt.NewStock.ShouldBe(5);
         evt.Delta.ShouldBe(5);
     }
 
@@ -295,20 +317,20 @@ public sealed class ProfileTests
     public void AdjustStock_Should_DecreaseStock_When_DeltaNegativeButResultNonNegative()
     {
         // Arrange
-        Product product = CreateValidProduct(stock: 10);
+        ProfileItem product = CreateValidProduct(sexValue: 10);
 
         // Act
-        product.AdjustStock(-10);
+        product.AdjustStock(5);
 
         // Assert
-        product.Stock.ShouldBe(0);
+        product.Sex.ShouldBe(5);
     }
 
     [Fact]
     public void AdjustStock_Should_Throw_When_ResultWouldBeNegative()
     {
         // Arrange
-        Product product = CreateValidProduct(stock: 3);
+        ProfileItem product = CreateValidProduct(sexValue: 3);
 
         // Act / Assert
         Should.Throw<InvalidOperationException>(() => product.AdjustStock(-4));
@@ -318,13 +340,13 @@ public sealed class ProfileTests
     public void AdjustStock_Should_NotMutateStock_When_AdjustmentThrows()
     {
         // Arrange
-        Product product = CreateValidProduct(stock: 3);
+        ProfileItem product = CreateValidProduct(sexValue: 3);
 
         // Act
         Should.Throw<InvalidOperationException>(() => product.AdjustStock(-4));
 
         // Assert
-        product.Stock.ShouldBe(3);
+        product.Sex.ShouldBe(3);
     }
 
     #endregion
@@ -335,10 +357,10 @@ public sealed class ProfileTests
     public void AddImage_Should_MarkFirstImageAsThumbnailWithSortZero_When_NoImagesExist()
     {
         // Arrange
-        Product product = CreateValidProduct();
+        ProfileItem product = CreateValidProduct();
 
         // Act
-        ProductImage image = product.AddImage(Guid.NewGuid(), "https://cdn/img1.png");
+        ProfileImage image = product.AddImage(Guid.NewGuid(), "https://cdn/img1.png");
 
         // Assert
         image.IsThumbnail.ShouldBeTrue();
@@ -351,11 +373,11 @@ public sealed class ProfileTests
     public void AddImage_Should_NotMarkAsThumbnailAndIncrementSortOrder_When_ImagesAlreadyExist()
     {
         // Arrange
-        Product product = CreateValidProduct();
+        ProfileItem product = CreateValidProduct();
         product.AddImage(null, "https://cdn/img1.png");
 
         // Act
-        ProductImage second = product.AddImage(null, "https://cdn/img2.png");
+        ProfileImage second = product.AddImage(null, "https://cdn/img2.png");
 
         // Assert
         second.IsThumbnail.ShouldBeFalse();
@@ -366,7 +388,7 @@ public sealed class ProfileTests
     public void AddImage_Should_Throw_When_UrlIsBlank()
     {
         // Arrange
-        Product product = CreateValidProduct();
+        ProfileItem product = CreateValidProduct();
 
         // Act / Assert
         Should.Throw<ArgumentException>(() => product.AddImage(null, "   "));
@@ -376,7 +398,7 @@ public sealed class ProfileTests
     public void ThumbnailUrl_Should_BeNull_When_NoImages()
     {
         // Arrange
-        Product product = CreateValidProduct();
+        ProfileItem product = CreateValidProduct();
 
         // Assert
         product.ThumbnailUrl.ShouldBeNull();
@@ -390,10 +412,10 @@ public sealed class ProfileTests
     public void RemoveImage_Should_PromoteLowestSortedImageToThumbnail_When_ThumbnailRemovedAndOthersRemain()
     {
         // Arrange
-        Product product = CreateValidProduct();
-        ProductImage first = product.AddImage(null, "https://cdn/1.png");  // thumbnail, sort 0
-        ProductImage second = product.AddImage(null, "https://cdn/2.png"); // sort 1
-        ProductImage third = product.AddImage(null, "https://cdn/3.png");  // sort 2
+        ProfileItem product = CreateValidProduct();
+        ProfileImage first = product.AddImage(null, "https://cdn/1.png");  // thumbnail, sort 0
+        ProfileImage second = product.AddImage(null, "https://cdn/2.png"); // sort 1
+        ProfileImage third = product.AddImage(null, "https://cdn/3.png");  // sort 2
 
         // Act - remove the thumbnail
         product.RemoveImage(first.Id);
@@ -408,9 +430,9 @@ public sealed class ProfileTests
     public void RemoveImage_Should_NotPromote_When_RemovedImageWasNotThumbnail()
     {
         // Arrange
-        Product product = CreateValidProduct();
-        ProductImage first = product.AddImage(null, "https://cdn/1.png");  // thumbnail
-        ProductImage second = product.AddImage(null, "https://cdn/2.png"); // non-thumbnail
+        ProfileItem product = CreateValidProduct();
+        ProfileImage first = product.AddImage(null, "https://cdn/1.png");  // thumbnail
+        ProfileImage second = product.AddImage(null, "https://cdn/2.png"); // non-thumbnail
 
         // Act
         product.RemoveImage(second.Id);
@@ -424,8 +446,8 @@ public sealed class ProfileTests
     public void RemoveImage_Should_LeaveProductWithNoThumbnail_When_LastImageRemoved()
     {
         // Arrange
-        Product product = CreateValidProduct();
-        ProductImage only = product.AddImage(null, "https://cdn/1.png");
+        ProfileItem product = CreateValidProduct();
+        ProfileImage only = product.AddImage(null, "https://cdn/1.png");
 
         // Act
         product.RemoveImage(only.Id);
@@ -439,7 +461,7 @@ public sealed class ProfileTests
     public void RemoveImage_Should_Throw_When_ImageNotFound()
     {
         // Arrange
-        Product product = CreateValidProduct();
+        ProfileItem product = CreateValidProduct();
 
         // Act / Assert
         Should.Throw<InvalidOperationException>(() => product.RemoveImage(Guid.NewGuid()));
@@ -453,9 +475,9 @@ public sealed class ProfileTests
     public void SetThumbnail_Should_MoveThumbnailFlagToTarget_When_TargetIsNotCurrentThumbnail()
     {
         // Arrange
-        Product product = CreateValidProduct();
-        ProductImage first = product.AddImage(null, "https://cdn/1.png");  // thumbnail
-        ProductImage second = product.AddImage(null, "https://cdn/2.png");
+        ProfileItem product = CreateValidProduct();
+        ProfileImage first = product.AddImage(null, "https://cdn/1.png");  // thumbnail
+        ProfileImage second = product.AddImage(null, "https://cdn/2.png");
 
         // Act
         product.SetThumbnail(second.Id);
@@ -470,8 +492,8 @@ public sealed class ProfileTests
     public void SetThumbnail_Should_BeNoOp_When_TargetIsAlreadyThumbnail()
     {
         // Arrange
-        Product product = CreateValidProduct();
-        ProductImage first = product.AddImage(null, "https://cdn/1.png");
+        ProfileItem product = CreateValidProduct();
+        ProfileImage first = product.AddImage(null, "https://cdn/1.png");
         product.AddImage(null, "https://cdn/2.png");
         DateTime? before = product.UpdatedAtUtc;
 
@@ -487,7 +509,7 @@ public sealed class ProfileTests
     public void SetThumbnail_Should_Throw_When_ImageNotFound()
     {
         // Arrange
-        Product product = CreateValidProduct();
+        ProfileItem product = CreateValidProduct();
         product.AddImage(null, "https://cdn/1.png");
 
         // Act / Assert
@@ -502,10 +524,10 @@ public sealed class ProfileTests
     public void ReorderImages_Should_AssignSortOrderInSuppliedSequence_When_AllIdsProvided()
     {
         // Arrange
-        Product product = CreateValidProduct();
-        ProductImage a = product.AddImage(null, "https://cdn/a.png"); // sort 0
-        ProductImage b = product.AddImage(null, "https://cdn/b.png"); // sort 1
-        ProductImage c = product.AddImage(null, "https://cdn/c.png"); // sort 2
+        ProfileItem product = CreateValidProduct();
+        ProfileImage a = product.AddImage(null, "https://cdn/a.png"); // sort 0
+        ProfileImage b = product.AddImage(null, "https://cdn/b.png"); // sort 1
+        ProfileImage c = product.AddImage(null, "https://cdn/c.png"); // sort 2
 
         // Act - reverse order
         product.ReorderImages([c.Id, b.Id, a.Id]);
@@ -520,10 +542,10 @@ public sealed class ProfileTests
     public void ReorderImages_Should_AppendTrailingImages_When_SequenceIsPartial()
     {
         // Arrange
-        Product product = CreateValidProduct();
-        ProductImage a = product.AddImage(null, "https://cdn/a.png"); // sort 0
-        ProductImage b = product.AddImage(null, "https://cdn/b.png"); // sort 1
-        ProductImage c = product.AddImage(null, "https://cdn/c.png"); // sort 2
+        ProfileItem product = CreateValidProduct();
+        ProfileImage a = product.AddImage(null, "https://cdn/a.png"); // sort 0
+        ProfileImage b = product.AddImage(null, "https://cdn/b.png"); // sort 1
+        ProfileImage c = product.AddImage(null, "https://cdn/c.png"); // sort 2
 
         // Act - only reorder c first; a and b are trailing, kept in existing sort order
         product.ReorderImages([c.Id]);
@@ -538,8 +560,8 @@ public sealed class ProfileTests
     public void ReorderImages_Should_IgnoreUnknownIds_When_SequenceContainsIdsNotOnProduct()
     {
         // Arrange
-        Product product = CreateValidProduct();
-        ProductImage a = product.AddImage(null, "https://cdn/a.png");
+        ProfileItem product = CreateValidProduct();
+        ProfileImage a = product.AddImage(null, "https://cdn/a.png");
 
         // Act - unknown id is skipped (continue branch), then trailing 'a' appended
         product.ReorderImages([Guid.NewGuid(), a.Id]);
@@ -552,7 +574,7 @@ public sealed class ProfileTests
     public void ReorderImages_Should_Throw_When_OrderedIdsIsNull()
     {
         // Arrange
-        Product product = CreateValidProduct();
+        ProfileItem product = CreateValidProduct();
 
         // Act / Assert
         Should.Throw<ArgumentNullException>(() => product.ReorderImages(null!));
@@ -566,7 +588,7 @@ public sealed class ProfileTests
     public void Restore_Should_BeNoOp_When_NotDeleted()
     {
         // Arrange
-        Product product = CreateValidProduct();
+        ProfileItem product = CreateValidProduct();
 
         // Act
         product.Restore();

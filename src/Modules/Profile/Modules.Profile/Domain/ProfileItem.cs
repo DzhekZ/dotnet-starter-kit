@@ -1,6 +1,5 @@
 using FSH.Framework.Core.Domain;
 using FSH.Modules.Profile.Domain.Events;
-using System.Collections;
 using System.Collections.Immutable;
 
 namespace FSH.Modules.Profile.Domain;
@@ -125,7 +124,7 @@ public sealed class ProfileItem : AggregateRoot<Guid>, ISoftDeletable
         {
             Id = Guid.CreateVersion7(),
             Name = name.Trim(),
-            Slug = Slugify(name),
+            Slug = Slugify(name + (personnelNumber ?? 0)),
             LastName = nameParts[0],
             FirstName = nameParts[1],
             MiddleName = nameParts[2],
@@ -220,7 +219,7 @@ public sealed class ProfileItem : AggregateRoot<Guid>, ISoftDeletable
         var nameParts = SplitFullName(name.Trim());
 
         Name = name.Trim();
-        Slug = Slugify(name);
+        Slug = Slugify(name + (personnelNumber ?? 0));
         LastName = nameParts[0];
         FirstName = nameParts[1];
         MiddleName = nameParts[2];
@@ -265,7 +264,7 @@ public sealed class ProfileItem : AggregateRoot<Guid>, ISoftDeletable
 
     public void ChangeSubordinates(int newSubordinates)
     {
-        ArgumentOutOfRangeException.ThrowIfLessThan(newSubordinates,0);
+        ArgumentOutOfRangeException.ThrowIfLessThan(newSubordinates, 0);
         if (newSubordinates == Subordinates)
         {
             return;
@@ -279,7 +278,7 @@ public sealed class ProfileItem : AggregateRoot<Guid>, ISoftDeletable
             new ProfileSubordinatesChangedDomainEvent(Id, oldAmount, newSubordinates, id, ts)));
     }
 
-    public void AdjustStock(int delta)
+    public void AdjustStock(int newValue)
     {
         ////int newStock = Stock + delta;
         ////if (newStock < 0)
@@ -289,11 +288,11 @@ public sealed class ProfileItem : AggregateRoot<Guid>, ISoftDeletable
         ////}
 
         int oldStock = Sex;
-        Sex = delta;
+        Sex = newValue;
         UpdatedAtUtc = DateTime.UtcNow;
 
         AddDomainEvent(DomainEvent.Create((id, ts) =>
-            new ProfileStockAdjustedDomainEvent(Id, oldStock, delta, delta, id, ts)));
+            new ProfileStockAdjustedDomainEvent(Id, oldStock, newValue, newValue, id, ts)));
     }
 
 
