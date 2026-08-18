@@ -16,11 +16,7 @@
 		<PackageReference Include="Finbuckle.MultiTenant" />
 		<PackageReference Include="Finbuckle.MultiTenant.Abstractions" />
 	</ItemGroup>
-	
-	<ItemGroup>
-	  <Folder Include="AWS\" />
-	</ItemGroup>
-	
+		
 	<ItemGroup>
 		<FrameworkReference Include="Microsoft.AspNetCore.App" />
 	</ItemGroup>
