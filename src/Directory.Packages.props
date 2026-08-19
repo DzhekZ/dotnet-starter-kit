@@ -13,10 +13,10 @@
     <PackageVersion Include="SSH.NET" Version="2026.0.0" />
   </ItemGroup>
   <ItemGroup Label="Aspire">
-    <PackageVersion Include="Aspire.Hosting.JavaScript" Version="13.4.6" />
-    <PackageVersion Include="Aspire.Hosting.PostgreSQL" Version="13.4.6" />
-    <PackageVersion Include="Aspire.Hosting.RabbitMQ" Version="13.4.6" />
-    <PackageVersion Include="Aspire.Hosting.Redis" Version="13.4.6" />
+    <PackageVersion Include="Aspire.Hosting.JavaScript" Version="13.5.0" />
+    <PackageVersion Include="Aspire.Hosting.PostgreSQL" Version="13.5.0" />
+    <PackageVersion Include="Aspire.Hosting.RabbitMQ" Version="13.5.0" />
+    <PackageVersion Include="Aspire.Hosting.Redis" Version="13.5.0" />
     <PackageVersion Include="coverlet.collector" Version="10.0.1">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
@@ -118,8 +118,10 @@
          NuGetAudit under TreatWarningsAsErrors and fail restore for every project. Bump in lockstep with the
          .NET 10 patch line. -->
     <PackageVersion Include="System.Security.Cryptography.Xml" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.IdentityModel.JsonWebTokens" Version="8.19.2" />
+    <PackageVersion Include="System.IdentityModel.TokensJwt" Version="8.19.2" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.9.0" />
-    <PackageVersion Include="System.IdentityModel.Tokens.Jwt" Version="8.16.0" />
+    <PackageVersion Include="System.IdentityModel.Tokens.Jwt" Version="8.19.2" />
     <PackageVersion Include="Shouldly" Version="4.3.0" />
     <PackageVersion Include="xunit.v3" Version="4.0.0" />
     <PackageVersion Include="xunit.runner.visualstudio" Version="4.0.0" />
@@ -129,7 +131,7 @@
     <PackageVersion Include="Testcontainers.Minio" Version="4.14.0" />
   </ItemGroup>
   <ItemGroup Label="AWS">
-    <PackageVersion Include="AWSSDK.S3" Version="4.0.102.1" />
+    <PackageVersion Include="AWSSDK.S3" Version="4.0.102.2" />
   </ItemGroup>
   <ItemGroup Label="Messaging">
     <PackageVersion Include="RabbitMQ.Client" Version="7.2.2" />
