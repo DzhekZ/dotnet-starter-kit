@@ -1,4 +1,4 @@
-<Project Sdk="Aspire.AppHost.Sdk/13.5.0">
+<Project Sdk="Aspire.AppHost.Sdk/13.5.3">
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -6,6 +6,7 @@
     <Nullable>enable</Nullable>
     <UserSecretsId>9fe5df9a-b9b2-4202-bdb4-d30b01b71d1a</UserSecretsId>
     <IsPackable>false</IsPackable>
+    <NoWarn>$(NoWarn);ASPIRE010</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
