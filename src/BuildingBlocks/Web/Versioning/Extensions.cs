@@ -15,12 +15,12 @@ public static class Extensions
                 options.DefaultApiVersion = new ApiVersion(1, 0);
                 options.AssumeDefaultVersionWhenUnspecified = true;
                 options.ApiVersionReader = new UrlSegmentApiVersionReader();
-            })
-            .AddApiExplorer(options =>
-            {
-                options.GroupNameFormat = "'v'VVV";
-                options.SubstituteApiVersionInUrl = true;
             });
+            ////.AddApiExplorer(options =>
+            ////{
+            ////    options.GroupNameFormat = "'v'VVV";
+            ////    options.SubstituteApiVersionInUrl = true;
+            ////});
         return services;
     }
 }
