@@ -110,7 +110,7 @@
          >= 2.0.0, but 2.0.0 carries a HIGH-severity advisory (GHSA-v5pm-xwqc-g5wc, patched in 2.7.5) that
          trips NuGetAudit under TreatWarningsAsErrors. Stay on the 2.x line — 3.x has breaking API changes that
          fail the framework's OpenAPI transformers. Bump in lockstep with Microsoft.AspNetCore.OpenApi. -->
-    <PackageVersion Include="Microsoft.OpenApi" Version="2.9.0" />
+    <PackageVersion Include="Microsoft.OpenApi" Version="2.12.0" />
     <!-- Pin the transitive System.Security.Cryptography.Xml explicitly. It floats in at 10.0.8 (via
          Microsoft.AspNetCore.DataProtection), which carries five HIGH-severity advisories — GHSA-23rf-6693-g89p,
          GHSA-8q5v-6pqq-x66h, GHSA-cvvh-rhrc-wg4q, GHSA-g8r8-53c2-pm3f, GHSA-mmjf-rqrv-855v — that trip
