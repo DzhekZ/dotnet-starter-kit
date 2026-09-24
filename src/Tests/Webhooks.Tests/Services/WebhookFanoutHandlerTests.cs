@@ -39,7 +39,7 @@ public sealed class WebhookFanoutHandlerTests
         Guid subId = await SeedSubscriptionAsync(db, [EventType], isActive: true);
 
         var handler = CreateHandler(db);
-        await handler.HandleAsync(new FakeIntegrationEvent(TenantId));
+        await handler.HandleAsync(new FakeIntegrationEvent(TenantId), TestContext.Current.CancellationToken);
 
         await _dispatcher.Received(1).EnqueueAsync(
             TenantId, subId, EventType, "{\"serialized\":true}", Arg.Any<CancellationToken>());
@@ -52,7 +52,7 @@ public sealed class WebhookFanoutHandlerTests
         Guid subId = await SeedSubscriptionAsync(db, ["*"], isActive: true);
 
         var handler = CreateHandler(db);
-        await handler.HandleAsync(new FakeIntegrationEvent(TenantId));
+        await handler.HandleAsync(new FakeIntegrationEvent(TenantId), TestContext.Current.CancellationToken);
 
         await _dispatcher.Received(1).EnqueueAsync(
             TenantId, subId, EventType, Arg.Any<string>(), Arg.Any<CancellationToken>());
@@ -66,7 +66,7 @@ public sealed class WebhookFanoutHandlerTests
         await SeedSubscriptionAsync(db, ["*"], isActive: true);
 
         var handler = CreateHandler(db);
-        await handler.HandleAsync(new FakeIntegrationEvent(TenantId));
+        await handler.HandleAsync(new FakeIntegrationEvent(TenantId), TestContext.Current.CancellationToken);
 
         await _dispatcher.Received(2).EnqueueAsync(
             TenantId, Arg.Any<Guid>(), EventType, Arg.Any<string>(), Arg.Any<CancellationToken>());
@@ -83,9 +83,9 @@ public sealed class WebhookFanoutHandlerTests
         await SeedSubscriptionAsync(db, [EventType], isActive: true);
 
         var handler = CreateHandler(db);
-        await handler.HandleAsync(new FakeIntegrationEvent(TenantId: null));
+        await handler.HandleAsync(new FakeIntegrationEvent(TenantId: null), TestContext.Current.CancellationToken);
 
-        await _dispatcher.DidNotReceiveWithAnyArgs().EnqueueAsync(default!, default, default!, default!, default);
+        await _dispatcher.DidNotReceiveWithAnyArgs().EnqueueAsync(default!, default, default!, default!, TestContext.Current.CancellationToken);
         _serializer.DidNotReceiveWithAnyArgs().Serialize(default!);
     }
 
@@ -96,9 +96,9 @@ public sealed class WebhookFanoutHandlerTests
         await SeedSubscriptionAsync(db, [EventType], isActive: true);
 
         var handler = CreateHandler(db);
-        await handler.HandleAsync(new FakeIntegrationEvent("   "));
+        await handler.HandleAsync(new FakeIntegrationEvent("   "), TestContext.Current.CancellationToken);
 
-        await _dispatcher.DidNotReceiveWithAnyArgs().EnqueueAsync(default!, default, default!, default!, default);
+        await _dispatcher.DidNotReceiveWithAnyArgs().EnqueueAsync(default!, default, default!, default!, TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -108,9 +108,9 @@ public sealed class WebhookFanoutHandlerTests
         await SeedSubscriptionAsync(db, ["some.other.event"], isActive: true);
 
         var handler = CreateHandler(db);
-        await handler.HandleAsync(new FakeIntegrationEvent(TenantId));
+        await handler.HandleAsync(new FakeIntegrationEvent(TenantId), TestContext.Current.CancellationToken);
 
-        await _dispatcher.DidNotReceiveWithAnyArgs().EnqueueAsync(default!, default, default!, default!, default);
+        await _dispatcher.DidNotReceiveWithAnyArgs().EnqueueAsync(default!, default, default!, default!, TestContext.Current.CancellationToken);
         _serializer.DidNotReceiveWithAnyArgs().Serialize(default!);
     }
 
@@ -121,9 +121,9 @@ public sealed class WebhookFanoutHandlerTests
         await SeedSubscriptionAsync(db, [EventType], isActive: false);
 
         var handler = CreateHandler(db);
-        await handler.HandleAsync(new FakeIntegrationEvent(TenantId));
+        await handler.HandleAsync(new FakeIntegrationEvent(TenantId), TestContext.Current.CancellationToken);
 
-        await _dispatcher.DidNotReceiveWithAnyArgs().EnqueueAsync(default!, default, default!, default!, default);
+        await _dispatcher.DidNotReceiveWithAnyArgs().EnqueueAsync(default!, default, default!, default!, TestContext.Current.CancellationToken);
     }
 
     #endregion

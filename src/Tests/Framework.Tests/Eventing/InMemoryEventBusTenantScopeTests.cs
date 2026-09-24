@@ -28,7 +28,7 @@ public sealed class InMemoryEventBusTenantScopeTests
         var bus = new InMemoryEventBus(provider, NullLogger<InMemoryEventBus>.Instance, scope);
 
         // Act
-        await bus.PublishAsync(new TenantScopedEvent("acme"));
+        await bus.PublishAsync(new TenantScopedEvent("acme"), TestContext.Current.CancellationToken);
 
         // Assert — scope begun with the event's tenant, and it was still active when the
         // handler executed (i.e. before resolution, restored after).

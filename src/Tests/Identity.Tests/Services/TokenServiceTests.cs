@@ -73,7 +73,7 @@ public sealed class TokenServiceTests : IDisposable
         var service = CreateService();
 
         // Act
-        var response = await service.IssueAsync("user-123", SampleClaims());
+        var response = await service.IssueAsync("user-123", SampleClaims(), ct: TestContext.Current.CancellationToken);
 
         // Assert
         response.ShouldNotBeNull();
@@ -90,7 +90,7 @@ public sealed class TokenServiceTests : IDisposable
         var service = CreateService(accessTokenMinutes: 5, refreshTokenDays: 30);
 
         // Act
-        var response = await service.IssueAsync("user-123", SampleClaims());
+        var response = await service.IssueAsync("user-123", SampleClaims(), ct: TestContext.Current.CancellationToken);
 
         // Assert
         response.AccessTokenExpiresAt.ShouldBe(FixedNow.UtcDateTime.AddMinutes(5));
@@ -104,7 +104,7 @@ public sealed class TokenServiceTests : IDisposable
         var service = CreateService();
 
         // Act
-        var response = await service.IssueAsync("user-123", SampleClaims());
+        var response = await service.IssueAsync("user-123", SampleClaims(), ct: TestContext.Current.CancellationToken);
         var jwt = ReadToken(response.AccessToken);
 
         // Assert
@@ -121,8 +121,8 @@ public sealed class TokenServiceTests : IDisposable
         var service = CreateService();
 
         // Act
-        var first = await service.IssueAsync("user-123", SampleClaims());
-        var second = await service.IssueAsync("user-123", SampleClaims());
+        var first = await service.IssueAsync("user-123", SampleClaims(), ct: TestContext.Current.CancellationToken);
+        var second = await service.IssueAsync("user-123", SampleClaims(), ct: TestContext.Current.CancellationToken);
 
         // Assert - refresh token is a random GUID, so two issues must differ
         first.RefreshToken.ShouldNotBe(second.RefreshToken);
@@ -143,7 +143,7 @@ public sealed class TokenServiceTests : IDisposable
         var service = new TokenService(options, _logger, _metrics, TimeProvider.System);
 
         // Act
-        var response = await service.IssueAsync("user-123", SampleClaims());
+        var response = await service.IssueAsync("user-123", SampleClaims(), ct: TestContext.Current.CancellationToken);
 
         // Assert - signature, issuer and audience must validate against the configured signing key
         var handler = new JwtSecurityTokenHandler();
@@ -171,7 +171,7 @@ public sealed class TokenServiceTests : IDisposable
         var service = CreateService(accessTokenMinutes: 30);
 
         // Act
-        var (accessToken, expiresAt) = await service.IssueAccessOnlyAsync("user-123", SampleClaims());
+        var (accessToken, expiresAt) = await service.IssueAccessOnlyAsync("user-123", SampleClaims(), ct: TestContext.Current.CancellationToken);
 
         // Assert
         accessToken.ShouldNotBeNullOrWhiteSpace();
@@ -186,7 +186,7 @@ public sealed class TokenServiceTests : IDisposable
         var lifetime = TimeSpan.FromMinutes(2);
 
         // Act
-        var (_, expiresAt) = await service.IssueAccessOnlyAsync("user-123", SampleClaims(), lifetime);
+        var (_, expiresAt) = await service.IssueAccessOnlyAsync("user-123", SampleClaims(), lifetime, ct: TestContext.Current.CancellationToken);
 
         // Assert
         expiresAt.ShouldBe(FixedNow.UtcDateTime.Add(lifetime));
@@ -199,7 +199,7 @@ public sealed class TokenServiceTests : IDisposable
         var service = CreateService();
 
         // Act
-        var (accessToken, _) = await service.IssueAccessOnlyAsync("user-123", SampleClaims());
+        var (accessToken, _) = await service.IssueAccessOnlyAsync("user-123", SampleClaims(), ct: TestContext.Current.CancellationToken);
         var jwt = ReadToken(accessToken);
 
         // Assert

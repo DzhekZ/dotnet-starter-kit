@@ -48,7 +48,7 @@ public sealed class FshWebApplicationFactory : WebApplicationFactory<Program>, I
         .WithCleanUp(true)
         .Build();
 
-    public async Task InitializeAsync()
+    public async ValueTask InitializeAsync()
     {
         await Task.WhenAll(_postgres.StartAsync(), _minio.StartAsync());
         await CreateMinioBucketAsync();

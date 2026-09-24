@@ -33,7 +33,7 @@ public sealed class PaginationExtensionsTests
         var query = new PagedQuery { PageNumber = 2, PageSize = 10 };
 
         // Act
-        var response = await Source(25).ToPagedResponseAsync(query);
+        var response = await Source(25).ToPagedResponseAsync(query, TestContext.Current.CancellationToken);
 
         // Assert
         response.PageNumber.ShouldBe(2);
@@ -57,7 +57,7 @@ public sealed class PaginationExtensionsTests
         var query = new PagedQuery { PageNumber = null, PageSize = null };
 
         // Act
-        var response = await Source(50).ToPagedResponseAsync(query);
+        var response = await Source(50).ToPagedResponseAsync(query, TestContext.Current.CancellationToken);
 
         // Assert
         response.PageNumber.ShouldBe(1);
@@ -72,7 +72,7 @@ public sealed class PaginationExtensionsTests
         var query = new PagedQuery { PageNumber = -5, PageSize = -3 };
 
         // Act
-        var response = await Source(50).ToPagedResponseAsync(query);
+        var response = await Source(50).ToPagedResponseAsync(query, TestContext.Current.CancellationToken);
 
         // Assert — page normalized to 1, size to default 20.
         response.PageNumber.ShouldBe(1);
@@ -86,7 +86,7 @@ public sealed class PaginationExtensionsTests
         var query = new PagedQuery { PageNumber = 1, PageSize = 500 };
 
         // Act
-        var response = await Source(120).ToPagedResponseAsync(query);
+        var response = await Source(120).ToPagedResponseAsync(query, TestContext.Current.CancellationToken);
 
         // Assert
         response.PageSize.ShouldBe(100);
@@ -100,7 +100,7 @@ public sealed class PaginationExtensionsTests
         var query = new PagedQuery { PageNumber = 99, PageSize = 10 };
 
         // Act
-        var response = await Source(25).ToPagedResponseAsync(query);
+        var response = await Source(25).ToPagedResponseAsync(query, TestContext.Current.CancellationToken);
 
         // Assert
         response.PageNumber.ShouldBe(3);
@@ -115,7 +115,7 @@ public sealed class PaginationExtensionsTests
         var query = new PagedQuery { PageNumber = 1, PageSize = 10 };
 
         // Act
-        var response = await Source(0).ToPagedResponseAsync(query);
+        var response = await Source(0).ToPagedResponseAsync(query, TestContext.Current.CancellationToken);
 
         // Assert
         response.TotalCount.ShouldBe(0);

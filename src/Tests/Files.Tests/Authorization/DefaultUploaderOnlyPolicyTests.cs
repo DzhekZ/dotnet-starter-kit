@@ -15,36 +15,36 @@ public class DefaultUploaderOnlyPolicyTests
     public async Task CanAttachAsync_Should_AllowAuthenticated()
     {
         var p = new DefaultUploaderOnlyPolicy("MyFiles");
-        (await p.CanAttachAsync(null, "user-1", default)).ShouldBeTrue();
+        (await p.CanAttachAsync(null, "user-1", TestContext.Current.CancellationToken)).ShouldBeTrue();
     }
 
     [Fact]
     public async Task CanAttachAsync_Should_DenyAnonymous()
     {
         var p = new DefaultUploaderOnlyPolicy("MyFiles");
-        (await p.CanAttachAsync(null, "", default)).ShouldBeFalse();
+        (await p.CanAttachAsync(null, "", TestContext.Current.CancellationToken)).ShouldBeFalse();
     }
 
     [Fact]
     public async Task CanReadAsync_Should_AllowAnyone_ForPublicFile()
     {
         var p = new DefaultUploaderOnlyPolicy("MyFiles");
-        (await p.CanReadAsync(PublicFileOwnedBy("uploader"), "someone-else", default)).ShouldBeTrue();
+        (await p.CanReadAsync(PublicFileOwnedBy("uploader"), "someone-else", TestContext.Current.CancellationToken)).ShouldBeTrue();
     }
 
     [Fact]
     public async Task CanReadAsync_Should_AllowUploaderOnly_ForPrivateFile()
     {
         var p = new DefaultUploaderOnlyPolicy("MyFiles");
-        (await p.CanReadAsync(PrivateFileOwnedBy("uploader"), "uploader", default)).ShouldBeTrue();
-        (await p.CanReadAsync(PrivateFileOwnedBy("uploader"), "someone-else", default)).ShouldBeFalse();
+        (await p.CanReadAsync(PrivateFileOwnedBy("uploader"), "uploader", TestContext.Current.CancellationToken)).ShouldBeTrue();
+        (await p.CanReadAsync(PrivateFileOwnedBy("uploader"), "someone-else", TestContext.Current.CancellationToken)).ShouldBeFalse();
     }
 
     [Fact]
     public async Task CanDeleteAsync_Should_AllowUploaderOnly()
     {
         var p = new DefaultUploaderOnlyPolicy("MyFiles");
-        (await p.CanDeleteAsync(PublicFileOwnedBy("uploader"), "uploader", default)).ShouldBeTrue();
-        (await p.CanDeleteAsync(PublicFileOwnedBy("uploader"), "someone-else", default)).ShouldBeFalse();
+        (await p.CanDeleteAsync(PublicFileOwnedBy("uploader"), "uploader", TestContext.Current.CancellationToken)).ShouldBeTrue();
+        (await p.CanDeleteAsync(PublicFileOwnedBy("uploader"), "someone-else", TestContext.Current.CancellationToken)).ShouldBeFalse();
     }
 }

@@ -34,7 +34,8 @@ public sealed class HybridCacheBehaviorTests
             {
                 Interlocked.Increment(ref calls);
                 return ValueTask.FromResult("value-1");
-            }).ConfigureAwait(true);
+            },
+            cancellationToken: TestContext.Current.CancellationToken).ConfigureAwait(true);
 
         var second = await cache.GetOrCreateAsync(
             "test:single",
@@ -42,7 +43,8 @@ public sealed class HybridCacheBehaviorTests
             {
                 Interlocked.Increment(ref calls);
                 return ValueTask.FromResult("value-2");
-            }).ConfigureAwait(true);
+            },
+            cancellationToken: TestContext.Current.CancellationToken).ConfigureAwait(true);
 
         // Assert — factory invoked exactly once, cached value returned on second call
         first.ShouldBe("value-1");
@@ -55,10 +57,10 @@ public sealed class HybridCacheBehaviorTests
     {
         // Arrange
         var cache = CreateCache();
-        await cache.SetAsync("test:remove", "cached").ConfigureAwait(true);
+        await cache.SetAsync("test:remove", "cached",cancellationToken:TestContext.Current.CancellationToken).ConfigureAwait(true);
 
         // Act
-        await cache.RemoveAsync("test:remove").ConfigureAwait(true);
+        await cache.RemoveAsync("test:remove", TestContext.Current.CancellationToken).ConfigureAwait(true);
         var calls = 0;
         var result = await cache.GetOrCreateAsync(
             "test:remove",
@@ -66,7 +68,8 @@ public sealed class HybridCacheBehaviorTests
             {
                 Interlocked.Increment(ref calls);
                 return ValueTask.FromResult("fresh");
-            }).ConfigureAwait(true);
+            },
+            cancellationToken:TestContext.Current.CancellationToken).ConfigureAwait(true);
 
         // Assert — factory re-ran after removal
         result.ShouldBe("fresh");
@@ -80,12 +83,12 @@ public sealed class HybridCacheBehaviorTests
         var cache = CreateCache();
         var tags = new[] { "group-a" };
 
-        await cache.SetAsync("test:tagged:1", "v1", tags: tags).ConfigureAwait(true);
-        await cache.SetAsync("test:tagged:2", "v2", tags: tags).ConfigureAwait(true);
-        await cache.SetAsync("test:untagged", "v3").ConfigureAwait(true);
+        await cache.SetAsync("test:tagged:1", "v1", tags: tags,cancellationToken: TestContext.Current.CancellationToken).ConfigureAwait(true);
+        await cache.SetAsync("test:tagged:2", "v2", tags: tags,cancellationToken: TestContext.Current.CancellationToken).ConfigureAwait(true);
+        await cache.SetAsync("test:untagged", "v3",cancellationToken: TestContext.Current.CancellationToken).ConfigureAwait(true);
 
         // Act
-        await cache.RemoveByTagAsync("group-a").ConfigureAwait(true);
+        await cache.RemoveByTagAsync("group-a", TestContext.Current.CancellationToken).ConfigureAwait(true);
 
         // Assert — both tagged entries re-execute factory, untagged entry still cached
         var taggedRuns = 0;
@@ -93,13 +96,16 @@ public sealed class HybridCacheBehaviorTests
 
         await cache.GetOrCreateAsync(
             "test:tagged:1",
-            ct => { Interlocked.Increment(ref taggedRuns); return ValueTask.FromResult("reloaded-1"); }).ConfigureAwait(true);
+            ct => { Interlocked.Increment(ref taggedRuns); return ValueTask.FromResult("reloaded-1"); },
+            cancellationToken: TestContext.Current.CancellationToken).ConfigureAwait(true);
         await cache.GetOrCreateAsync(
             "test:tagged:2",
-            ct => { Interlocked.Increment(ref taggedRuns); return ValueTask.FromResult("reloaded-2"); }).ConfigureAwait(true);
+            ct => { Interlocked.Increment(ref taggedRuns); return ValueTask.FromResult("reloaded-2"); },
+            cancellationToken: TestContext.Current.CancellationToken).ConfigureAwait(true);
         await cache.GetOrCreateAsync(
             "test:untagged",
-            ct => { Interlocked.Increment(ref untaggedRuns); return ValueTask.FromResult("should-not-run"); }).ConfigureAwait(true);
+            ct => { Interlocked.Increment(ref untaggedRuns); return ValueTask.FromResult("should-not-run"); },
+            cancellationToken: TestContext.Current.CancellationToken).ConfigureAwait(true);
 
         taggedRuns.ShouldBe(2);
         untaggedRuns.ShouldBe(0);
@@ -111,7 +117,7 @@ public sealed class HybridCacheBehaviorTests
         // Arrange
         var cache = CreateCache();
         var payload = new TestPayload("hello", 42);
-        await cache.SetAsync("test:set", payload).ConfigureAwait(true);
+        await cache.SetAsync("test:set", payload,cancellationToken: TestContext.Current.CancellationToken).ConfigureAwait(true);
 
         var calls = 0;
 
@@ -122,7 +128,8 @@ public sealed class HybridCacheBehaviorTests
             {
                 Interlocked.Increment(ref calls);
                 return ValueTask.FromResult(new TestPayload("wrong", 0));
-            }).ConfigureAwait(true);
+            },
+            cancellationToken: TestContext.Current.CancellationToken).ConfigureAwait(true);
 
         // Assert
         fetched.ShouldBe(payload);

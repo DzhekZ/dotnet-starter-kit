@@ -41,7 +41,7 @@ public sealed class LocalStorageServiceTests : IDisposable
         var request = PngRequest();
 
         // Act
-        var path = await _sut.UploadAsync<Probe>(request, FileType.Image);
+        var path = await _sut.UploadAsync<Probe>(request, FileType.Image, TestContext.Current.CancellationToken);
 
         // Assert
         path.ShouldStartWith("uploads/probe/");
@@ -57,16 +57,16 @@ public sealed class LocalStorageServiceTests : IDisposable
         var request = PngRequest();
 
         // Act
-        var path = await _sut.UploadAsync<Probe>(request, FileType.Image);
-        var exists = await _sut.ExistsAsync(path);
-        var size = await _sut.GetSizeAsync(path);
-        var download = await _sut.DownloadAsync(path);
+        var path = await _sut.UploadAsync<Probe>(request, FileType.Image, TestContext.Current.CancellationToken);
+        var exists = await _sut.ExistsAsync(path, TestContext.Current.CancellationToken);
+        var size = await _sut.GetSizeAsync(path, TestContext.Current.CancellationToken);
+        var download = await _sut.DownloadAsync(path, TestContext.Current.CancellationToken);
 
         // Assert
         exists.ShouldBeTrue();
         size.ShouldBe(4);
         download.ShouldNotBeNull();
-        download!.ContentType.ShouldBe("image/png");
+        download.ContentType.ShouldBe("image/png");
         download.ContentLength.ShouldBe(4);
         await download.Stream.DisposeAsync();
     }
@@ -75,28 +75,28 @@ public sealed class LocalStorageServiceTests : IDisposable
     public async Task RemoveAsync_Should_DeleteFile_When_FileExists()
     {
         // Arrange
-        var path = await _sut.UploadAsync<Probe>(PngRequest(), FileType.Image);
+        var path = await _sut.UploadAsync<Probe>(PngRequest(), FileType.Image, TestContext.Current.CancellationToken);
         var diskPath = path.Replace('/', Path.DirectorySeparatorChar);
 
         // Act
-        await _sut.RemoveAsync(diskPath);
+        await _sut.RemoveAsync(diskPath, TestContext.Current.CancellationToken);
 
         // Assert
-        (await _sut.ExistsAsync(path)).ShouldBeFalse();
+        (await _sut.ExistsAsync(path, TestContext.Current.CancellationToken)).ShouldBeFalse();
     }
 
     [Fact]
     public async Task HeadObjectAsync_Should_ReturnMetadata_When_FileExists()
     {
         // Arrange
-        var path = await _sut.UploadAsync<Probe>(PngRequest(), FileType.Image);
+        var path = await _sut.UploadAsync<Probe>(PngRequest(), FileType.Image, TestContext.Current.CancellationToken);
 
         // Act
-        var metadata = await _sut.HeadObjectAsync(path);
+        var metadata = await _sut.HeadObjectAsync(path, TestContext.Current.CancellationToken);
 
         // Assert
         metadata.ShouldNotBeNull();
-        metadata!.SizeBytes.ShouldBe(4);
+        metadata.SizeBytes.ShouldBe(4);
         metadata.ContentType.ShouldBe("image/png");
     }
 
@@ -108,7 +108,7 @@ public sealed class LocalStorageServiceTests : IDisposable
     public async Task GenerateUploadUrlAsync_Should_ReturnLocalTokenUrl_When_KeyProvided()
     {
         // Act
-        var result = await _sut.GenerateUploadUrlAsync("uploads/probe/file.png", "image/png", 1024, TimeSpan.FromMinutes(5));
+        var result = await _sut.GenerateUploadUrlAsync("uploads/probe/file.png", "image/png", 1024, TimeSpan.FromMinutes(5), TestContext.Current.CancellationToken);
 
         // Assert
         result.Url.Scheme.ShouldBe("local");
@@ -120,7 +120,7 @@ public sealed class LocalStorageServiceTests : IDisposable
     public async Task GenerateDownloadUrlAsync_Should_ReturnRelativeUrl_When_KeyProvided()
     {
         // Act
-        var uri = await _sut.GenerateDownloadUrlAsync("/uploads/probe/file.png", TimeSpan.FromMinutes(5));
+        var uri = await _sut.GenerateDownloadUrlAsync("/uploads/probe/file.png", TimeSpan.FromMinutes(5),cancellationToken:TestContext.Current.CancellationToken);
 
         // Assert
         uri.IsAbsoluteUri.ShouldBeFalse();
@@ -171,16 +171,16 @@ public sealed class LocalStorageServiceTests : IDisposable
     [Fact]
     public async Task ExistsAsync_Should_ReturnFalse_When_PathBlank()
     {
-        (await _sut.ExistsAsync(" ")).ShouldBeFalse();
-        (await _sut.GetSizeAsync(" ")).ShouldBe(0);
-        (await _sut.DownloadAsync(" ")).ShouldBeNull();
-        (await _sut.HeadObjectAsync(" ")).ShouldBeNull();
+        (await _sut.ExistsAsync(" ", TestContext.Current.CancellationToken)).ShouldBeFalse();
+        (await _sut.GetSizeAsync(" ", TestContext.Current.CancellationToken)).ShouldBe(0);
+        (await _sut.DownloadAsync(" ", TestContext.Current.CancellationToken)).ShouldBeNull();
+        (await _sut.HeadObjectAsync(" ", TestContext.Current.CancellationToken)).ShouldBeNull();
     }
 
     [Fact]
     public async Task DownloadAsync_Should_ReturnNull_When_FileMissing()
     {
-        (await _sut.DownloadAsync("uploads/probe/missing.png")).ShouldBeNull();
+        (await _sut.DownloadAsync("uploads/probe/missing.png", TestContext.Current.CancellationToken)).ShouldBeNull();
     }
 
     [Fact]

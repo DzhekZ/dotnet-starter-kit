@@ -14,10 +14,10 @@ public static class ProfileSeedData
     // a Guid per call); a shared static list would reuse Ids and PK-violate on the second tenant's seed.
     public static IReadOnlyList<Position> BuildBrands() =>
     [
-        Position.Create("Acme Goods",      "Quality essentials for the modern home.",            null),
-        Position.Create("Northwind",       "Outdoor and adventure gear since 1985.",             null),
-        Position.Create("Contoso Studio",  "Design-forward furniture and lighting.",             null),
-        Position.Create("Fabrikam",        "Pro-grade tools for makers and builders.",           null),
+        Position.Create("Acme Goods",      "Quality essentials for the modern home."),
+        Position.Create("Northwind",       "Outdoor and adventure gear since 1985."),
+        Position.Create("Contoso Studio",  "Design-forward furniture and lighting."),
+        Position.Create("Fabrikam",        "Pro-grade tools for makers and builders."),
     ];
 
     public static (IReadOnlyList<Subdivision> Roots, IReadOnlyList<Subdivision> Children) BuildCategories()

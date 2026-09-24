@@ -76,7 +76,7 @@ public sealed class MiddlewareWebApplicationFactory : WebApplicationFactory<Prog
         Environment.SetEnvironmentVariable("SecurityHeadersOptions__Enabled", "true");
     }
 
-    public async Task InitializeAsync()
+    public async ValueTask InitializeAsync()
     {
         await Task.WhenAll(_postgres.StartAsync(), _minio.StartAsync());
         await CreateMinioBucketAsync();

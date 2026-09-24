@@ -55,7 +55,7 @@ public sealed class PasswordExpiryServiceTests
         SetupUserManager(user);
 
         // Act
-        var result = await service.IsPasswordExpiredAsync(user.Id);
+        var result = await service.IsPasswordExpiredAsync(user.Id, TestContext.Current.CancellationToken);
 
         // Assert
         result.ShouldBeFalse();
@@ -75,7 +75,7 @@ public sealed class PasswordExpiryServiceTests
         SetupUserManager(user);
 
         // Act
-        var result = await service.IsPasswordExpiredAsync(user.Id);
+        var result = await service.IsPasswordExpiredAsync(user.Id, TestContext.Current.CancellationToken);
 
         // Assert
         result.ShouldBeTrue();
@@ -95,7 +95,7 @@ public sealed class PasswordExpiryServiceTests
         SetupUserManager(user);
 
         // Act
-        var result = await service.IsPasswordExpiredAsync(user.Id);
+        var result = await service.IsPasswordExpiredAsync(user.Id, TestContext.Current.CancellationToken);
 
         // Assert
         result.ShouldBeFalse();
@@ -115,7 +115,7 @@ public sealed class PasswordExpiryServiceTests
         SetupUserManager(user);
 
         // Act
-        var result = await service.IsPasswordExpiredAsync(user.Id);
+        var result = await service.IsPasswordExpiredAsync(user.Id, TestContext.Current.CancellationToken);
 
         // Assert
         result.ShouldBeFalse();
@@ -136,7 +136,7 @@ public sealed class PasswordExpiryServiceTests
         SetupUserManager(user);
 
         // Act
-        var result = await service.IsPasswordExpiredAsync(user.Id);
+        var result = await service.IsPasswordExpiredAsync(user.Id, TestContext.Current.CancellationToken);
 
         // Assert
         result.ShouldBeTrue();
@@ -155,7 +155,7 @@ public sealed class PasswordExpiryServiceTests
         _userManager.FindByIdAsync(Arg.Any<string>()).Returns((FshUser?)null);
 
         // Act
-        var result = await service.IsPasswordExpiredAsync("nonexistent-user-id");
+        var result = await service.IsPasswordExpiredAsync("nonexistent-user-id", TestContext.Current.CancellationToken);
 
         // Assert
         result.ShouldBeFalse();
@@ -175,7 +175,7 @@ public sealed class PasswordExpiryServiceTests
         SetupUserManager(user);
 
         // Act
-        var result = await service.GetDaysUntilExpiryAsync(user.Id);
+        var result = await service.GetDaysUntilExpiryAsync(user.Id, TestContext.Current.CancellationToken);
 
         // Assert
         result.ShouldBe(int.MaxValue);
@@ -195,7 +195,7 @@ public sealed class PasswordExpiryServiceTests
         SetupUserManager(user);
 
         // Act
-        var result = await service.GetDaysUntilExpiryAsync(user.Id);
+        var result = await service.GetDaysUntilExpiryAsync(user.Id, TestContext.Current.CancellationToken);
 
         // Assert - TotalDays truncates, so could be 9 or 10 depending on time of day
         result.ShouldBeInRange(9, 10);
@@ -215,7 +215,7 @@ public sealed class PasswordExpiryServiceTests
         SetupUserManager(user);
 
         // Act
-        var result = await service.GetDaysUntilExpiryAsync(user.Id);
+        var result = await service.GetDaysUntilExpiryAsync(user.Id, TestContext.Current.CancellationToken);
 
         // Assert
         result.ShouldBeLessThan(0); // Expired 10 days ago
@@ -235,7 +235,7 @@ public sealed class PasswordExpiryServiceTests
         SetupUserManager(user);
 
         // Act
-        var result = await service.GetDaysUntilExpiryAsync(user.Id);
+        var result = await service.GetDaysUntilExpiryAsync(user.Id, TestContext.Current.CancellationToken);
 
         // Assert - TotalDays truncates, so could be 89 or 90 depending on time of day
         result.ShouldBeInRange(89, 90);
@@ -254,7 +254,7 @@ public sealed class PasswordExpiryServiceTests
         _userManager.FindByIdAsync(Arg.Any<string>()).Returns((FshUser?)null);
 
         // Act
-        var result = await service.GetDaysUntilExpiryAsync("nonexistent-user-id");
+        var result = await service.GetDaysUntilExpiryAsync("nonexistent-user-id", TestContext.Current.CancellationToken);
 
         // Assert
         result.ShouldBe(int.MaxValue);
@@ -274,7 +274,7 @@ public sealed class PasswordExpiryServiceTests
         SetupUserManager(user);
 
         // Act
-        var result = await service.IsPasswordExpiringWithinWarningPeriodAsync(user.Id);
+        var result = await service.IsPasswordExpiringWithinWarningPeriodAsync(user.Id, TestContext.Current.CancellationToken);
 
         // Assert
         result.ShouldBeFalse();
@@ -295,7 +295,7 @@ public sealed class PasswordExpiryServiceTests
         SetupUserManager(user);
 
         // Act
-        var result = await service.IsPasswordExpiringWithinWarningPeriodAsync(user.Id);
+        var result = await service.IsPasswordExpiringWithinWarningPeriodAsync(user.Id, TestContext.Current.CancellationToken);
 
         // Assert
         result.ShouldBeTrue(); // 10 days <= 14 warning days
@@ -316,7 +316,7 @@ public sealed class PasswordExpiryServiceTests
         SetupUserManager(user);
 
         // Act
-        var result = await service.IsPasswordExpiringWithinWarningPeriodAsync(user.Id);
+        var result = await service.IsPasswordExpiringWithinWarningPeriodAsync(user.Id, TestContext.Current.CancellationToken);
 
         // Assert
         result.ShouldBeFalse(); // 20 days > 14 warning days
@@ -337,7 +337,7 @@ public sealed class PasswordExpiryServiceTests
         SetupUserManager(user);
 
         // Act
-        var result = await service.IsPasswordExpiringWithinWarningPeriodAsync(user.Id);
+        var result = await service.IsPasswordExpiringWithinWarningPeriodAsync(user.Id, TestContext.Current.CancellationToken);
 
         // Assert
         result.ShouldBeFalse(); // Already expired, not "expiring soon"
@@ -358,7 +358,7 @@ public sealed class PasswordExpiryServiceTests
         SetupUserManager(user);
 
         // Act
-        var result = await service.IsPasswordExpiringWithinWarningPeriodAsync(user.Id);
+        var result = await service.IsPasswordExpiringWithinWarningPeriodAsync(user.Id, TestContext.Current.CancellationToken);
 
         // Assert
         result.ShouldBeTrue(); // 0 days is within warning period
@@ -378,7 +378,7 @@ public sealed class PasswordExpiryServiceTests
         _userManager.FindByIdAsync(Arg.Any<string>()).Returns((FshUser?)null);
 
         // Act
-        var result = await service.IsPasswordExpiringWithinWarningPeriodAsync("nonexistent-user-id");
+        var result = await service.IsPasswordExpiringWithinWarningPeriodAsync("nonexistent-user-id", TestContext.Current.CancellationToken);
 
         // Assert
         result.ShouldBeFalse();
@@ -403,7 +403,7 @@ public sealed class PasswordExpiryServiceTests
         SetupUserManager(user);
 
         // Act
-        var result = await service.GetPasswordExpiryStatusAsync(user.Id);
+        var result = await service.GetPasswordExpiryStatusAsync(user.Id, TestContext.Current.CancellationToken);
 
         // Assert
         result.IsExpired.ShouldBeTrue();
@@ -428,7 +428,7 @@ public sealed class PasswordExpiryServiceTests
         SetupUserManager(user);
 
         // Act
-        var result = await service.GetPasswordExpiryStatusAsync(user.Id);
+        var result = await service.GetPasswordExpiryStatusAsync(user.Id, TestContext.Current.CancellationToken);
 
         // Assert
         result.IsExpired.ShouldBeFalse();
@@ -453,7 +453,7 @@ public sealed class PasswordExpiryServiceTests
         SetupUserManager(user);
 
         // Act
-        var result = await service.GetPasswordExpiryStatusAsync(user.Id);
+        var result = await service.GetPasswordExpiryStatusAsync(user.Id, TestContext.Current.CancellationToken);
 
         // Assert
         result.IsExpired.ShouldBeFalse();
@@ -473,7 +473,7 @@ public sealed class PasswordExpiryServiceTests
         SetupUserManager(user);
 
         // Act
-        var result = await service.GetPasswordExpiryStatusAsync(user.Id);
+        var result = await service.GetPasswordExpiryStatusAsync(user.Id, TestContext.Current.CancellationToken);
 
         // Assert
         result.IsExpired.ShouldBeFalse();
@@ -498,7 +498,7 @@ public sealed class PasswordExpiryServiceTests
         SetupUserManager(user);
 
         // Act
-        var result = await service.GetPasswordExpiryStatusAsync(user.Id);
+        var result = await service.GetPasswordExpiryStatusAsync(user.Id, TestContext.Current.CancellationToken);
 
         // Assert
         result.ExpiryDate.ShouldBe(lastChange.AddDays(90));
@@ -517,7 +517,7 @@ public sealed class PasswordExpiryServiceTests
         _userManager.FindByIdAsync(Arg.Any<string>()).Returns((FshUser?)null);
 
         // Act
-        var result = await service.GetPasswordExpiryStatusAsync("nonexistent-user-id");
+        var result = await service.GetPasswordExpiryStatusAsync("nonexistent-user-id", TestContext.Current.CancellationToken);
 
         // Assert
         result.IsExpired.ShouldBeFalse();
@@ -543,7 +543,7 @@ public sealed class PasswordExpiryServiceTests
 
         // Act
         var beforeUpdate = DateTime.UtcNow;
-        await service.UpdateLastPasswordChangeDateAsync(user.Id);
+        await service.UpdateLastPasswordChangeDateAsync(user.Id, TestContext.Current.CancellationToken);
         var afterUpdate = DateTime.UtcNow;
 
         // Assert
@@ -561,7 +561,7 @@ public sealed class PasswordExpiryServiceTests
         _userManager.FindByIdAsync(Arg.Any<string>()).Returns((FshUser?)null);
 
         // Act
-        await service.UpdateLastPasswordChangeDateAsync("nonexistent-user-id");
+        await service.UpdateLastPasswordChangeDateAsync("nonexistent-user-id", TestContext.Current.CancellationToken);
 
         // Assert
         await _userManager.DidNotReceive().UpdateAsync(Arg.Any<FshUser>());

@@ -44,7 +44,7 @@ public sealed class ChangePasswordCommandHandlerTests
         _currentUser.IsAuthenticated().Returns(true);
         _currentUser.GetUserId().Returns(userId);
 
-        _userService.ChangePasswordAsync(command.Password, command.NewPassword, command.ConfirmNewPassword, userId.ToString())
+        _userService.ChangePasswordAsync(command.Password, command.NewPassword, command.ConfirmNewPassword, userId.ToString(), TestContext.Current.CancellationToken)
             .Returns(Task.CompletedTask);
 
         // Act
@@ -70,7 +70,7 @@ public sealed class ChangePasswordCommandHandlerTests
         _currentUser.IsAuthenticated().Returns(true);
         _currentUser.GetUserId().Returns(userId);
 
-        _userService.ChangePasswordAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>())
+        _userService.ChangePasswordAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), TestContext.Current.CancellationToken)
             .Returns(Task.CompletedTask);
 
         // Act
@@ -81,7 +81,8 @@ public sealed class ChangePasswordCommandHandlerTests
             command.Password,
             command.NewPassword,
             command.ConfirmNewPassword,
-            userId.ToString());
+            userId.ToString(),
+            TestContext.Current.CancellationToken);
     }
 
     #endregion
@@ -150,7 +151,7 @@ public sealed class ChangePasswordCommandHandlerTests
         _currentUser.IsAuthenticated().Returns(true);
         _currentUser.GetUserId().Returns(userId);
 
-        _userService.ChangePasswordAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>())
+        _userService.ChangePasswordAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), TestContext.Current.CancellationToken)
             .Returns(Task.CompletedTask);
 
         // Act
@@ -177,7 +178,7 @@ public sealed class ChangePasswordCommandHandlerTests
         _currentUser.IsAuthenticated().Returns(true);
         _currentUser.GetUserId().Returns(userId);
 
-        _userService.ChangePasswordAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>())
+        _userService.ChangePasswordAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), TestContext.Current.CancellationToken)
             .Returns(Task.CompletedTask);
 
         // Act
@@ -188,7 +189,8 @@ public sealed class ChangePasswordCommandHandlerTests
             command.Password,
             command.NewPassword,
             command.ConfirmNewPassword,
-            userId.ToString());
+            userId.ToString(),
+            TestContext.Current.CancellationToken);
     }
 
     #endregion
@@ -212,7 +214,7 @@ public sealed class ChangePasswordCommandHandlerTests
         _currentUser.GetUserId().Returns(userId);
 
         var expectedExceptionMessage = "Current password is incorrect";
-        _userService.ChangePasswordAsync(command.Password, command.NewPassword, command.ConfirmNewPassword, userId.ToString())
+        _userService.ChangePasswordAsync(command.Password, command.NewPassword, command.ConfirmNewPassword, userId.ToString(), TestContext.Current.CancellationToken)
             .ThrowsAsync(new UnauthorizedAccessException(expectedExceptionMessage));
 
         // Act & Assert
@@ -275,7 +277,7 @@ public sealed class ChangePasswordCommandHandlerTests
         _currentUser.IsAuthenticated().Returns(true);
         _currentUser.GetUserId().Returns(userId);
 
-        _userService.ChangePasswordAsync(command.Password, command.NewPassword, command.ConfirmNewPassword, userId.ToString())
+        _userService.ChangePasswordAsync(command.Password, command.NewPassword, command.ConfirmNewPassword, userId.ToString(), TestContext.Current.CancellationToken)
             .Returns(Task.CompletedTask);
 
         // Act
@@ -305,7 +307,7 @@ public sealed class ChangePasswordCommandHandlerTests
         _currentUser.IsAuthenticated().Returns(true);
         _currentUser.GetUserId().Returns(userId);
 
-        _userService.ChangePasswordAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>())
+        _userService.ChangePasswordAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), TestContext.Current.CancellationToken)
             .Returns(Task.CompletedTask);
 
         // Act
@@ -313,7 +315,7 @@ public sealed class ChangePasswordCommandHandlerTests
 
         // Assert
         result.ShouldBe("password reset email sent");
-        await _userService.Received(1).ChangePasswordAsync("", "", "", userId.ToString());
+        await _userService.Received(1).ChangePasswordAsync("", "", "", userId.ToString(), TestContext.Current.CancellationToken);
     }
 
     #endregion

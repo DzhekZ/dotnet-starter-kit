@@ -78,7 +78,7 @@ public sealed class ObservableHybridCacheTests : IDisposable
         var result = await cache.GetOrCreateAsync(
             "obs:miss",
             0,
-            static (s, ct) => ValueTask.FromResult("fresh")).ConfigureAwait(true);
+            static (s, ct) => ValueTask.FromResult("fresh"), cancellationToken: TestContext.Current.CancellationToken).ConfigureAwait(true);
 
         result.ShouldBe("fresh");
         _misses.ShouldBe(1);
@@ -90,7 +90,7 @@ public sealed class ObservableHybridCacheTests : IDisposable
     public async Task Second_call_Should_Record_Hit_And_Not_Invoke_Factory()
     {
         var cache = CreateCache();
-        await cache.GetOrCreateAsync("obs:hit", 0, static (s, ct) => ValueTask.FromResult("v")).ConfigureAwait(true);
+        await cache.GetOrCreateAsync("obs:hit", 0, static (s, ct) => ValueTask.FromResult("v"), cancellationToken: TestContext.Current.CancellationToken).ConfigureAwait(true);
 
         var invocations = 0;
         var result = await cache.GetOrCreateAsync(
@@ -100,7 +100,8 @@ public sealed class ObservableHybridCacheTests : IDisposable
             {
                 Interlocked.Increment(ref invocations);
                 return ValueTask.FromResult("should-not-run");
-            }).ConfigureAwait(true);
+            },
+            cancellationToken: TestContext.Current.CancellationToken).ConfigureAwait(true);
 
         result.ShouldBe("v");
         invocations.ShouldBe(0);
@@ -112,9 +113,9 @@ public sealed class ObservableHybridCacheTests : IDisposable
     public async Task RemoveAsync_Should_Record_Invalidation()
     {
         var cache = CreateCache();
-        await cache.SetAsync("obs:rem", "v").ConfigureAwait(true);
+        await cache.SetAsync("obs:rem", "v", cancellationToken: TestContext.Current.CancellationToken).ConfigureAwait(true);
 
-        await cache.RemoveAsync("obs:rem").ConfigureAwait(true);
+        await cache.RemoveAsync("obs:rem", cancellationToken: TestContext.Current.CancellationToken).ConfigureAwait(true);
 
         _invalidations.ShouldBe(1);
     }
@@ -123,9 +124,9 @@ public sealed class ObservableHybridCacheTests : IDisposable
     public async Task RemoveByTagAsync_Should_Record_Invalidation()
     {
         var cache = CreateCache();
-        await cache.SetAsync("obs:tagged", "v", tags: ["group"]).ConfigureAwait(true);
+        await cache.SetAsync("obs:tagged", "v", tags: ["group"], cancellationToken: TestContext.Current.CancellationToken).ConfigureAwait(true);
 
-        await cache.RemoveByTagAsync("group").ConfigureAwait(true);
+        await cache.RemoveByTagAsync("group", cancellationToken: TestContext.Current.CancellationToken).ConfigureAwait(true);
 
         _invalidations.ShouldBe(1);
     }
