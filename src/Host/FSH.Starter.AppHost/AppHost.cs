@@ -73,7 +73,7 @@ const string DashboardOrigin = "http://localhost:5174";
 var s3User = builder.AddParameter("rustfs-user", "rustfsadmin");
 var s3Password = builder.AddParameter("rustfs-password", "rustfsadmin", secret: true);
 
-var rustfs = builder.AddContainer("rustfs", "rustfs/rustfs", "1.0.0")
+var rustfs = builder.AddContainer("rustfs", "rustfs/rustfs", "latest")
     .WithHttpEndpoint(port: 9000, targetPort: 9000, name: "api")
     .WithHttpEndpoint(port: 9001, targetPort: 9001, name: "console")
     .WithEnvironment("RUSTFS_ACCESS_KEY", s3User)
@@ -206,8 +206,7 @@ var api = builder.AddProject<Projects.FSH_Starter_Api>($"{appPrefix}-api")
     .WithEnvironment("Storage__S3__AccessKey", s3User)
     .WithEnvironment("Storage__S3__SecretKey", s3Password)
     .WithEnvironment("Storage__S3__ForcePathStyle", "true")
-    .WithEnvironment("Storage__S3__PublicBaseUrl", ReferenceExpression.Create($"{s3ApiEndpoint}/{S3Bucket}"));
-    .WithEnvironment("Storage__S3__PublicBaseUrl", ReferenceExpression.Create($"{minioApiEndpoint}/{MinioBucket}"))
+    .WithEnvironment("Storage__S3__PublicBaseUrl", ReferenceExpression.Create($"{s3ApiEndpoint}/{S3Bucket}"))
     .WithEnvironment("Papercut__Smtp__Url", papercut.GetEndpoint("smtp"));
 
 //#if (frontend)
