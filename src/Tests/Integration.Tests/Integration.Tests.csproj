@@ -27,7 +27,7 @@
         <PackageReference Include="SSH.NET" />
         <PackageReference Include="Testcontainers.PostgreSql" />
         <PackageReference Include="Testcontainers.Redis" />
-        <PackageReference Include="Testcontainers.Minio" />
+        <PackageReference Include="Testcontainers" />
         <PackageReference Include="Hangfire.InMemory" />
         <PackageReference Include="xunit.runner.visualstudio">
             <PrivateAssets>all</PrivateAssets>
