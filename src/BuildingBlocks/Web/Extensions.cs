@@ -57,6 +57,7 @@ public static class Extensions
         });
 
         builder.AddHeroLogging();
+
         if (options.EnableOpenTelemetry)
         {
             builder.AddHeroOpenTelemetry();

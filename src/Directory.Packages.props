@@ -23,7 +23,7 @@
     </PackageVersion>
     <PackageVersion Include="FluentValidation.DependencyInjectionExtensions" Version="12.1.1" />
     <PackageVersion Include="Microsoft.Extensions.Http.Resilience" Version="10.10.0" />
-    <PackageVersion Include="Microsoft.FeatureManagement.AspNetCore" Version="4.7.0" />
+    <PackageVersion Include="Microsoft.FeatureManagement.AspNetCore" Version="4.8.0" />
     <PackageVersion Include="Microsoft.Extensions.ServiceDiscovery" Version="10.6.0" />
     <PackageVersion Include="Npgsql.OpenTelemetry" Version="10.0.3" />
     <PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.19.1" />
@@ -33,7 +33,7 @@
     <PackageVersion Include="OpenTelemetry.Instrumentation.Http" Version="1.19.0" />
     <PackageVersion Include="OpenTelemetry.Instrumentation.Runtime" Version="1.19.0" />
     <PackageVersion Include="OpenTelemetry.Instrumentation.StackExchangeRedis" Version="1.15.0-beta.1" />
-    <PackageVersion Include="QuestPDF" Version="2026.9.0" />
+    <PackageVersion Include="QuestPDF" Version="2026.9.1" />
     <PackageVersion Include="Serilog.Enrichers.Environment" Version="3.0.1" />
     <PackageVersion Include="Serilog.Enrichers.Process" Version="3.0.0" />
     <PackageVersion Include="Serilog.Enrichers.Span" Version="3.1.0" />
@@ -97,13 +97,13 @@
     <PackageVersion Include="NSubstitute" Version="6.2.0" />
     <PackageVersion Include="Newtonsoft.Json" Version="13.0.4" />
     <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
-    <PackageVersion Include="Scalar.AspNetCore" Version="2.17.6" />
+    <PackageVersion Include="Scalar.AspNetCore" Version="2.17.10" />
     <PackageVersion Include="Serilog" Version="4.4.0" />
     <PackageVersion Include="Serilog.AspNetCore" Version="10.0.0" />
     <PackageVersion Include="Serilog.Enrichers.CorrelationId" Version="3.0.1" />
     <PackageVersion Include="SendGrid" Version="9.29.3" />
     <PackageVersion Include="SonarAnalyzer.CSharp" Version="10.34.0.3385" />
-    <PackageVersion Include="StackExchange.Redis" Version="3.3.0" />
+    <PackageVersion Include="StackExchange.Redis" Version="3.3.1" />
     <PackageVersion Include="UAParser" Version="3.1.47" />
     <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.12" />
     <!-- Pin the transitive Microsoft.OpenApi explicitly. Microsoft.AspNetCore.OpenApi 10.0.8 only requires
@@ -130,7 +130,7 @@
     <PackageVersion Include="Testcontainers.Minio" Version="4.15.0" />
   </ItemGroup>
   <ItemGroup Label="AWS">
-    <PackageVersion Include="AWSSDK.S3" Version="4.0.103.3" />
+    <PackageVersion Include="AWSSDK.S3" Version="4.0.103.4" />
   </ItemGroup>
   <ItemGroup Label="Messaging">
     <PackageVersion Include="RabbitMQ.Client" Version="7.2.2" />
