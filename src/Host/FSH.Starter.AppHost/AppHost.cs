@@ -1,5 +1,6 @@
 // Set builder variable to the result of calling the CreateBuilder method on the DistributedApplication class, passing in the args parameter.
 using System.Net.Sockets;
+using Aspire.Hosting.ApplicationModel;
 
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -11,26 +12,8 @@ var appPrefix = builder.Environment.ApplicationName
     .ToLowerInvariant();
 #pragma warning restore CA1308
 
-// Postgres + pgAdmin sidecar (auto-discovers registered databases); persistent so volumes and saved state survive restarts.
-var pgUsername = builder.AddParameter("pg-username", "postgres", secret: true);
-var pgPassword = builder.AddParameter("pg-password", "postgres", secret: true);
-
-var postgresServer = builder.AddPostgres("postgres",pgUsername,pgPassword)
+var postgresServer = builder.AddPostgres("postgres")
     .WithImage("postgres:latest")
-    .WithEndpoint(
-        "tcp",
-        e =>
-        {
-            e.Port = 5432;
-            e.TargetPort = 5432;
-            e.IsProxied = true;
-            e.IsExternal = false;
-        })
-    .WithArgs(
-        "-c",
-        "wal_level=logical",
-        "-c",
-        "max_prepared_transactions=10")
     .WithEnvironment("PGDATA", "/var/lib/postgresql/postgres-data")
     .WithDataVolume($"{appPrefix}-postgres-data")
     .WithLifetime(ContainerLifetime.Persistent)
@@ -94,7 +77,7 @@ aws --endpoint-url http://rustfs:9000 s3api head-bucket --bucket {{S3Bucket}} 2>
 aws --endpoint-url http://rustfs:9000 s3api put-bucket-policy --bucket {{S3Bucket}} --policy '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"AWS":["*"]},"Action":["s3:GetObject"],"Resource":["arn:aws:s3:::{{S3Bucket}}/public/*"]}]}';
 """).ReplaceLineEndings("\n");
 
-var s3Init = builder.AddContainer("rustfs-init", "amazon/aws-cli", "2.37.3")
+var s3Init = builder.AddContainer("rustfs-init", "amazon/aws-cli", "latest")
     .WithEntrypoint("/bin/sh")
     .WithArgs("-c", s3InitScript)
     .WithEnvironment("AWS_ACCESS_KEY_ID", s3User)
@@ -178,11 +161,12 @@ var api = builder.AddProject<Projects.FSH_Starter_Api>($"{appPrefix}-api")
     .WaitFor(postgres)
     .WaitFor(redis)
     .WaitForCompletion(s3Init)
-    .WaitForCompletion(migrator)
-    //.WaitForCompletion(demoSeeder)
     .WithReference(rabbitmq)
     .WaitFor(rabbitmq)
+    //.WithReference(papercut)
     .WaitFor(papercut)
+    .WaitForCompletion(migrator)
+    //.WaitForCompletion(demoSeeder)
     .WithExternalHttpEndpoints()
     .WithEnvironment("DatabaseOptions__Provider", "POSTGRESQL")
     .WithEnvironment("DatabaseOptions__ConnectionString", apiPgConnection)

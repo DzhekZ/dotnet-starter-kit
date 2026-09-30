@@ -15,7 +15,10 @@
 		<PackageReference Include="NSubstitute" />
 		<PackageReference Include="Shouldly" />
 		<PackageReference Include="xunit.runner.visualstudio" />
-		<PackageReference Include="coverlet.collector" />
+		<PackageReference Include="coverlet.collector">
+		  <PrivateAssets>all</PrivateAssets>
+		  <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+		</PackageReference>
 		<PackageReference Include="xunit.v3" />
 	</ItemGroup>
 
@@ -33,12 +36,8 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<None Include="..\..\Host\FSH.Starter.Api\appsettings.json"
-			  Link="HostConfiguration\appsettings.json"
-			  CopyToOutputDirectory="PreserveNewest" />
-		<None Include="..\..\Host\FSH.Starter.Api\appsettings.Production.json"
-			  Link="HostConfiguration\appsettings.Production.json"
-			  CopyToOutputDirectory="PreserveNewest" />
+		<None Include="..\..\Host\FSH.Starter.Api\appsettings.json" Link="HostConfiguration\appsettings.json" CopyToOutputDirectory="PreserveNewest" />
+		<None Include="..\..\Host\FSH.Starter.Api\appsettings.Production.json" Link="HostConfiguration\appsettings.Production.json" CopyToOutputDirectory="PreserveNewest" />
 	</ItemGroup>
 
 </Project>
