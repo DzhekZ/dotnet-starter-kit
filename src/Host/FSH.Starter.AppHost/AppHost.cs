@@ -88,55 +88,10 @@ var s3Init = builder.AddContainer("rustfs-init", "amazon/aws-cli", "latest")
 var s3ApiEndpoint = rustfs.GetEndpoint("api");
 
 
-// Messaging Services
-var rabbitmqUsername = builder.AddParameter("rabbitmq-username", "guest", secret: true);
-var rabbitmqPassword = builder.AddParameter("rabbitmq-password", "guest", secret: true);
-
-var rabbitmq = builder.AddRabbitMQ("rabbitmq", rabbitmqUsername, rabbitmqPassword)
-    .WithManagementPlugin()
-    .WithEndpoint(
-        "tcp",
-        e =>
-        {
-            e.TargetPort = 5672;
-            e.Port = 5672;
-            e.IsProxied = true;
-            e.IsExternal = false;
-        })
-    .WithEndpoint(
-        "management",
-        e =>
-        {
-            e.TargetPort = 15672;
-            e.Port = 15672;
-            e.IsProxied = true;
-            e.IsExternal = true;
-        })
-    .WithLifetime(ContainerLifetime.Persistent);
-
-// Papercut SMTP container for email testing
-var papercut = builder.AddContainer("papercut", "jijiechen/papercut", "latest")
-  .WithEndpoint("smtp", e =>
-  {
-      e.TargetPort = 25;   // container port
-      e.Port = 25;         // host port
-      e.Protocol = ProtocolType.Tcp;
-      e.UriScheme = "smtp";
-  })
-  .WithEndpoint("ui", e =>
-  {
-      e.TargetPort = 37408;
-      e.Port = 37408;
-      e.UriScheme = "http";
-  });
-
-
 // DB migrator: applies pending migrations + seeds the root admin (admin@root.com), then exits; the API waits for its completion so it never starts against an unmigrated DB. Seed password is a dev-only default.
 var migrator = builder.AddProject<Projects.FSH_Starter_DbMigrator>($"{appPrefix}-db-migrator")
     .WithReference(postgres)
     .WaitFor(postgres)
-    .WithReference(rabbitmq)
-    .WaitFor(rabbitmq)
     .WithEnvironment("DatabaseOptions__Provider", "POSTGRESQL")
     .WithEnvironment("DatabaseOptions__ConnectionString", postgres.Resource.ConnectionStringExpression)
     .WithEnvironment("DatabaseOptions__MigrationsAssembly", "FSH.Starter.Migrations.PostgreSQL")
@@ -161,10 +116,6 @@ var api = builder.AddProject<Projects.FSH_Starter_Api>($"{appPrefix}-api")
     .WaitFor(postgres)
     .WaitFor(redis)
     .WaitForCompletion(s3Init)
-    .WithReference(rabbitmq)
-    .WaitFor(rabbitmq)
-    //.WithReference(papercut)
-    .WaitFor(papercut)
     .WaitForCompletion(migrator)
     //.WaitForCompletion(demoSeeder)
     .WithExternalHttpEndpoints()
@@ -178,12 +129,12 @@ var api = builder.AddProject<Projects.FSH_Starter_Api>($"{appPrefix}-api")
     .WithEnvironment("HangfireOptions__Password", "Password123!")
     // SMTP via Ethereal (https://ethereal.email) — fake catch-all inbox for local dev (nothing delivered); mirrors appsettings.Development.json. Safe to commit: throwaway test creds.
     .WithEnvironment("MailOptions__UseSendGrid", "false")
-    //.WithEnvironment("MailOptions__From", "nicole.lueilwitz0@ethereal.email")
-    //.WithEnvironment("MailOptions__DisplayName", "Mukesh Murugan")
-    //.WithEnvironment("MailOptions__Smtp__Host", "smtp.ethereal.email")
-    //.WithEnvironment("MailOptions__Smtp__Port", "587")
-    //.WithEnvironment("MailOptions__Smtp__UserName", "nicole.lueilwitz0@ethereal.email")
-    //.WithEnvironment("MailOptions__Smtp__Password", "x4VJz2r9x2NDss9KpC")
+    .WithEnvironment("MailOptions__From", "nicole.lueilwitz0@ethereal.email")
+    .WithEnvironment("MailOptions__DisplayName", "Mukesh Murugan")
+    .WithEnvironment("MailOptions__Smtp__Host", "localhost")
+    .WithEnvironment("MailOptions__Smtp__Port", "25")
+    .WithEnvironment("MailOptions__Smtp__UserName", "1")
+    .WithEnvironment("MailOptions__Smtp__Password", "1")
     .WithEnvironment("Storage__Provider", "s3")
     .WithEnvironment("Storage__S3__Bucket", S3Bucket)
     .WithEnvironment("Storage__S3__Region", "us-east-1")
@@ -191,8 +142,7 @@ var api = builder.AddProject<Projects.FSH_Starter_Api>($"{appPrefix}-api")
     .WithEnvironment("Storage__S3__AccessKey", s3User)
     .WithEnvironment("Storage__S3__SecretKey", s3Password)
     .WithEnvironment("Storage__S3__ForcePathStyle", "true")
-    .WithEnvironment("Storage__S3__PublicBaseUrl", ReferenceExpression.Create($"{s3ApiEndpoint}/{S3Bucket}"))
-    .WithEnvironment("Papercut__Smtp__Url", papercut.GetEndpoint("smtp"));
+    .WithEnvironment("Storage__S3__PublicBaseUrl", ReferenceExpression.Create($"{s3ApiEndpoint}/{S3Bucket}"));
 
 //#if (frontend)
 // Admin console (React + Vite). Target the API's HTTPS endpoint directly — UseHttpsRedirection's 307 to https is cross-origin and strips the Authorization header.
