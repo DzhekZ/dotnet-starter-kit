@@ -9,6 +9,12 @@
 	</PropertyGroup>
 
 	<ItemGroup>
+	  <Compile Remove="Profile\**" />
+	  <EmbeddedResource Remove="Profile\**" />
+	  <None Remove="Profile\**" />
+	</ItemGroup>
+
+	<ItemGroup>
 	  <ProjectReference Include="..\..\BuildingBlocks\Persistence\Persistence.csproj" />
 	  <ProjectReference Include="..\..\Modules\Auditing\Modules.Auditing\Modules.Auditing.csproj" />
 	  <ProjectReference Include="..\..\Modules\Identity\Modules.Identity\Modules.Identity.csproj" />
@@ -27,7 +33,6 @@
 	  <Folder Include="MultiTenancy\" />
 	  <Folder Include="Billing\" />
 	  <Folder Include="Catalog\" />
-	  <Folder Include="Profile\" />
 	  <Folder Include="Tickets\" />
 	  <Folder Include="Chat\" />
 	  <Folder Include="Notifications\" />

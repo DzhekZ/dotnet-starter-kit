@@ -1,5 +1,3 @@
-// Set builder variable to the result of calling the CreateBuilder method on the DistributedApplication class, passing in the args parameter.
-using System.Net.Sockets;
 using Aspire.Hosting.ApplicationModel;
 
 var builder = DistributedApplication.CreateBuilder(args);
@@ -12,6 +10,7 @@ var appPrefix = builder.Environment.ApplicationName
     .ToLowerInvariant();
 #pragma warning restore CA1308
 
+// Postgres + pgAdmin sidecar (auto-discovers registered databases); persistent so volumes and saved state survive restarts.
 var postgresServer = builder.AddPostgres("postgres")
     .WithImage("postgres:latest")
     .WithEnvironment("PGDATA", "/var/lib/postgresql/postgres-data")
@@ -86,7 +85,6 @@ var s3Init = builder.AddContainer("rustfs-init", "amazon/aws-cli", "latest")
     .WaitFor(rustfs);
 
 var s3ApiEndpoint = rustfs.GetEndpoint("api");
-
 
 // DB migrator: applies pending migrations + seeds the root admin (admin@root.com), then exits; the API waits for its completion so it never starts against an unmigrated DB. Seed password is a dev-only default.
 var migrator = builder.AddProject<Projects.FSH_Starter_DbMigrator>($"{appPrefix}-db-migrator")
