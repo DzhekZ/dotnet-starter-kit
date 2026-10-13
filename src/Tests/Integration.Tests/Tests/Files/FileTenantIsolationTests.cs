@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using FSH.Framework.Shared.Persistence;
 using FSH.Modules.Files.Contracts.v1.DTOs;
 using Integration.Tests.Infrastructure;
 using Integration.Tests.Infrastructure.Extensions;
@@ -29,13 +30,13 @@ public sealed class FileTenantIsolationTests
     public async Task GetMetadata_Should_Return404_When_File_Owned_By_Different_Tenant()
     {
         // Arrange — root uploads a Private file; a second tenant comes online.
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var fileId = await UploadAndFinalizeAsync(rootClient, "tenant-a-secret.pdf", "application/pdf", 256, visibility: 1);
 
         using var otherClient = await CreateOtherTenantAdminClientAsync();
 
         // Act — tenant B asks for tenant A's file metadata.
-        using var response = await otherClient.GetAsync($"{FilesBasePath}/{fileId}");
+        using var response = await otherClient.GetAsync($"{FilesBasePath}/{fileId}", TestContext.Current.CancellationToken);
 
         // Assert — the row lives in a different schema, so the lookup misses → 404 (no existence leak).
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
@@ -46,13 +47,13 @@ public sealed class FileTenantIsolationTests
     {
         // Arrange — even a Public file in tenant A must be invisible to tenant B; visibility is a
         // within-tenant concept, the schema boundary comes first.
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var fileId = await UploadAndFinalizeAsync(rootClient, "tenant-a-public.pdf", "application/pdf", 256, visibility: 0);
 
         using var otherClient = await CreateOtherTenantAdminClientAsync();
 
         // Act — tenant B tries to mint a presigned GET for tenant A's file.
-        using var response = await otherClient.GetAsync($"{FilesBasePath}/{fileId}/url");
+        using var response = await otherClient.GetAsync($"{FilesBasePath}/{fileId}/url", TestContext.Current.CancellationToken);
 
         // Assert — no row in tenant B's schema → 404, no presigned URL handed out.
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
@@ -63,21 +64,69 @@ public sealed class FileTenantIsolationTests
     {
         // Arrange — same file, two tenants. This locks the positive AND negative halves together so
         // the 404 above can't be a false-positive from a broken upload.
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var fileId = await UploadAndFinalizeAsync(rootClient, "shared-id.pdf", "application/pdf", 256, visibility: 1);
 
         using var otherClient = await CreateOtherTenantAdminClientAsync();
 
         // Act
-        using var ownerResponse = await rootClient.GetAsync($"{FilesBasePath}/{fileId}");
-        using var crossResponse = await otherClient.GetAsync($"{FilesBasePath}/{fileId}");
+        using var ownerResponse = await rootClient.GetAsync($"{FilesBasePath}/{fileId}", TestContext.Current.CancellationToken);
+        using var crossResponse = await otherClient.GetAsync($"{FilesBasePath}/{fileId}", TestContext.Current.CancellationToken);
 
         // Assert — owning tenant sees it, the other tenant does not.
         ownerResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var dto = await ownerResponse.DeserializeAsync<FileAssetDto>();
+        var dto = await ownerResponse.DeserializeAsync<FileAssetDto>(ct: TestContext.Current.CancellationToken);
         dto.Id.ShouldBe(fileId);
 
         crossResponse.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task ListTrashedFiles_Should_Not_Include_File_Deleted_In_Different_Tenant()
+    {
+        // Arrange — root soft-deletes a file; a second tenant comes online. Both tenants share the
+        // default database, so the Finbuckle tenant filter is the only thing keeping the trash views apart.
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
+        var fileId = await UploadAndFinalizeAsync(rootClient, "tenant-a-trashed.pdf", "application/pdf", 256, visibility: 1);
+        using var deleteResponse = await rootClient.DeleteAsync($"{FilesBasePath}/{fileId}", TestContext.Current.CancellationToken);
+        deleteResponse.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+
+        using var otherClient = await CreateOtherTenantAdminClientAsync();
+
+        // Act — tenant B opens its trash view.
+        using var response = await otherClient.GetAsync($"{FilesBasePath}/trash?pageSize=200", TestContext.Current.CancellationToken);
+
+        // Assert — the trash view lifts only the SoftDelete filter; tenant scoping must stay in force.
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var trashed = await response.DeserializeAsync<PagedResponse<FileAssetDto>>(ct: TestContext.Current.CancellationToken);
+        trashed.Items.ShouldNotContain(f => f.Id == fileId, "Tenant B's trash must never surface tenant A's deleted files.");
+
+        // Sanity: the owning tenant still sees its own deleted file, so B's empty view is isolation, not a missing row.
+        using var ownerResponse = await rootClient.GetAsync($"{FilesBasePath}/trash?pageSize=200", TestContext.Current.CancellationToken);
+        var ownerTrash = await ownerResponse.DeserializeAsync<PagedResponse<FileAssetDto>>(ct: TestContext.Current.CancellationToken);
+        ownerTrash.Items.ShouldContain(f => f.Id == fileId);
+    }
+
+    [Fact]
+    public async Task RestoreFile_Should_Return404_When_File_Deleted_In_Different_Tenant()
+    {
+        // Arrange — root soft-deletes a file; a second tenant comes online.
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
+        var fileId = await UploadAndFinalizeAsync(rootClient, "tenant-a-restore.pdf", "application/pdf", 256, visibility: 1);
+        using var deleteResponse = await rootClient.DeleteAsync($"{FilesBasePath}/{fileId}", TestContext.Current.CancellationToken);
+        deleteResponse.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+
+        using var otherClient = await CreateOtherTenantAdminClientAsync();
+
+        // Act — tenant B tries to pull tenant A's file out of tenant A's trash.
+        using var response = await otherClient.PostAsync($"{FilesBasePath}/{fileId}/restore", null, TestContext.Current.CancellationToken);
+
+        // Assert — the restore lookup keeps the tenant filter, so the row is invisible → 404.
+        response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+
+        // And the rejected call did not touch the row: it is still soft-deleted for its owner.
+        using var ownerGet = await rootClient.GetAsync($"{FilesBasePath}/{fileId}", TestContext.Current.CancellationToken);
+        ownerGet.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
 
     #endregion
