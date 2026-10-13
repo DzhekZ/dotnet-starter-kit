@@ -44,7 +44,7 @@ public sealed class TenantHeaderOverrideTests : IAsyncLifetime
         _auth = new AuthHelper(factory);
     }
 
-    public async Task InitializeAsync()
+    public async ValueTask InitializeAsync()
     {
         var unique = Guid.NewGuid().ToString("N")[..8];
         _tenantA = $"thot-a-{unique}";
@@ -64,24 +64,24 @@ public sealed class TenantHeaderOverrideTests : IAsyncLifetime
         _ = await GetTokenWithRetryAsync(_tenantBAdminEmail, TestConstants.DefaultPassword, _tenantB);
     }
 
-    public Task DisposeAsync() => Task.CompletedTask;
+    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 
     [Fact]
     public async Task RootOperator_Should_TargetOtherTenant_When_HeaderProvided()
     {
         // Arrange — root admin is in `root` but sends `tenant: <tenantA>` header
         // to scope this single request to tenant A.
-        var rootToken = await _auth.GetRootAdminTokenAsync();
+        var rootToken = await _auth.GetRootAdminTokenAsync(TestContext.Current.CancellationToken);
         using var client = _factory.CreateClient();
         client.DefaultRequestHeaders.Authorization = new("Bearer", rootToken.AccessToken);
         client.DefaultRequestHeaders.Add("tenant", _tenantA);
 
         // Act — search users with no filter. Should return tenant A's admin user.
-        var response = await client.GetAsync($"{TestConstants.IdentityBasePath}/users/search?PageNumber=1&PageSize=50");
+        var response = await client.GetAsync($"{TestConstants.IdentityBasePath}/users/search?PageNumber=1&PageSize=50", TestContext.Current.CancellationToken);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var page = await response.Content.ReadFromJsonAsync<PagedResult<SearchUserDto>>(Json);
+        var page = await response.Content.ReadFromJsonAsync<PagedResult<SearchUserDto>>(Json, cancellationToken: TestContext.Current.CancellationToken);
         page.ShouldNotBeNull();
         // Tenant A's admin should be visible.
         page.Items.ShouldContain(u => u.Email == _tenantAAdminEmail);
@@ -97,22 +97,22 @@ public sealed class TenantHeaderOverrideTests : IAsyncLifetime
         // Arrange — evict the root admin's cached permission set, as its 2-minute local expiry (or any
         // role/group invalidation) does, so the next permission check has to load it again. The cache key
         // carries no tenant, and this request resolves to tenant A.
-        var rootToken = await _auth.GetRootAdminTokenAsync();
+        var rootToken = await _auth.GetRootAdminTokenAsync(TestContext.Current.CancellationToken);
         var rootUserId = new JwtSecurityTokenHandler().ReadJwtToken(rootToken.AccessToken)
             .Claims.First(c => c.Type is ClaimTypes.NameIdentifier or "nameid").Value;
         await _factory.Services.GetRequiredService<HybridCache>()
-            .RemoveAsync(CacheKeys.UserPermissions(rootUserId));
+            .RemoveAsync(CacheKeys.UserPermissions(rootUserId), TestContext.Current.CancellationToken);
 
         using var client = _factory.CreateClient();
         client.DefaultRequestHeaders.Authorization = new("Bearer", rootToken.AccessToken);
         client.DefaultRequestHeaders.Add("tenant", _tenantA);
 
         // Act
-        var response = await client.GetAsync($"{TestConstants.IdentityBasePath}/users/search?PageNumber=1&PageSize=50");
+        var response = await client.GetAsync($"{TestConstants.IdentityBasePath}/users/search?PageNumber=1&PageSize=50", TestContext.Current.CancellationToken);
 
         // Assert — the root user does not exist in tenant A, so a load under the request's tenant 401s.
-        response.StatusCode.ShouldBe(HttpStatusCode.OK, await response.Content.ReadAsStringAsync());
-        var page = await response.Content.ReadFromJsonAsync<PagedResult<SearchUserDto>>(Json);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK, await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        var page = await response.Content.ReadFromJsonAsync<PagedResult<SearchUserDto>>(Json, cancellationToken: TestContext.Current.CancellationToken);
         page.ShouldNotBeNull();
         page.Items.ShouldContain(u => u.Email == _tenantAAdminEmail);
     }
@@ -122,14 +122,14 @@ public sealed class TenantHeaderOverrideTests : IAsyncLifetime
     {
         // Arrange — bare CreateRootAdminClient sends `tenant: root`; claim matches header, so the
         // override no-ops and resolution scopes to the root tenant.
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var response = await rootClient.GetAsync($"{TestConstants.IdentityBasePath}/users/search?PageNumber=1&PageSize=50");
+        var response = await rootClient.GetAsync($"{TestConstants.IdentityBasePath}/users/search?PageNumber=1&PageSize=50", TestContext.Current.CancellationToken);
 
         // Assert — root admin is in the result set; tenant A / B admins are not.
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var page = await response.Content.ReadFromJsonAsync<PagedResult<SearchUserDto>>(Json);
+        var page = await response.Content.ReadFromJsonAsync<PagedResult<SearchUserDto>>(Json, cancellationToken: TestContext.Current.CancellationToken);
         page.ShouldNotBeNull();
         page.Items.ShouldContain(u => u.Email == TestConstants.RootAdminEmail);
         page.Items.ShouldNotContain(u => u.Email == _tenantAAdminEmail);
@@ -146,12 +146,12 @@ public sealed class TenantHeaderOverrideTests : IAsyncLifetime
         client.DefaultRequestHeaders.Add("tenant", _tenantB);
 
         // Act
-        var response = await client.GetAsync($"{TestConstants.IdentityBasePath}/users/search?PageNumber=1&PageSize=50");
+        var response = await client.GetAsync($"{TestConstants.IdentityBasePath}/users/search?PageNumber=1&PageSize=50", TestContext.Current.CancellationToken);
 
         // Assert — still resolves to tenant A (claim wins): A's admin present, B's absent. This flips
         // if the override ever leaked to non-root callers.
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var page = await response.Content.ReadFromJsonAsync<PagedResult<SearchUserDto>>(Json);
+        var page = await response.Content.ReadFromJsonAsync<PagedResult<SearchUserDto>>(Json, cancellationToken: TestContext.Current.CancellationToken);
         page.ShouldNotBeNull();
         page.Items.ShouldContain(u => u.Email == _tenantAAdminEmail);
         page.Items.ShouldNotContain(u => u.Email == _tenantBAdminEmail);
@@ -162,15 +162,14 @@ public sealed class TenantHeaderOverrideTests : IAsyncLifetime
     {
         // Arrange — sanity check that the new strategy doesn't break the
         // normal (no-override) path for tenant operators.
-        using var tenantAClient = await _auth.CreateAuthenticatedClientAsync(
-            _tenantAAdminEmail, TestConstants.DefaultPassword, _tenantA);
+        using var tenantAClient = await _auth.CreateAuthenticatedClientAsync(_tenantAAdminEmail, TestConstants.DefaultPassword, _tenantA, TestContext.Current.CancellationToken);
 
         // Act
-        var response = await tenantAClient.GetAsync($"{TestConstants.IdentityBasePath}/users/search?PageNumber=1&PageSize=50");
+        var response = await tenantAClient.GetAsync($"{TestConstants.IdentityBasePath}/users/search?PageNumber=1&PageSize=50", TestContext.Current.CancellationToken);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var page = await response.Content.ReadFromJsonAsync<PagedResult<SearchUserDto>>(Json);
+        var page = await response.Content.ReadFromJsonAsync<PagedResult<SearchUserDto>>(Json, cancellationToken: TestContext.Current.CancellationToken);
         page.ShouldNotBeNull();
         page.Items.ShouldContain(u => u.Email == _tenantAAdminEmail);
     }

@@ -31,12 +31,10 @@ public sealed class UsageMeteringTests
     [Fact]
     public async Task CaptureUsageSnapshots_Should_ReturnOneSnapshotPerQuotaResource_When_FirstCalled()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var (year, month) = (2030, (DateTime.UtcNow.Month % 12) + 1);
 
-        var response = await client.PostAsJsonAsync(
-            $"{BillingBasePath}/usage/snapshots/capture",
-            new { tenantId = TestConstants.RootTenantId, periodYear = year, periodMonth = month });
+        var response = await client.PostAsJsonAsync($"{BillingBasePath}/usage/snapshots/capture", new { tenantId = TestConstants.RootTenantId, periodYear = year, periodMonth = month }, cancellationToken: TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
@@ -53,18 +51,14 @@ public sealed class UsageMeteringTests
     [Fact]
     public async Task CaptureUsageSnapshots_Should_BeIdempotent_When_CalledTwiceForSamePeriod()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var (year, month) = (2031, 3);
 
-        var firstResponse = await client.PostAsJsonAsync(
-            $"{BillingBasePath}/usage/snapshots/capture",
-            new { tenantId = TestConstants.RootTenantId, periodYear = year, periodMonth = month });
+        var firstResponse = await client.PostAsJsonAsync($"{BillingBasePath}/usage/snapshots/capture", new { tenantId = TestConstants.RootTenantId, periodYear = year, periodMonth = month }, cancellationToken: TestContext.Current.CancellationToken);
         firstResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
         var first = await DeserializeAsync(firstResponse);
 
-        var secondResponse = await client.PostAsJsonAsync(
-            $"{BillingBasePath}/usage/snapshots/capture",
-            new { tenantId = TestConstants.RootTenantId, periodYear = year, periodMonth = month });
+        var secondResponse = await client.PostAsJsonAsync($"{BillingBasePath}/usage/snapshots/capture", new { tenantId = TestConstants.RootTenantId, periodYear = year, periodMonth = month }, cancellationToken: TestContext.Current.CancellationToken);
         secondResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
         var second = await DeserializeAsync(secondResponse);
 
@@ -80,9 +74,7 @@ public sealed class UsageMeteringTests
         using var client = _factory.CreateClient();
         client.DefaultRequestHeaders.Add("tenant", TestConstants.RootTenantId);
 
-        var response = await client.PostAsJsonAsync(
-            $"{BillingBasePath}/usage/snapshots/capture",
-            new { tenantId = TestConstants.RootTenantId, periodYear = 2030, periodMonth = 1 });
+        var response = await client.PostAsJsonAsync($"{BillingBasePath}/usage/snapshots/capture", new { tenantId = TestConstants.RootTenantId, periodYear = 2030, periodMonth = 1 }, cancellationToken: TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
     }
@@ -90,11 +82,9 @@ public sealed class UsageMeteringTests
     [Fact]
     public async Task CaptureUsageSnapshots_Should_RejectInvalidPeriod()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
-        var response = await client.PostAsJsonAsync(
-            $"{BillingBasePath}/usage/snapshots/capture",
-            new { tenantId = TestConstants.RootTenantId, periodYear = 1999, periodMonth = 13 });
+        var response = await client.PostAsJsonAsync($"{BillingBasePath}/usage/snapshots/capture", new { tenantId = TestConstants.RootTenantId, periodYear = 1999, periodMonth = 13 }, cancellationToken: TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }

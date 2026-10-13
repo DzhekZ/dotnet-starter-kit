@@ -20,7 +20,7 @@ public sealed class BrandsEndpointTests
     [Fact]
     public async Task CreateBrand_Should_Return200_And_Persist_When_AuthorizedAdmin()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var name = UniqueName("CreateOk");
 
         var createResponse = await client.PostAsJsonAsync($"{TestConstants.CatalogBasePath}/brands", new
@@ -28,15 +28,15 @@ public sealed class BrandsEndpointTests
             name,
             description = "Brand created by integration test",
             logoUrl = (string?)null,
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
 
         createResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        var brandId = await createResponse.DeserializeAsync<Guid>();
+        var brandId = await createResponse.DeserializeAsync<Guid>(ct: TestContext.Current.CancellationToken);
         brandId.ShouldNotBe(Guid.Empty);
 
-        var getResponse = await client.GetAsync($"{TestConstants.CatalogBasePath}/brands/{brandId}");
-        var fetched = await getResponse.DeserializeAsync<BrandDto>();
+        var getResponse = await client.GetAsync($"{TestConstants.CatalogBasePath}/brands/{brandId}", TestContext.Current.CancellationToken);
+        var fetched = await getResponse.DeserializeAsync<BrandDto>(ct: TestContext.Current.CancellationToken);
 
         fetched.Name.ShouldBe(name);
         fetched.Description.ShouldBe("Brand created by integration test");
@@ -47,15 +47,14 @@ public sealed class BrandsEndpointTests
     [Fact]
     public async Task SearchBrands_Should_Include_NewlyCreated()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var name = UniqueName("Searchable");
 
         await CreateAsync(client, name);
 
-        var listResponse = await client.GetAsync(
-            $"{TestConstants.CatalogBasePath}/brands?search={Uri.EscapeDataString(name)}&pageNumber=1&pageSize=20");
+        var listResponse = await client.GetAsync($"{TestConstants.CatalogBasePath}/brands?search={Uri.EscapeDataString(name)}&pageNumber=1&pageSize=20", TestContext.Current.CancellationToken);
 
-        var page = await listResponse.DeserializeAsync<PagedResult<BrandDto>>();
+        var page = await listResponse.DeserializeAsync<PagedResult<BrandDto>>(ct: TestContext.Current.CancellationToken);
         page.Items.ShouldContain(b => b.Name == name);
     }
 
@@ -64,32 +63,29 @@ public sealed class BrandsEndpointTests
     {
         // Regression for #1416: the hand-rolled (page - 1) * size overflowed int into a negative
         // OFFSET, which PostgreSQL rejects — the request failed with a 500 instead of an empty page.
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var noMatch = UniqueName("NoMatch");
 
-        var response = await client.GetAsync(
-            $"{TestConstants.CatalogBasePath}/brands?search={Uri.EscapeDataString(noMatch)}&pageNumber=30000000&pageSize=100");
+        var response = await client.GetAsync($"{TestConstants.CatalogBasePath}/brands?search={Uri.EscapeDataString(noMatch)}&pageNumber=30000000&pageSize=100", TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var page = await response.DeserializeAsync<PagedResult<BrandDto>>();
+        var page = await response.DeserializeAsync<PagedResult<BrandDto>>(ct: TestContext.Current.CancellationToken);
         page.Items.ShouldBeEmpty();
     }
 
     [Fact]
     public async Task UpdateBrand_Should_PersistChanges()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var brandId = await CreateAsync(client, UniqueName("Updatable"));
         var newName = UniqueName("Updated");
 
-        var updateResponse = await client.PutAsJsonAsync(
-            $"{TestConstants.CatalogBasePath}/brands/{brandId}",
-            new { brandId, name = newName, description = "Updated description", logoUrl = (string?)null });
+        var updateResponse = await client.PutAsJsonAsync($"{TestConstants.CatalogBasePath}/brands/{brandId}", new { brandId, name = newName, description = "Updated description", logoUrl = (string?)null }, cancellationToken: TestContext.Current.CancellationToken);
 
         updateResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        var getResponse = await client.GetAsync($"{TestConstants.CatalogBasePath}/brands/{brandId}");
-        var updated = await getResponse.DeserializeAsync<BrandDto>();
+        var getResponse = await client.GetAsync($"{TestConstants.CatalogBasePath}/brands/{brandId}", TestContext.Current.CancellationToken);
+        var updated = await getResponse.DeserializeAsync<BrandDto>(ct: TestContext.Current.CancellationToken);
 
         updated.Name.ShouldBe(newName);
         updated.Description.ShouldBe("Updated description");
@@ -99,13 +95,13 @@ public sealed class BrandsEndpointTests
     [Fact]
     public async Task DeleteBrand_Should_RemoveBrand()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var brandId = await CreateAsync(client, UniqueName("Deletable"));
 
-        var deleteResponse = await client.DeleteAsync($"{TestConstants.CatalogBasePath}/brands/{brandId}");
+        var deleteResponse = await client.DeleteAsync($"{TestConstants.CatalogBasePath}/brands/{brandId}", TestContext.Current.CancellationToken);
         deleteResponse.StatusCode.ShouldBe(HttpStatusCode.NoContent);
 
-        var getResponse = await client.GetAsync($"{TestConstants.CatalogBasePath}/brands/{brandId}");
+        var getResponse = await client.GetAsync($"{TestConstants.CatalogBasePath}/brands/{brandId}", TestContext.Current.CancellationToken);
         getResponse.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
 
@@ -114,25 +110,23 @@ public sealed class BrandsEndpointTests
     [Fact]
     public async Task DeleteBrand_Should_HideFromSearch_But_Keep_Row_For_Restore()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var name = UniqueName("Soft");
         var brandId = await CreateAsync(client, name);
 
-        var deleteResponse = await client.DeleteAsync($"{TestConstants.CatalogBasePath}/brands/{brandId}");
+        var deleteResponse = await client.DeleteAsync($"{TestConstants.CatalogBasePath}/brands/{brandId}", TestContext.Current.CancellationToken);
         deleteResponse.StatusCode.ShouldBe(HttpStatusCode.NoContent);
 
         // Search must not include the deleted brand — the global query filter excludes it.
-        var searchResponse = await client.GetAsync(
-            $"{TestConstants.CatalogBasePath}/brands?search={Uri.EscapeDataString(name)}&pageNumber=1&pageSize=20");
-        var page = await searchResponse.DeserializeAsync<PagedResult<BrandDto>>();
+        var searchResponse = await client.GetAsync($"{TestConstants.CatalogBasePath}/brands?search={Uri.EscapeDataString(name)}&pageNumber=1&pageSize=20", TestContext.Current.CancellationToken);
+        var page = await searchResponse.DeserializeAsync<PagedResult<BrandDto>>(ct: TestContext.Current.CancellationToken);
         page.Items.ShouldNotContain(b => b.Id == brandId,
             "Search must not return soft-deleted brands.");
 
         // Trash listing should — it bypasses the filter.
-        var trashResponse = await client.GetAsync(
-            $"{TestConstants.CatalogBasePath}/brands/trash?pageNumber=1&pageSize=50");
+        var trashResponse = await client.GetAsync($"{TestConstants.CatalogBasePath}/brands/trash?pageNumber=1&pageSize=50", TestContext.Current.CancellationToken);
         trashResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var trash = await trashResponse.DeserializeAsync<PagedResult<BrandDto>>();
+        var trash = await trashResponse.DeserializeAsync<PagedResult<BrandDto>>(ct: TestContext.Current.CancellationToken);
         var trashed = trash.Items.FirstOrDefault(b => b.Id == brandId);
         trashed.ShouldNotBeNull("Soft-deleted brand should appear in /brands/trash.");
         trashed.DeletedOnUtc.ShouldNotBeNull();
@@ -142,20 +136,19 @@ public sealed class BrandsEndpointTests
     [Fact]
     public async Task RestoreBrand_Should_BringBack_DeletedBrand()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var name = UniqueName("Restorable");
         var brandId = await CreateAsync(client, name);
 
-        await client.DeleteAsync($"{TestConstants.CatalogBasePath}/brands/{brandId}");
+        await client.DeleteAsync($"{TestConstants.CatalogBasePath}/brands/{brandId}", TestContext.Current.CancellationToken);
 
-        var restoreResponse = await client.PostAsync(
-            $"{TestConstants.CatalogBasePath}/brands/{brandId}/restore", content: null);
+        var restoreResponse = await client.PostAsync($"{TestConstants.CatalogBasePath}/brands/{brandId}/restore", content: null, cancellationToken: TestContext.Current.CancellationToken);
         restoreResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
 
         // After restore, GetById succeeds and the brand is visible again.
-        var getResponse = await client.GetAsync($"{TestConstants.CatalogBasePath}/brands/{brandId}");
+        var getResponse = await client.GetAsync($"{TestConstants.CatalogBasePath}/brands/{brandId}", TestContext.Current.CancellationToken);
         getResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var fetched = await getResponse.DeserializeAsync<BrandDto>();
+        var fetched = await getResponse.DeserializeAsync<BrandDto>(ct: TestContext.Current.CancellationToken);
         fetched.Name.ShouldBe(name);
         fetched.DeletedOnUtc.ShouldBeNull();
         fetched.DeletedBy.ShouldBeNull();
@@ -166,31 +159,30 @@ public sealed class BrandsEndpointTests
     {
         // Filtered unique index on Slug excludes soft-deleted rows, so a name can be reused after
         // a delete — a 409 should only fire when a *live* brand holds the conflicting slug.
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var name = UniqueName("Reusable");
         var firstId = await CreateAsync(client, name);
 
-        await client.DeleteAsync($"{TestConstants.CatalogBasePath}/brands/{firstId}");
+        await client.DeleteAsync($"{TestConstants.CatalogBasePath}/brands/{firstId}", TestContext.Current.CancellationToken);
 
         var secondCreate = await client.PostAsJsonAsync($"{TestConstants.CatalogBasePath}/brands", new
         {
             name,
             description = (string?)null,
             logoUrl = (string?)null,
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
         secondCreate.StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        var secondId = await secondCreate.DeserializeAsync<Guid>();
+        var secondId = await secondCreate.DeserializeAsync<Guid>(ct: TestContext.Current.CancellationToken);
         secondId.ShouldNotBe(firstId);
     }
 
     [Fact]
     public async Task RestoreBrand_Should_Return404_When_BrandDoesNotExist()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
-        var response = await client.PostAsync(
-            $"{TestConstants.CatalogBasePath}/brands/{Guid.NewGuid()}/restore", content: null);
+        var response = await client.PostAsync($"{TestConstants.CatalogBasePath}/brands/{Guid.NewGuid()}/restore", content: null, cancellationToken: TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
@@ -200,7 +192,7 @@ public sealed class BrandsEndpointTests
     [Fact]
     public async Task CreateBrand_Should_Return409_When_NameAlreadyExists()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var name = UniqueName("Duplicate");
 
         await CreateAsync(client, name);
@@ -210,7 +202,7 @@ public sealed class BrandsEndpointTests
             name,
             description = (string?)null,
             logoUrl = (string?)null,
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
 
         conflictResponse.StatusCode.ShouldBe(HttpStatusCode.Conflict);
     }
@@ -218,14 +210,14 @@ public sealed class BrandsEndpointTests
     [Fact]
     public async Task CreateBrand_Should_Return400_When_NameIsEmpty()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
         var response = await client.PostAsJsonAsync($"{TestConstants.CatalogBasePath}/brands", new
         {
             name = "",
             description = (string?)null,
             logoUrl = (string?)null,
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
@@ -233,9 +225,9 @@ public sealed class BrandsEndpointTests
     [Fact]
     public async Task GetBrandById_Should_Return404_When_BrandDoesNotExist()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
-        var response = await client.GetAsync($"{TestConstants.CatalogBasePath}/brands/{Guid.NewGuid()}");
+        var response = await client.GetAsync($"{TestConstants.CatalogBasePath}/brands/{Guid.NewGuid()}", TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
@@ -253,7 +245,7 @@ public sealed class BrandsEndpointTests
             name = UniqueName("Unauthed"),
             description = (string?)null,
             logoUrl = (string?)null,
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
     }
@@ -264,7 +256,7 @@ public sealed class BrandsEndpointTests
         using var client = _factory.CreateClient();
         client.DefaultRequestHeaders.Add("tenant", TestConstants.RootTenantId);
 
-        var response = await client.GetAsync($"{TestConstants.CatalogBasePath}/brands?pageNumber=1&pageSize=20");
+        var response = await client.GetAsync($"{TestConstants.CatalogBasePath}/brands?pageNumber=1&pageSize=20", TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
     }
@@ -278,13 +270,13 @@ public sealed class BrandsEndpointTests
         // Brands' POST without a key behaves normally, catching accidental opt-in regressions.
         const string ReplayedHeader = "Idempotency-Replayed";
 
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var response = await client.PostAsJsonAsync($"{TestConstants.CatalogBasePath}/brands", new
         {
             name = UniqueName("NoIdem"),
             description = (string?)null,
             logoUrl = (string?)null,
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
         response.Headers.Contains(ReplayedHeader).ShouldBeFalse(

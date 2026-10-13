@@ -5,7 +5,7 @@ description: Write tests for an FSH feature — xUnit + Shouldly + NSubstitute +
 
 # Testing Guide
 
-Stack: **xUnit** + **Shouldly** (`.ShouldBe`) + **NSubstitute** (`Substitute.For<>`) + **AutoFixture**
+Stack: **xUnit v3** (`xunit.v3.mtp-off`) + **Shouldly** (`.ShouldBe`) + **NSubstitute** (`Substitute.For<>`) + **AutoFixture**
 (`new Fixture()`). **Not** Moq, **not** FluentAssertions. Detailed conventions + integration-test gotchas
 live in `.agents/rules/testing.md` and `.agents/rules/integration-testing.md`.
 
@@ -16,6 +16,7 @@ live in `.agents/rules/testing.md` and `.agents/rules/integration-testing.md`.
 - Arrange-Act-Assert with `// Arrange` / `// Act` / `// Assert`; group with `#region` (Happy Path / Guards / Edge Cases).
 - Mocks via `Substitute.For<IService>()`; assert calls with `.Received(1).X(arg, Arg.Any<CancellationToken>())`.
 - When asserting a forwarded `CancellationToken`, assert the **specific** token, not the default (NSubstitute fills optional params with `default`).
+- xUnit v3: pass `TestContext.Current.CancellationToken` to every call that takes a token (analyzer `xUnit1051` fails the build) and call the SUT with that same token when a mock verifies it. `IAsyncLifetime` members return `ValueTask`.
 
 ## Handler test
 
@@ -39,7 +40,7 @@ public sealed class Create{Entity}CommandHandlerTests
         var command = new Create{Entity}Command(_fixture.Create<string>(), 9.99m, "USD");
 
         // Act
-        var id = await _sut.Handle(command, CancellationToken.None);
+        var id = await _sut.Handle(command, TestContext.Current.CancellationToken);
 
         // Assert
         id.ShouldNotBe(Guid.Empty);

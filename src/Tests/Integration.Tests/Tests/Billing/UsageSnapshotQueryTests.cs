@@ -53,7 +53,7 @@ public sealed class UsageSnapshotQueryTests
         var (year, month) = NextPeriod();
         await SeedSnapshotAsync(TestConstants.RootTenantId, year, month, QuotaResource.ApiCalls, used: 150, limit: 100);
         await SeedSnapshotAsync(TestConstants.RootTenantId, year, month, QuotaResource.Users, used: 3, limit: 10);
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
         // Act
         var snaps = await GetSnapshotsAsync(client, periodYear: year, periodMonth: month);
@@ -81,7 +81,7 @@ public sealed class UsageSnapshotQueryTests
         var tenantId = $"snap-order-{Guid.NewGuid().ToString("N")[..8]}";
         await SeedSnapshotAsync(tenantId, olderYear, olderMonth, QuotaResource.ApiCalls, used: 1, limit: 10);
         await SeedSnapshotAsync(tenantId, newerYear, newerMonth, QuotaResource.ApiCalls, used: 2, limit: 10);
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
         // Act — filter by tenant so ordering is deterministic regardless of other rows.
         var snaps = await GetSnapshotsAsync(client, tenantId: tenantId);
@@ -106,7 +106,7 @@ public sealed class UsageSnapshotQueryTests
         var tenantB = $"snap-b-{Guid.NewGuid().ToString("N")[..8]}";
         await SeedSnapshotAsync(tenantA, year, month, QuotaResource.ApiCalls, used: 5, limit: 10);
         await SeedSnapshotAsync(tenantB, year, month, QuotaResource.ApiCalls, used: 9, limit: 10);
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
         // Act
         var onlyA = await GetSnapshotsAsync(client, tenantId: tenantA);
@@ -126,7 +126,7 @@ public sealed class UsageSnapshotQueryTests
         var (year2, month2) = NextPeriod();
         await SeedSnapshotAsync(tenantId, year1, month1, QuotaResource.ApiCalls, used: 1, limit: 10);
         await SeedSnapshotAsync(tenantId, year2, month2, QuotaResource.ApiCalls, used: 2, limit: 10);
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
         // Act — month filter alone narrows to the matching period for this tenant.
         var byMonth = await GetSnapshotsAsync(client, tenantId: tenantId, periodMonth: month1);
@@ -149,7 +149,7 @@ public sealed class UsageSnapshotQueryTests
     {
         // Arrange — a tenant id that no test ever seeds.
         var ghostTenant = $"snap-ghost-{Guid.NewGuid():N}";
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
         // Act
         var snaps = await GetSnapshotsAsync(client, tenantId: ghostTenant);
@@ -170,7 +170,7 @@ public sealed class UsageSnapshotQueryTests
         client.DefaultRequestHeaders.Add("tenant", TestConstants.RootTenantId);
 
         // Act
-        using var response = await client.GetAsync($"{BillingBasePath}/usage");
+        using var response = await client.GetAsync($"{BillingBasePath}/usage", TestContext.Current.CancellationToken);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
@@ -182,12 +182,12 @@ public sealed class UsageSnapshotQueryTests
         // Billing.View is a Basic permission, so a freshly-registered (Basic-role) user can read the usage
         // list — proving the gate admits an authenticated non-admin, not just the seeded root admin.
         // Arrange
-        using var adminClient = await _auth.CreateRootAdminClientAsync();
+        using var adminClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var (email, password) = await RegisterBasicUserAsync(adminClient, "snap-basic");
-        using var basicClient = await _auth.CreateAuthenticatedClientAsync(email, password);
+        using var basicClient = await _auth.CreateAuthenticatedClientAsync(email, password, ct: TestContext.Current.CancellationToken);
 
         // Act
-        using var response = await basicClient.GetAsync($"{BillingBasePath}/usage?pageNumber=1");
+        using var response = await basicClient.GetAsync($"{BillingBasePath}/usage?pageNumber=1", TestContext.Current.CancellationToken);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK,
@@ -207,7 +207,7 @@ public sealed class UsageSnapshotQueryTests
         var (year, month) = NextPeriod();
         var otherTenant = $"snap-cross-{Guid.NewGuid().ToString("N")[..8]}";
         var otherSnapshotId = await SeedSnapshotAsync(otherTenant, year, month, QuotaResource.StorageBytes, used: 500, limit: 100);
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
         // Act — unfiltered admin read for this period.
         var all = await GetSnapshotsAsync(client, periodYear: year, periodMonth: month);

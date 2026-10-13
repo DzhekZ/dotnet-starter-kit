@@ -23,13 +23,11 @@ public sealed class UpdateProductBranchTests
     [Fact]
     public async Task UpdateProduct_Should_Return404_When_BrandId_Changed_To_Unknown()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var (brandId, categoryId) = await CreateBrandAndCategoryAsync(client);
         var productId = await CreateProductAsync(client, brandId, categoryId);
 
-        using var response = await client.PutAsJsonAsync(
-            $"{TestConstants.CatalogBasePath}/products/{productId}",
-            new
+        using var response = await client.PutAsJsonAsync($"{TestConstants.CatalogBasePath}/products/{productId}", new
             {
                 productId,
                 name = UniqueName("BrandSwap"),
@@ -37,7 +35,7 @@ public sealed class UpdateProductBranchTests
                 brandId = Guid.NewGuid(), // changed to a brand that doesn't exist
                 categoryId,
                 isActive = true,
-            });
+            }, cancellationToken: TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
@@ -45,13 +43,11 @@ public sealed class UpdateProductBranchTests
     [Fact]
     public async Task UpdateProduct_Should_Return404_When_CategoryId_Changed_To_Unknown()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var (brandId, categoryId) = await CreateBrandAndCategoryAsync(client);
         var productId = await CreateProductAsync(client, brandId, categoryId);
 
-        using var response = await client.PutAsJsonAsync(
-            $"{TestConstants.CatalogBasePath}/products/{productId}",
-            new
+        using var response = await client.PutAsJsonAsync($"{TestConstants.CatalogBasePath}/products/{productId}", new
             {
                 productId,
                 name = UniqueName("CatSwap"),
@@ -59,7 +55,7 @@ public sealed class UpdateProductBranchTests
                 brandId, // unchanged → brand branch is skipped
                 categoryId = Guid.NewGuid(), // changed to a category that doesn't exist
                 isActive = true,
-            });
+            }, cancellationToken: TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
@@ -69,14 +65,12 @@ public sealed class UpdateProductBranchTests
     {
         // Exercises the "FK changed AND target exists" branch for both brand and category — the
         // AnyAsync check passes and the update goes through.
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var (brandId, categoryId) = await CreateBrandAndCategoryAsync(client);
         var (otherBrandId, otherCategoryId) = await CreateBrandAndCategoryAsync(client);
         var productId = await CreateProductAsync(client, brandId, categoryId);
 
-        using var response = await client.PutAsJsonAsync(
-            $"{TestConstants.CatalogBasePath}/products/{productId}",
-            new
+        using var response = await client.PutAsJsonAsync($"{TestConstants.CatalogBasePath}/products/{productId}", new
             {
                 productId,
                 name = UniqueName("Moved"),
@@ -84,11 +78,11 @@ public sealed class UpdateProductBranchTests
                 brandId = otherBrandId,
                 categoryId = otherCategoryId,
                 isActive = true,
-            });
+            }, cancellationToken: TestContext.Current.CancellationToken);
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        using var getResp = await client.GetAsync($"{TestConstants.CatalogBasePath}/products/{productId}");
-        var updated = await getResp.DeserializeAsync<ProductDto>();
+        using var getResp = await client.GetAsync($"{TestConstants.CatalogBasePath}/products/{productId}", TestContext.Current.CancellationToken);
+        var updated = await getResp.DeserializeAsync<ProductDto>(ct: TestContext.Current.CancellationToken);
         updated.BrandId.ShouldBe(otherBrandId);
         updated.CategoryId.ShouldBe(otherCategoryId);
     }
@@ -96,7 +90,7 @@ public sealed class UpdateProductBranchTests
     [Fact]
     public async Task UpdateProduct_Should_Return409_When_Rename_Collides_With_Another_Products_Slug()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var (brandId, categoryId) = await CreateBrandAndCategoryAsync(client);
 
         // Two distinct products. We'll rename the second one onto the first one's name → same slug.
@@ -104,9 +98,7 @@ public sealed class UpdateProductBranchTests
         await CreateProductAsync(client, brandId, categoryId, name: existingName);
         var secondId = await CreateProductAsync(client, brandId, categoryId, name: UniqueName("Other"));
 
-        using var response = await client.PutAsJsonAsync(
-            $"{TestConstants.CatalogBasePath}/products/{secondId}",
-            new
+        using var response = await client.PutAsJsonAsync($"{TestConstants.CatalogBasePath}/products/{secondId}", new
             {
                 productId = secondId,
                 name = existingName, // collides on the derived slug with the first product
@@ -114,7 +106,7 @@ public sealed class UpdateProductBranchTests
                 brandId,
                 categoryId,
                 isActive = true,
-            });
+            }, cancellationToken: TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.Conflict);
     }
@@ -124,14 +116,12 @@ public sealed class UpdateProductBranchTests
     {
         // The slug-conflict check excludes the product's own row (p.Id != product.Id), so a
         // no-op rename to the same name must NOT trip the conflict branch.
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var (brandId, categoryId) = await CreateBrandAndCategoryAsync(client);
         var name = UniqueName("SelfRename");
         var productId = await CreateProductAsync(client, brandId, categoryId, name: name);
 
-        using var response = await client.PutAsJsonAsync(
-            $"{TestConstants.CatalogBasePath}/products/{productId}",
-            new
+        using var response = await client.PutAsJsonAsync($"{TestConstants.CatalogBasePath}/products/{productId}", new
             {
                 productId,
                 name, // same name → same slug, but it's the same row
@@ -139,7 +129,7 @@ public sealed class UpdateProductBranchTests
                 brandId,
                 categoryId,
                 isActive = true,
-            });
+            }, cancellationToken: TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
@@ -147,13 +137,11 @@ public sealed class UpdateProductBranchTests
     [Fact]
     public async Task UpdateProduct_Should_Return404_When_Product_Does_Not_Exist()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var (brandId, categoryId) = await CreateBrandAndCategoryAsync(client);
 
         var unknownId = Guid.NewGuid();
-        using var response = await client.PutAsJsonAsync(
-            $"{TestConstants.CatalogBasePath}/products/{unknownId}",
-            new
+        using var response = await client.PutAsJsonAsync($"{TestConstants.CatalogBasePath}/products/{unknownId}", new
             {
                 productId = unknownId,
                 name = UniqueName("Ghost"),
@@ -161,7 +149,7 @@ public sealed class UpdateProductBranchTests
                 brandId,
                 categoryId,
                 isActive = true,
-            });
+            }, cancellationToken: TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }

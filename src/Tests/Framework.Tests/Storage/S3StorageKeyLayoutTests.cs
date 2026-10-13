@@ -35,7 +35,8 @@ public sealed class S3StorageKeyLayoutTests
         // Act
         var url = await storage.UploadAsync<Probe>(
             new FileUploadRequest { FileName = "avatar.png", ContentType = "image/png", Data = [1, 2, 3] },
-            FileType.Image);
+            FileType.Image,
+            TestContext.Current.CancellationToken);
 
         // Assert
         await s3.Received(1).PutObjectAsync(
@@ -53,7 +54,7 @@ public sealed class S3StorageKeyLayoutTests
         var storage = provider.GetRequiredService<IStorageService>();
 
         // Act
-        await storage.CopyAsync("tenants/t/myfiles/x.png", "public/tenants/t/myfiles/x.png");
+        await storage.CopyAsync("tenants/t/myfiles/x.png", "public/tenants/t/myfiles/x.png", TestContext.Current.CancellationToken);
 
         // Assert
         await s3.Received(1).CopyObjectAsync(
@@ -93,8 +94,8 @@ public sealed class S3StorageKeyLayoutTests
         var storage = provider.GetRequiredService<IStorageService>();
 
         // Act
-        await storage.CopyAsync("tenants/tenant-a/x.png", "public/tenants/tenant-a/x.png");
-        await storage.RemoveAsync("tenants/tenant-a/x.png");
+        await storage.CopyAsync("tenants/tenant-a/x.png", "public/tenants/tenant-a/x.png", TestContext.Current.CancellationToken);
+        await storage.RemoveAsync("tenants/tenant-a/x.png", TestContext.Current.CancellationToken);
 
         // Assert
         await quotas.Received(1).RecordAsync("tenant-a", QuotaResource.StorageBytes, 42, Arg.Any<CancellationToken>());
@@ -115,7 +116,7 @@ public sealed class S3StorageKeyLayoutTests
         var storage = provider.GetRequiredService<IStorageService>();
 
         // Act
-        await storage.RemoveAsync("public/tenants/tenant-a/x.png");
+        await storage.RemoveAsync("public/tenants/tenant-a/x.png", TestContext.Current.CancellationToken);
 
         // Assert — the bytes are still stored, so the quota keeps counting them.
         await quotas.DidNotReceive().RecordAsync(Arg.Any<string>(), Arg.Any<QuotaResource>(), Arg.Any<long>(), Arg.Any<CancellationToken>());

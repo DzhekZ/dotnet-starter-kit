@@ -31,13 +31,13 @@ public sealed class TypingIndicatorTests
     [Fact]
     public async Task Typing_Should_Broadcast_ChatTypingStarted_To_Other_Channel_Members()
     {
-        using var adminClient = await _auth.CreateRootAdminClientAsync();
+        using var adminClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var (peer, peerToken) = await RegisterAndSignInAsync(adminClient, "peer");
 
         var channelId = await CreateChannelAsync(adminClient, Unique("Typing"));
         await AddMemberAsync(adminClient, channelId, peer.Id);
 
-        var adminToken = await _auth.GetRootAdminTokenAsync();
+        var adminToken = await _auth.GetRootAdminTokenAsync(TestContext.Current.CancellationToken);
 
         await using var adminHub = await ConnectAsync(adminToken.AccessToken);
         await using var peerHub = await ConnectAsync(peerToken);
@@ -45,7 +45,7 @@ public sealed class TypingIndicatorTests
         using var peerInbox = new EventInbox<TypingPayload>(peerHub, "ChatTypingStarted");
 
         // Admin types — peer (other member) should receive ChatTypingStarted.
-        await adminHub.InvokeAsync("Typing", channelId);
+        await adminHub.InvokeAsync("Typing", channelId, cancellationToken: TestContext.Current.CancellationToken);
 
         var received = await peerInbox.WaitForFirstAsync(p => p.ChannelId == channelId, EventTimeout);
         received.ShouldNotBeNull("Expected ChatTypingStarted to arrive at the other member's hub");
@@ -54,13 +54,13 @@ public sealed class TypingIndicatorTests
     [Fact]
     public async Task Typing_Should_Throttle_To_OneEventPer3Seconds()
     {
-        using var adminClient = await _auth.CreateRootAdminClientAsync();
+        using var adminClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var (peer, peerToken) = await RegisterAndSignInAsync(adminClient, "peer");
 
         var channelId = await CreateChannelAsync(adminClient, Unique("Throttle"));
         await AddMemberAsync(adminClient, channelId, peer.Id);
 
-        var adminToken = await _auth.GetRootAdminTokenAsync();
+        var adminToken = await _auth.GetRootAdminTokenAsync(TestContext.Current.CancellationToken);
 
         await using var adminHub = await ConnectAsync(adminToken.AccessToken);
         await using var peerHub = await ConnectAsync(peerToken);
@@ -70,10 +70,10 @@ public sealed class TypingIndicatorTests
         // Rapid-fire 5 invokes — distributed-cache throttle should collapse to exactly one event.
         for (int i = 0; i < 5; i++)
         {
-            await adminHub.InvokeAsync("Typing", channelId);
+            await adminHub.InvokeAsync("Typing", channelId, cancellationToken: TestContext.Current.CancellationToken);
         }
 
-        await Task.Delay(TimeSpan.FromMilliseconds(500));
+        await Task.Delay(TimeSpan.FromMilliseconds(500), TestContext.Current.CancellationToken);
 
         var received = await peerInbox.DrainAsync(TimeSpan.FromSeconds(1));
         var matchingHits = received.Count(p => p.ChannelId == channelId);
@@ -84,19 +84,19 @@ public sealed class TypingIndicatorTests
     [Fact]
     public async Task Typing_Should_Not_Broadcast_To_NonMembers()
     {
-        using var adminClient = await _auth.CreateRootAdminClientAsync();
+        using var adminClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var (peer, peerToken) = await RegisterAndSignInAsync(adminClient, "peer");
 
         var channelId = await CreateChannelAsync(adminClient, Unique("Solo"));
         // peer is NOT added as a member.
 
-        var adminToken = await _auth.GetRootAdminTokenAsync();
+        var adminToken = await _auth.GetRootAdminTokenAsync(TestContext.Current.CancellationToken);
         await using var adminHub = await ConnectAsync(adminToken.AccessToken);
         await using var peerHub = await ConnectAsync(peerToken);
 
         using var peerInbox = new EventInbox<TypingPayload>(peerHub, "ChatTypingStarted");
 
-        await adminHub.InvokeAsync("Typing", channelId);
+        await adminHub.InvokeAsync("Typing", channelId, cancellationToken: TestContext.Current.CancellationToken);
 
         var received = await peerInbox.WaitForFirstAsync(p => p.ChannelId == channelId, TimeSpan.FromSeconds(2));
         received.ShouldBeNull("non-members must not receive typing broadcasts");

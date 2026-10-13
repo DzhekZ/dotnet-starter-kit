@@ -31,12 +31,12 @@ public sealed class PresenceTests
     [Fact]
     public async Task Presence_Endpoint_Should_Report_Offline_For_User_Without_Open_Connection()
     {
-        using var adminClient = await _auth.CreateRootAdminClientAsync();
+        using var adminClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var (alice, _, _) = await RegisterUserAsync(adminClient, "alice");
 
-        using var response = await adminClient.GetAsync($"{PresencePath}?userIds={alice.Id}");
+        using var response = await adminClient.GetAsync($"{PresencePath}?userIds={alice.Id}", TestContext.Current.CancellationToken);
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var entries = await response.DeserializeAsync<IReadOnlyList<PresenceEntry>>();
+        var entries = await response.DeserializeAsync<IReadOnlyList<PresenceEntry>>(ct: TestContext.Current.CancellationToken);
 
         entries.Count.ShouldBe(1);
         entries[0].UserId.ShouldBe(alice.Id);
@@ -46,7 +46,7 @@ public sealed class PresenceTests
     [Fact]
     public async Task Presence_Endpoint_Should_Report_Online_While_Hub_Is_Connected()
     {
-        using var adminClient = await _auth.CreateRootAdminClientAsync();
+        using var adminClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var (bob, bobToken, _) = await RegisterUserAsync(adminClient, "bob");
 
         await using var bobHub = await ConnectHubAsync(bobToken);
@@ -63,13 +63,13 @@ public sealed class PresenceTests
     [Fact]
     public async Task Presence_Endpoint_Should_Drop_Back_To_Offline_When_Hub_Disconnects()
     {
-        using var adminClient = await _auth.CreateRootAdminClientAsync();
+        using var adminClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var (carol, carolToken, _) = await RegisterUserAsync(adminClient, "carol");
 
         var carolHub = await ConnectHubAsync(carolToken);
         await Eventually(async () => await IsOnline(adminClient, carol.Id));
 
-        await carolHub.StopAsync();
+        await carolHub.StopAsync(TestContext.Current.CancellationToken);
         await carolHub.DisposeAsync();
 
         await Eventually(async () => !await IsOnline(adminClient, carol.Id));
@@ -78,7 +78,7 @@ public sealed class PresenceTests
     [Fact]
     public async Task Presence_Endpoint_Should_Accept_Multiple_UserIds_And_Return_All()
     {
-        using var adminClient = await _auth.CreateRootAdminClientAsync();
+        using var adminClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var (dave, daveToken, _) = await RegisterUserAsync(adminClient, "dave");
         var (eve, _, _) = await RegisterUserAsync(adminClient, "eve");
 
@@ -98,11 +98,11 @@ public sealed class PresenceTests
     [Fact]
     public async Task PresenceChanged_Should_Fire_When_User_Connects()
     {
-        using var adminClient = await _auth.CreateRootAdminClientAsync();
+        using var adminClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var (frank, frankToken, _) = await RegisterUserAsync(adminClient, "frank");
 
         // Admin holds an open hub connection to observe PresenceChanged events.
-        var adminToken = (await _auth.GetRootAdminTokenAsync()).AccessToken;
+        var adminToken = (await _auth.GetRootAdminTokenAsync(TestContext.Current.CancellationToken)).AccessToken;
         await using var adminHub = await ConnectHubAsync(adminToken);
         using var inbox = new EventInbox<PresenceChangedPayload>(adminHub, "PresenceChanged");
 
@@ -116,10 +116,10 @@ public sealed class PresenceTests
     [Fact]
     public async Task PresenceChanged_Should_Fire_When_LastConnection_Closes()
     {
-        using var adminClient = await _auth.CreateRootAdminClientAsync();
+        using var adminClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var (gina, ginaToken, _) = await RegisterUserAsync(adminClient, "gina");
 
-        var adminToken = (await _auth.GetRootAdminTokenAsync()).AccessToken;
+        var adminToken = (await _auth.GetRootAdminTokenAsync(TestContext.Current.CancellationToken)).AccessToken;
         await using var adminHub = await ConnectHubAsync(adminToken);
         using var inbox = new EventInbox<PresenceChangedPayload>(adminHub, "PresenceChanged");
 
@@ -127,7 +127,7 @@ public sealed class PresenceTests
         // Drain any "online" event so the next assertion observes the offline-only transition.
         _ = await inbox.WaitForFirstAsync(p => p.UserId == gina.Id && p.Online, EventTimeout);
 
-        await ginaHub.StopAsync();
+        await ginaHub.StopAsync(TestContext.Current.CancellationToken);
         await ginaHub.DisposeAsync();
 
         var received = await inbox.WaitForFirstAsync(p => p.UserId == gina.Id && !p.Online, EventTimeout);
@@ -140,7 +140,7 @@ public sealed class PresenceTests
         using var anonymous = _factory.CreateClient();
         anonymous.DefaultRequestHeaders.Add("tenant", TestConstants.RootTenantId);
 
-        using var response = await anonymous.GetAsync($"{PresencePath}?userIds={Guid.NewGuid()}");
+        using var response = await anonymous.GetAsync($"{PresencePath}?userIds={Guid.NewGuid()}", TestContext.Current.CancellationToken);
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
     }
 

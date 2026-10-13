@@ -27,7 +27,7 @@ public sealed class AuditQueryByKeyTests
     public async Task GetAuditById_Should_ReturnFullDetail_When_RecordExists()
     {
         // Arrange
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var seed = await AuditTestHelper.GenerateActivityAuditAsync(client);
 
         // Act
@@ -45,7 +45,7 @@ public sealed class AuditQueryByKeyTests
     public async Task GetAuditById_Should_IncludePayload_When_RecordExists()
     {
         // Arrange
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var seed = await AuditTestHelper.GenerateActivityAuditAsync(client);
 
         // Act
@@ -65,10 +65,10 @@ public sealed class AuditQueryByKeyTests
     public async Task GetAuditById_Should_ReportNotFound_When_RecordDoesNotExist()
     {
         // Arrange
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var response = await client.GetAsync($"{TestConstants.AuditsBasePath}/{Guid.NewGuid()}");
+        var response = await client.GetAsync($"{TestConstants.AuditsBasePath}/{Guid.NewGuid()}", TestContext.Current.CancellationToken);
 
         // Assert — handler raises KeyNotFoundException (404 in prod; rendered as
         // 500+KeyNotFoundException by the test exception handler — see helper).
@@ -83,7 +83,7 @@ public sealed class AuditQueryByKeyTests
         client.DefaultRequestHeaders.Add("tenant", TestConstants.RootTenantId);
 
         // Act
-        var response = await client.GetAsync($"{TestConstants.AuditsBasePath}/{Guid.NewGuid()}");
+        var response = await client.GetAsync($"{TestConstants.AuditsBasePath}/{Guid.NewGuid()}", TestContext.Current.CancellationToken);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
@@ -97,7 +97,7 @@ public sealed class AuditQueryByKeyTests
     public async Task GetAuditsByCorrelation_Should_ReturnMatchingRows_When_CorrelationExists()
     {
         // Arrange
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var seed = await AuditTestHelper.GenerateActivityAuditAsync(client);
 
         // Act
@@ -114,7 +114,7 @@ public sealed class AuditQueryByKeyTests
     public async Task GetAuditsByCorrelation_Should_ReturnEmpty_When_CorrelationUnknown()
     {
         // Arrange
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
         // Act
         var rows = await AuditTestHelper.GetListAsync(
@@ -128,7 +128,7 @@ public sealed class AuditQueryByKeyTests
     public async Task GetAuditsByCorrelation_Should_HonorDateWindow_When_FromInFuture()
     {
         // Arrange
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var seed = await AuditTestHelper.GenerateActivityAuditAsync(client);
         string future = DateTime.UtcNow.AddDays(1).ToString("o");
 
@@ -144,13 +144,12 @@ public sealed class AuditQueryByKeyTests
     public async Task GetAuditsByCorrelation_Should_Return400_When_FromAfterTo()
     {
         // Arrange
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         string from = DateTime.UtcNow.ToString("o");
         string to = DateTime.UtcNow.AddDays(-1).ToString("o");
 
         // Act
-        var response = await client.GetAsync(
-            $"{TestConstants.AuditsBasePath}/by-correlation/abc?fromUtc={Uri.EscapeDataString(from)}&toUtc={Uri.EscapeDataString(to)}");
+        var response = await client.GetAsync($"{TestConstants.AuditsBasePath}/by-correlation/abc?fromUtc={Uri.EscapeDataString(from)}&toUtc={Uri.EscapeDataString(to)}", TestContext.Current.CancellationToken);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
@@ -164,7 +163,7 @@ public sealed class AuditQueryByKeyTests
     public async Task GetAuditsByTrace_Should_ReturnMatchingRows_When_TraceExists()
     {
         // Arrange
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var seed = await AuditTestHelper.GenerateActivityAuditAsync(client);
 
         // Act
@@ -181,7 +180,7 @@ public sealed class AuditQueryByKeyTests
     public async Task GetAuditsByTrace_Should_ReturnEmpty_When_TraceUnknown()
     {
         // Arrange
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
         // Act
         var rows = await AuditTestHelper.GetListAsync(
@@ -195,13 +194,12 @@ public sealed class AuditQueryByKeyTests
     public async Task GetAuditsByTrace_Should_Return400_When_FromAfterTo()
     {
         // Arrange
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         string from = DateTime.UtcNow.ToString("o");
         string to = DateTime.UtcNow.AddDays(-1).ToString("o");
 
         // Act
-        var response = await client.GetAsync(
-            $"{TestConstants.AuditsBasePath}/by-trace/sometrace?fromUtc={Uri.EscapeDataString(from)}&toUtc={Uri.EscapeDataString(to)}");
+        var response = await client.GetAsync($"{TestConstants.AuditsBasePath}/by-trace/sometrace?fromUtc={Uri.EscapeDataString(from)}&toUtc={Uri.EscapeDataString(to)}", TestContext.Current.CancellationToken);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);

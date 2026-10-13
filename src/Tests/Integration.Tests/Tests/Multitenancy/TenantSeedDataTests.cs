@@ -15,7 +15,7 @@ public sealed class TenantSeedDataTests
     [Fact]
     public async Task NewTenant_Should_BeSeededWith_AdminUser_And_Permissions()
     {
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var uniqueId = Guid.NewGuid().ToString("N")[..8];
         var tenantId = $"seed-{uniqueId}";
         var adminEmail = $"seed-admin-{uniqueId}@tenant.com";
@@ -26,18 +26,16 @@ public sealed class TenantSeedDataTests
         using var tenantAdminClient = await CreateTenantAdminClientWithRetryAsync(
             adminEmail, TestConstants.DefaultPassword, tenantId);
 
-        var profileResponse = await tenantAdminClient.GetAsync(
-            $"{TestConstants.IdentityBasePath}/profile");
+        var profileResponse = await tenantAdminClient.GetAsync($"{TestConstants.IdentityBasePath}/profile", TestContext.Current.CancellationToken);
         profileResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        var profileBody = await profileResponse.Content.ReadAsStringAsync();
+        var profileBody = await profileResponse.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         profileBody.ShouldContain(adminEmail);
 
-        var permissionsResponse = await tenantAdminClient.GetAsync(
-            $"{TestConstants.IdentityBasePath}/permissions");
+        var permissionsResponse = await tenantAdminClient.GetAsync($"{TestConstants.IdentityBasePath}/permissions", TestContext.Current.CancellationToken);
         permissionsResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        var permissionsBody = await permissionsResponse.Content.ReadAsStringAsync();
+        var permissionsBody = await permissionsResponse.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         // A newly-seeded tenant admin must have at least one permission attached via a seeded role.
         permissionsBody.ShouldContain("Permissions.");
     }

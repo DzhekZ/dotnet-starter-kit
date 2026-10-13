@@ -17,7 +17,7 @@ public sealed class TenantActivationTests
     [Fact]
     public async Task ChangeTenantActivation_Should_ReturnOk_When_DeactivatingTenant()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var uniqueId = Guid.NewGuid().ToString("N")[..8];
         var tenantId = $"deact-{uniqueId}";
 
@@ -29,13 +29,11 @@ public sealed class TenantActivationTests
             adminEmail = $"deact-{uniqueId}@tenant.com",
             adminPassword = TestConstants.DefaultPassword,
             issuer = "deact.issuer"
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
         createResponse.StatusCode.ShouldBe(HttpStatusCode.Created);
 
         // POST /{id}/activation — body tenantId must match route
-        var response = await client.PostAsJsonAsync(
-            $"{TestConstants.TenantsBasePath}/{tenantId}/activation",
-            new { tenantId, isActive = false });
+        var response = await client.PostAsJsonAsync($"{TestConstants.TenantsBasePath}/{tenantId}/activation", new { tenantId, isActive = false }, cancellationToken: TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
@@ -43,7 +41,7 @@ public sealed class TenantActivationTests
     [Fact]
     public async Task ChangeTenantActivation_Should_DeactivateAndReactivate_When_TenantIsProvisioned()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var uniqueId = Guid.NewGuid().ToString("N")[..8];
         var tenantId = $"toggle-{uniqueId}";
 
@@ -55,17 +53,13 @@ public sealed class TenantActivationTests
             adminEmail = $"toggle-{uniqueId}@tenant.com",
             adminPassword = TestConstants.DefaultPassword,
             issuer = "toggle.issuer"
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Deactivate
-        var deactivateResponse = await client.PostAsJsonAsync(
-            $"{TestConstants.TenantsBasePath}/{tenantId}/activation",
-            new { tenantId, isActive = false });
+        var deactivateResponse = await client.PostAsJsonAsync($"{TestConstants.TenantsBasePath}/{tenantId}/activation", new { tenantId, isActive = false }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Reactivate
-        var reactivateResponse = await client.PostAsJsonAsync(
-            $"{TestConstants.TenantsBasePath}/{tenantId}/activation",
-            new { tenantId, isActive = true });
+        var reactivateResponse = await client.PostAsJsonAsync($"{TestConstants.TenantsBasePath}/{tenantId}/activation", new { tenantId, isActive = true }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Both should succeed if provisioning completed, otherwise at least one
         (deactivateResponse.IsSuccessStatusCode || reactivateResponse.IsSuccessStatusCode).ShouldBeTrue();
@@ -74,7 +68,7 @@ public sealed class TenantActivationTests
     [Fact]
     public async Task DeactivatedTenant_Should_Be_Denied_At_Login()
     {
-        using var adminClient = await _auth.CreateRootAdminClientAsync();
+        using var adminClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var uniqueId = Guid.NewGuid().ToString("N")[..8];
         var tenantId = $"blocked-{uniqueId}";
 
@@ -86,16 +80,14 @@ public sealed class TenantActivationTests
             adminEmail = $"blocked-{uniqueId}@tenant.com",
             adminPassword = TestConstants.DefaultPassword,
             issuer = "blocked.issuer"
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
         createResponse.StatusCode.ShouldBe(HttpStatusCode.Created);
 
         // While active, a login attempt reaches the token handler (and fails on
         // credentials) — the tenant guard does NOT short-circuit it.
         (await TryIssueTokenAsync(tenantId)).ShouldNotBe(HttpStatusCode.Forbidden);
 
-        var deactivate = await adminClient.PostAsJsonAsync(
-            $"{TestConstants.TenantsBasePath}/{tenantId}/activation",
-            new { tenantId, isActive = false });
+        var deactivate = await adminClient.PostAsJsonAsync($"{TestConstants.TenantsBasePath}/{tenantId}/activation", new { tenantId, isActive = false }, cancellationToken: TestContext.Current.CancellationToken);
         deactivate.StatusCode.ShouldBe(HttpStatusCode.OK);
 
         // Once deactivated, the tenant guard rejects before the token handler runs → 403.

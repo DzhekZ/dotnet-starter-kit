@@ -38,15 +38,13 @@ public sealed class ChangeTenantActivationValidationTests
     public async Task ChangeActivation_Should_Return400_When_RouteIdDoesNotMatchBody()
     {
         // Arrange
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var unique = Guid.NewGuid().ToString("N")[..8];
         var tenantId = $"act-mismatch-{unique}";
         await CreateTenantAsync(rootClient, tenantId, $"act-mismatch-{unique}@tenant.com");
 
         // Act — body TenantId differs from the route id.
-        var response = await rootClient.PostAsJsonAsync(
-            $"{TestConstants.TenantsBasePath}/{tenantId}/activation",
-            new { tenantId = "different-id", isActive = false });
+        var response = await rootClient.PostAsJsonAsync($"{TestConstants.TenantsBasePath}/{tenantId}/activation", new { tenantId = "different-id", isActive = false }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
@@ -57,13 +55,11 @@ public sealed class ChangeTenantActivationValidationTests
     {
         // Arrange — handler resolves the tenant via TenantService.GetStatus/Deactivate,
         // which raises NotFoundException for an unknown id.
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var missing = $"act-missing-{Guid.NewGuid():N}";
 
         // Act
-        var response = await rootClient.PostAsJsonAsync(
-            $"{TestConstants.TenantsBasePath}/{missing}/activation",
-            new { tenantId = missing, isActive = false });
+        var response = await rootClient.PostAsJsonAsync($"{TestConstants.TenantsBasePath}/{missing}/activation", new { tenantId = missing, isActive = false }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         response.IsSuccessStatusCode.ShouldBeFalse();
@@ -78,12 +74,10 @@ public sealed class ChangeTenantActivationValidationTests
     public async Task ChangeActivation_Should_Fail_When_DeactivatingRootTenant()
     {
         // Arrange — the root tenant cannot be deactivated (TenantService guard).
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var response = await rootClient.PostAsJsonAsync(
-            $"{TestConstants.TenantsBasePath}/{TestConstants.RootTenantId}/activation",
-            new { tenantId = TestConstants.RootTenantId, isActive = false });
+        var response = await rootClient.PostAsJsonAsync($"{TestConstants.TenantsBasePath}/{TestConstants.RootTenantId}/activation", new { tenantId = TestConstants.RootTenantId, isActive = false }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert — guarded; never a 2xx.
         response.IsSuccessStatusCode.ShouldBeFalse();
@@ -93,20 +87,16 @@ public sealed class ChangeTenantActivationValidationTests
     public async Task ChangeActivation_Should_Fail_When_DeactivatingAlreadyDeactivatedTenant()
     {
         // Arrange — deactivate once, then again.
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var unique = Guid.NewGuid().ToString("N")[..8];
         var tenantId = $"act-double-{unique}";
         await CreateTenantAsync(rootClient, tenantId, $"act-double-{unique}@tenant.com");
 
-        var first = await rootClient.PostAsJsonAsync(
-            $"{TestConstants.TenantsBasePath}/{tenantId}/activation",
-            new { tenantId, isActive = false });
+        var first = await rootClient.PostAsJsonAsync($"{TestConstants.TenantsBasePath}/{tenantId}/activation", new { tenantId, isActive = false }, cancellationToken: TestContext.Current.CancellationToken);
         first.StatusCode.ShouldBe(HttpStatusCode.OK);
 
         // Act — deactivate the same tenant again.
-        var second = await rootClient.PostAsJsonAsync(
-            $"{TestConstants.TenantsBasePath}/{tenantId}/activation",
-            new { tenantId, isActive = false });
+        var second = await rootClient.PostAsJsonAsync($"{TestConstants.TenantsBasePath}/{tenantId}/activation", new { tenantId, isActive = false }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert — already deactivated, so this fails.
         second.IsSuccessStatusCode.ShouldBeFalse();
@@ -117,18 +107,16 @@ public sealed class ChangeTenantActivationValidationTests
     {
         // Provision fully (so EnsureCanActivate passes) then deactivate. Reactivation re-checks the latest provisioning
         // record is Completed, which can transiently flip non-terminal after first showing Completed — so wait for *stable* Completed.
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var unique = Guid.NewGuid().ToString("N")[..8];
         var tenantId = $"act-reactivate-{unique}";
         await CreateTenantAsync(rootClient, tenantId, $"act-reactivate-{unique}@tenant.com");
         await TenantProvisioningWait.WaitForProvisioningAsync(rootClient, tenantId);
         await WaitForStableCompletedAsync(rootClient, tenantId);
 
-        var deactivate = await rootClient.PostAsJsonAsync(
-            $"{TestConstants.TenantsBasePath}/{tenantId}/activation",
-            new { tenantId, isActive = false });
+        var deactivate = await rootClient.PostAsJsonAsync($"{TestConstants.TenantsBasePath}/{tenantId}/activation", new { tenantId, isActive = false }, cancellationToken: TestContext.Current.CancellationToken);
         deactivate.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var deactivateResult = await deactivate.Content.ReadFromJsonAsync<LifecycleResult>(Json);
+        var deactivateResult = await deactivate.Content.ReadFromJsonAsync<LifecycleResult>(Json, cancellationToken: TestContext.Current.CancellationToken);
         deactivateResult.ShouldNotBeNull();
         deactivateResult.IsActive.ShouldBeFalse();
 
@@ -138,20 +126,18 @@ public sealed class ChangeTenantActivationValidationTests
         string reactivateBody = string.Empty;
         for (var attempt = 0; attempt < 15; attempt++)
         {
-            reactivate = await rootClient.PostAsJsonAsync(
-                $"{TestConstants.TenantsBasePath}/{tenantId}/activation",
-                new { tenantId, isActive = true });
+            reactivate = await rootClient.PostAsJsonAsync($"{TestConstants.TenantsBasePath}/{tenantId}/activation", new { tenantId, isActive = true }, cancellationToken: TestContext.Current.CancellationToken);
             if (reactivate.StatusCode == HttpStatusCode.OK)
             {
                 break;
             }
-            reactivateBody = await reactivate.Content.ReadAsStringAsync();
-            await Task.Delay(1000);
+            reactivateBody = await reactivate.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+            await Task.Delay(1000, TestContext.Current.CancellationToken);
         }
 
         // Assert
         reactivate.StatusCode.ShouldBe(HttpStatusCode.OK, reactivateBody);
-        var reactivateResult = await reactivate.Content.ReadFromJsonAsync<LifecycleResult>(Json);
+        var reactivateResult = await reactivate.Content.ReadFromJsonAsync<LifecycleResult>(Json, cancellationToken: TestContext.Current.CancellationToken);
         reactivateResult.ShouldNotBeNull();
         reactivateResult.TenantId.ShouldBe(tenantId);
         reactivateResult.IsActive.ShouldBeTrue();
@@ -169,9 +155,7 @@ public sealed class ChangeTenantActivationValidationTests
         client.DefaultRequestHeaders.Add("tenant", TestConstants.RootTenantId);
 
         // Act
-        var response = await client.PostAsJsonAsync(
-            $"{TestConstants.TenantsBasePath}/anytenant/activation",
-            new { tenantId = "anytenant", isActive = false });
+        var response = await client.PostAsJsonAsync($"{TestConstants.TenantsBasePath}/anytenant/activation", new { tenantId = "anytenant", isActive = false }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);

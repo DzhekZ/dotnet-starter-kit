@@ -16,7 +16,7 @@ public sealed class GroupMembershipTests
     [Fact]
     public async Task AddUsersToGroup_Should_ReturnOk_When_UsersExist()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var uniqueId = Guid.NewGuid().ToString("N")[..8];
 
         // Create a user and a group
@@ -28,8 +28,8 @@ public sealed class GroupMembershipTests
             userName = $"member-{uniqueId}",
             password = "Test@1234!",
             confirmPassword = "Test@1234!"
-        });
-        var user = await userResponse.DeserializeAsync<RegisterResult>();
+        }, cancellationToken: TestContext.Current.CancellationToken);
+        var user = await userResponse.DeserializeAsync<RegisterResult>(ct: TestContext.Current.CancellationToken);
 
         var groupResponse = await client.PostAsJsonAsync($"{TestConstants.IdentityBasePath}/groups", new
         {
@@ -37,13 +37,11 @@ public sealed class GroupMembershipTests
             description = "Membership test group",
             isDefault = false,
             roleIds = new List<string>()
-        });
-        var group = await groupResponse.DeserializeAsync<GroupDto>();
+        }, cancellationToken: TestContext.Current.CancellationToken);
+        var group = await groupResponse.DeserializeAsync<GroupDto>(ct: TestContext.Current.CancellationToken);
 
         // Add user to group
-        var response = await client.PostAsJsonAsync(
-            $"{TestConstants.IdentityBasePath}/groups/{group.Id}/members",
-            new { userIds = new[] { user.UserId } });
+        var response = await client.PostAsJsonAsync($"{TestConstants.IdentityBasePath}/groups/{group.Id}/members", new { userIds = new[] { user.UserId } }, cancellationToken: TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
@@ -51,7 +49,7 @@ public sealed class GroupMembershipTests
     [Fact]
     public async Task GetGroupMembers_Should_ReturnOk_When_GroupHasMembers()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var uniqueId = Guid.NewGuid().ToString("N")[..8];
 
         // Create user, group, and add membership
@@ -63,8 +61,8 @@ public sealed class GroupMembershipTests
             userName = $"grpquery-{uniqueId}",
             password = "Test@1234!",
             confirmPassword = "Test@1234!"
-        });
-        var user = await userResponse.DeserializeAsync<RegisterResult>();
+        }, cancellationToken: TestContext.Current.CancellationToken);
+        var user = await userResponse.DeserializeAsync<RegisterResult>(ct: TestContext.Current.CancellationToken);
 
         var groupResponse = await client.PostAsJsonAsync($"{TestConstants.IdentityBasePath}/groups", new
         {
@@ -72,15 +70,12 @@ public sealed class GroupMembershipTests
             description = "Query members test",
             isDefault = false,
             roleIds = new List<string>()
-        });
-        var group = await groupResponse.DeserializeAsync<GroupDto>();
+        }, cancellationToken: TestContext.Current.CancellationToken);
+        var group = await groupResponse.DeserializeAsync<GroupDto>(ct: TestContext.Current.CancellationToken);
 
-        await client.PostAsJsonAsync(
-            $"{TestConstants.IdentityBasePath}/groups/{group.Id}/members",
-            new { userIds = new[] { user.UserId } });
+        await client.PostAsJsonAsync($"{TestConstants.IdentityBasePath}/groups/{group.Id}/members", new { userIds = new[] { user.UserId } }, cancellationToken: TestContext.Current.CancellationToken);
 
-        var response = await client.GetAsync(
-            $"{TestConstants.IdentityBasePath}/groups/{group.Id}/members?pageNumber=1&pageSize=10");
+        var response = await client.GetAsync($"{TestConstants.IdentityBasePath}/groups/{group.Id}/members?pageNumber=1&pageSize=10", TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
@@ -88,7 +83,7 @@ public sealed class GroupMembershipTests
     [Fact]
     public async Task RemoveUserFromGroup_Should_ReturnNoContent_When_UserIsInGroup()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var uniqueId = Guid.NewGuid().ToString("N")[..8];
 
         // Create user, group, add, then remove
@@ -100,8 +95,8 @@ public sealed class GroupMembershipTests
             userName = $"remove-{uniqueId}",
             password = "Test@1234!",
             confirmPassword = "Test@1234!"
-        });
-        var user = await userResponse.DeserializeAsync<RegisterResult>();
+        }, cancellationToken: TestContext.Current.CancellationToken);
+        var user = await userResponse.DeserializeAsync<RegisterResult>(ct: TestContext.Current.CancellationToken);
 
         var groupResponse = await client.PostAsJsonAsync($"{TestConstants.IdentityBasePath}/groups", new
         {
@@ -109,15 +104,12 @@ public sealed class GroupMembershipTests
             description = "Removal test",
             isDefault = false,
             roleIds = new List<string>()
-        });
-        var group = await groupResponse.DeserializeAsync<GroupDto>();
+        }, cancellationToken: TestContext.Current.CancellationToken);
+        var group = await groupResponse.DeserializeAsync<GroupDto>(ct: TestContext.Current.CancellationToken);
 
-        await client.PostAsJsonAsync(
-            $"{TestConstants.IdentityBasePath}/groups/{group.Id}/members",
-            new { userIds = new[] { user.UserId } });
+        await client.PostAsJsonAsync($"{TestConstants.IdentityBasePath}/groups/{group.Id}/members", new { userIds = new[] { user.UserId } }, cancellationToken: TestContext.Current.CancellationToken);
 
-        var response = await client.DeleteAsync(
-            $"{TestConstants.IdentityBasePath}/groups/{group.Id}/members/{user.UserId}");
+        var response = await client.DeleteAsync($"{TestConstants.IdentityBasePath}/groups/{group.Id}/members/{user.UserId}", TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.NoContent);
     }

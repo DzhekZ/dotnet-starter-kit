@@ -29,7 +29,7 @@ public sealed class RolePrivilegeEscalationTests
     [Fact]
     public async Task UpdateRolePermissions_Should_StripRootPermissions_When_CallerIsNonRootTenantAdmin()
     {
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var unique = Guid.NewGuid().ToString("N")[..8];
         var tenantId = $"esc-{unique}";
         var adminEmail = $"esc-admin-{unique}@tenant.com";
@@ -56,7 +56,7 @@ public sealed class RolePrivilegeEscalationTests
     {
         // Sanity counterpart: the root operator CAN assign root-only permissions; the filter only
         // restricts non-root callers.
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var unique = Guid.NewGuid().ToString("N")[..8];
 
         var roleId = await CreateRoleAsync(rootClient, $"RootEscRole-{unique}");

@@ -39,12 +39,12 @@ public sealed class MultiModuleOutboxTests
 
         // Billing first: under the old registration this is the publish that blew up with
         // "relation billing.OutboxMessages does not exist" — or silently hijacked Identity's store.
-        await store.AddAsync(NewBillingEvent(billingEventId));
-        await store.AddAsync(NewIdentityEvent(identityEventId));
+        await store.AddAsync(NewBillingEvent(billingEventId), TestContext.Current.CancellationToken);
+        await store.AddAsync(NewIdentityEvent(identityEventId), TestContext.Current.CancellationToken);
 
         var saved = await context.OutboxMessages
             .Where(m => m.Id == billingEventId || m.Id == identityEventId)
-            .ToListAsync();
+            .ToListAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         saved.Select(m => m.Id).ShouldBe([billingEventId, identityEventId], ignoreOrder: true);
         saved.ShouldContain(
@@ -74,16 +74,12 @@ public sealed class MultiModuleOutboxTests
         var context = scope.ServiceProvider.GetRequiredService<EventingDbContext>();
         var eventId = Guid.CreateVersion7();
 
-        (await inbox.HasProcessedAsync(eventId, "MultiModuleOutboxTests")).ShouldBeFalse();
+        (await inbox.HasProcessedAsync(eventId, "MultiModuleOutboxTests", TestContext.Current.CancellationToken)).ShouldBeFalse();
 
-        await inbox.MarkProcessedAsync(
-            eventId,
-            "MultiModuleOutboxTests",
-            TestConstants.RootTenantId,
-            nameof(InvoiceIssuedIntegrationEvent));
+        await inbox.MarkProcessedAsync(eventId, "MultiModuleOutboxTests", TestConstants.RootTenantId, nameof(InvoiceIssuedIntegrationEvent), TestContext.Current.CancellationToken);
 
-        (await inbox.HasProcessedAsync(eventId, "MultiModuleOutboxTests")).ShouldBeTrue();
-        (await context.InboxMessages.CountAsync(m => m.Id == eventId)).ShouldBe(1);
+        (await inbox.HasProcessedAsync(eventId, "MultiModuleOutboxTests", TestContext.Current.CancellationToken)).ShouldBeTrue();
+        (await context.InboxMessages.CountAsync(m => m.Id == eventId, cancellationToken: TestContext.Current.CancellationToken)).ShouldBe(1);
     }
 
     [Fact]

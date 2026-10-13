@@ -33,7 +33,7 @@ public sealed class AdjustTenantValidityTests
     [Fact]
     public async Task AdjustValidity_Should_Set_ExplicitFutureDate_WithoutBillingSideEffect()
     {
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var unique = Guid.NewGuid().ToString("N")[..8];
         var tenantId = $"adj-{unique}";
         var planKey = await CreatePlanAsync(rootClient, $"adj-m-{unique}", monthlyBasePrice: 10m);
@@ -43,12 +43,10 @@ public sealed class AdjustTenantValidityTests
         var invoicesBefore = await GetInvoiceCountAsync(rootClient, tenantId);
 
         var target = DateTime.UtcNow.AddYears(2);
-        var response = await rootClient.PostAsJsonAsync(
-            $"{TestConstants.TenantsBasePath}/{tenantId}/adjust-validity",
-            new { tenantId, validUpto = target });
+        var response = await rootClient.PostAsJsonAsync($"{TestConstants.TenantsBasePath}/{tenantId}/adjust-validity", new { tenantId, validUpto = target }, cancellationToken: TestContext.Current.CancellationToken);
 
-        response.StatusCode.ShouldBe(HttpStatusCode.OK, await response.Content.ReadAsStringAsync());
-        var result = await response.Content.ReadFromJsonAsync<AdjustResult>(Json);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK, await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        var result = await response.Content.ReadFromJsonAsync<AdjustResult>(Json, cancellationToken: TestContext.Current.CancellationToken);
         result.ShouldNotBeNull();
         result.ValidUpto.ShouldBe(target, tolerance: TimeSpan.FromSeconds(1));
 
@@ -63,7 +61,7 @@ public sealed class AdjustTenantValidityTests
     [Fact]
     public async Task AdjustValidity_Should_Allow_Backdating_ToExpireImmediately()
     {
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var unique = Guid.NewGuid().ToString("N")[..8];
         var tenantId = $"adj-back-{unique}";
         var planKey = await CreatePlanAsync(rootClient, $"adj-b-{unique}", monthlyBasePrice: 10m);
@@ -71,11 +69,9 @@ public sealed class AdjustTenantValidityTests
 
         // Backdate well past the grace period — renewal would reject this; the override allows it.
         var target = DateTime.UtcNow.AddDays(-30);
-        var response = await rootClient.PostAsJsonAsync(
-            $"{TestConstants.TenantsBasePath}/{tenantId}/adjust-validity",
-            new { tenantId, validUpto = target });
+        var response = await rootClient.PostAsJsonAsync($"{TestConstants.TenantsBasePath}/{tenantId}/adjust-validity", new { tenantId, validUpto = target }, cancellationToken: TestContext.Current.CancellationToken);
 
-        response.StatusCode.ShouldBe(HttpStatusCode.OK, await response.Content.ReadAsStringAsync());
+        response.StatusCode.ShouldBe(HttpStatusCode.OK, await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
 
         var status = await GetStatusAsync(rootClient, tenantId);
         status.ValidUpto!.Value.ShouldBe(target, tolerance: TimeSpan.FromSeconds(1));
@@ -85,15 +81,13 @@ public sealed class AdjustTenantValidityTests
     [Fact]
     public async Task AdjustValidity_Should_Return400_When_RouteIdDoesNotMatchBody()
     {
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var unique = Guid.NewGuid().ToString("N")[..8];
         var tenantId = $"adj-mm-{unique}";
         var planKey = await CreatePlanAsync(rootClient, $"adj-mm-{unique}", monthlyBasePrice: 5m);
         await CreateTenantAsync(rootClient, tenantId, $"adj-mm-{unique}@tenant.com", planKey);
 
-        var response = await rootClient.PostAsJsonAsync(
-            $"{TestConstants.TenantsBasePath}/{tenantId}/adjust-validity",
-            new { tenantId = "some-other-tenant", validUpto = DateTime.UtcNow.AddMonths(1) });
+        var response = await rootClient.PostAsJsonAsync($"{TestConstants.TenantsBasePath}/{tenantId}/adjust-validity", new { tenantId = "some-other-tenant", validUpto = DateTime.UtcNow.AddMonths(1) }, cancellationToken: TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
@@ -103,11 +97,9 @@ public sealed class AdjustTenantValidityTests
     {
         // The root operator tenant must never expire — adjusting its validity is rejected so an
         // operator can't accidentally backdate the platform tenant into an expired state.
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
-        var response = await rootClient.PostAsJsonAsync(
-            $"{TestConstants.TenantsBasePath}/{TestConstants.RootTenantId}/adjust-validity",
-            new { tenantId = TestConstants.RootTenantId, validUpto = DateTime.UtcNow.AddDays(-1) });
+        var response = await rootClient.PostAsJsonAsync($"{TestConstants.TenantsBasePath}/{TestConstants.RootTenantId}/adjust-validity", new { tenantId = TestConstants.RootTenantId, validUpto = DateTime.UtcNow.AddDays(-1) }, cancellationToken: TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest,
             "the root operator tenant's validity must not be adjustable");
@@ -119,9 +111,7 @@ public sealed class AdjustTenantValidityTests
         using var client = _factory.CreateClient();
         client.DefaultRequestHeaders.Add("tenant", TestConstants.RootTenantId);
 
-        var response = await client.PostAsJsonAsync(
-            $"{TestConstants.TenantsBasePath}/anytenant/adjust-validity",
-            new { tenantId = "anytenant", validUpto = DateTime.UtcNow.AddMonths(1) });
+        var response = await client.PostAsJsonAsync($"{TestConstants.TenantsBasePath}/anytenant/adjust-validity", new { tenantId = "anytenant", validUpto = DateTime.UtcNow.AddMonths(1) }, cancellationToken: TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
     }
@@ -129,7 +119,7 @@ public sealed class AdjustTenantValidityTests
     [Fact]
     public async Task AdjustValidity_Should_Forbid_When_CallerIsTenantAdmin()
     {
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var unique = Guid.NewGuid().ToString("N")[..8];
         var tenantId = $"adj-authz-{unique}";
         var adminEmail = $"adj-authz-{unique}@tenant.com";
@@ -140,9 +130,7 @@ public sealed class AdjustTenantValidityTests
         using var tenantClient = await CreateTenantAdminClientWithRetryAsync(
             adminEmail, TestConstants.DefaultPassword, tenantId);
 
-        var response = await tenantClient.PostAsJsonAsync(
-            $"{TestConstants.TenantsBasePath}/{tenantId}/adjust-validity",
-            new { tenantId, validUpto = DateTime.UtcNow.AddMonths(1) });
+        var response = await tenantClient.PostAsJsonAsync($"{TestConstants.TenantsBasePath}/{tenantId}/adjust-validity", new { tenantId, validUpto = DateTime.UtcNow.AddMonths(1) }, cancellationToken: TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
     }

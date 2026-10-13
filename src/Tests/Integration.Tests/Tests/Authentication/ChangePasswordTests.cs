@@ -34,18 +34,16 @@ public sealed class ChangePasswordTests
         const string oldPassword = TestConstants.DefaultPassword;
         const string newPassword = "NewPa$$word123!";
         await CreateActiveUserAsync(email, oldPassword);
-        using var client = await _auth.CreateAuthenticatedClientAsync(email, oldPassword, TestConstants.RootTenantId);
+        using var client = await _auth.CreateAuthenticatedClientAsync(email, oldPassword, TestConstants.RootTenantId, TestContext.Current.CancellationToken);
 
         // Act
-        var response = await client.PostAsJsonAsync(
-            $"{TestConstants.IdentityBasePath}/change-password",
-            new { password = oldPassword, newPassword, confirmNewPassword = newPassword });
+        var response = await client.PostAsJsonAsync($"{TestConstants.IdentityBasePath}/change-password", new { password = oldPassword, newPassword, confirmNewPassword = newPassword }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
-        var body = await response.Content.ReadAsStringAsync();
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         response.StatusCode.ShouldBe(HttpStatusCode.OK, body);
 
-        var token = await _auth.GetTokenAsync(email, newPassword, TestConstants.RootTenantId);
+        var token = await _auth.GetTokenAsync(email, newPassword, TestConstants.RootTenantId, TestContext.Current.CancellationToken);
         token.AccessToken.ShouldNotBeNullOrWhiteSpace();
 
         await Should.ThrowAsync<HttpRequestException>(
@@ -63,16 +61,14 @@ public sealed class ChangePasswordTests
         var email = $"changepw_wrong_{Guid.NewGuid():N}@test.com";
         const string oldPassword = TestConstants.DefaultPassword;
         await CreateActiveUserAsync(email, oldPassword);
-        using var client = await _auth.CreateAuthenticatedClientAsync(email, oldPassword, TestConstants.RootTenantId);
+        using var client = await _auth.CreateAuthenticatedClientAsync(email, oldPassword, TestConstants.RootTenantId, TestContext.Current.CancellationToken);
 
         // Act
-        var response = await client.PostAsJsonAsync(
-            $"{TestConstants.IdentityBasePath}/change-password",
-            new { password = "WrongCurrent123!", newPassword = "NewPa$$word123!", confirmNewPassword = "NewPa$$word123!" });
+        var response = await client.PostAsJsonAsync($"{TestConstants.IdentityBasePath}/change-password", new { password = "WrongCurrent123!", newPassword = "NewPa$$word123!", confirmNewPassword = "NewPa$$word123!" }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert — refused, and the original password still authenticates.
         ((int)response.StatusCode).ShouldBeGreaterThanOrEqualTo(400);
-        var token = await _auth.GetTokenAsync(email, oldPassword, TestConstants.RootTenantId);
+        var token = await _auth.GetTokenAsync(email, oldPassword, TestConstants.RootTenantId, TestContext.Current.CancellationToken);
         token.AccessToken.ShouldNotBeNullOrWhiteSpace();
     }
 
@@ -84,9 +80,7 @@ public sealed class ChangePasswordTests
         client.DefaultRequestHeaders.Add("tenant", TestConstants.RootTenantId);
 
         // Act
-        var response = await client.PostAsJsonAsync(
-            $"{TestConstants.IdentityBasePath}/change-password",
-            new { password = "x", newPassword = "NewPa$$word123!", confirmNewPassword = "NewPa$$word123!" });
+        var response = await client.PostAsJsonAsync($"{TestConstants.IdentityBasePath}/change-password", new { password = "x", newPassword = "NewPa$$word123!", confirmNewPassword = "NewPa$$word123!" }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);

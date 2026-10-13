@@ -20,7 +20,7 @@ public sealed class PermissionEnforcementTests
         using var client = _factory.CreateClient();
         client.DefaultRequestHeaders.Add("tenant", TestConstants.RootTenantId);
 
-        var response = await client.GetAsync($"{TestConstants.IdentityBasePath}/users?pageNumber=1&pageSize=10");
+        var response = await client.GetAsync($"{TestConstants.IdentityBasePath}/users?pageNumber=1&pageSize=10", TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
     }
@@ -33,7 +33,7 @@ public sealed class PermissionEnforcementTests
         client.DefaultRequestHeaders.Authorization =
             new AuthenticationHeaderValue("Bearer", "invalid.jwt.token");
 
-        var response = await client.GetAsync($"{TestConstants.IdentityBasePath}/users?pageNumber=1&pageSize=10");
+        var response = await client.GetAsync($"{TestConstants.IdentityBasePath}/users?pageNumber=1&pageSize=10", TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
     }
@@ -41,9 +41,9 @@ public sealed class PermissionEnforcementTests
     [Fact]
     public async Task AdminEndpoint_Should_ReturnOk_When_AdminUserAccesses()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
-        var response = await client.GetAsync($"{TestConstants.IdentityBasePath}/roles");
+        var response = await client.GetAsync($"{TestConstants.IdentityBasePath}/roles", TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
@@ -60,7 +60,7 @@ public sealed class PermissionEnforcementTests
             new AuthenticationHeaderValue("Bearer",
                 "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwiZXhwIjoxfQ.invalid");
 
-        var response = await client.GetAsync($"{TestConstants.IdentityBasePath}/roles");
+        var response = await client.GetAsync($"{TestConstants.IdentityBasePath}/roles", TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
     }
@@ -70,8 +70,8 @@ public sealed class PermissionEnforcementTests
     {
         using var client = _factory.CreateClient();
 
-        var liveResponse = await client.GetAsync("/health/live");
-        var rootResponse = await client.GetAsync("/");
+        var liveResponse = await client.GetAsync("/health/live", TestContext.Current.CancellationToken);
+        var rootResponse = await client.GetAsync("/", TestContext.Current.CancellationToken);
 
         liveResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
         rootResponse.StatusCode.ShouldBe(HttpStatusCode.OK);

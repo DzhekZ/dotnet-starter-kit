@@ -18,7 +18,7 @@ public sealed class UserRegistrationTests
     [Fact]
     public async Task RegisterUser_Should_Return201WithUserId_When_DataIsValid()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var uniqueId = Guid.NewGuid().ToString("N")[..8];
 
         var response = await client.PostAsJsonAsync($"{TestConstants.IdentityBasePath}/register", new
@@ -29,17 +29,17 @@ public sealed class UserRegistrationTests
             userName = $"testuser-{uniqueId}",
             password = "Test@1234!",
             confirmPassword = "Test@1234!"
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.Created);
-        var result = await response.DeserializeAsync<RegisterResult>();
+        var result = await response.DeserializeAsync<RegisterResult>(ct: TestContext.Current.CancellationToken);
         result.UserId.ShouldNotBeNullOrWhiteSpace();
     }
 
     [Fact]
     public async Task RegisterUser_Should_RejectDuplicate_When_EmailAlreadyExists()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var uniqueId = Guid.NewGuid().ToString("N")[..8];
         var payload = new
         {
@@ -51,12 +51,10 @@ public sealed class UserRegistrationTests
             confirmPassword = "Test@1234!"
         };
 
-        var firstResponse = await client.PostAsJsonAsync($"{TestConstants.IdentityBasePath}/register", payload);
+        var firstResponse = await client.PostAsJsonAsync($"{TestConstants.IdentityBasePath}/register", payload, cancellationToken: TestContext.Current.CancellationToken);
         firstResponse.StatusCode.ShouldBe(HttpStatusCode.Created);
 
-        var secondResponse = await client.PostAsJsonAsync(
-            $"{TestConstants.IdentityBasePath}/register",
-            payload with { userName = $"dupuser2-{uniqueId}" });
+        var secondResponse = await client.PostAsJsonAsync($"{TestConstants.IdentityBasePath}/register", payload with { userName = $"dupuser2-{uniqueId}" }, cancellationToken: TestContext.Current.CancellationToken);
 
         // A duplicate email is a client-input error → 400, not a 500.
         secondResponse.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
@@ -65,7 +63,7 @@ public sealed class UserRegistrationTests
     [Fact]
     public async Task RegisterUser_Should_Reject_When_PasswordTooWeak()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var uniqueId = Guid.NewGuid().ToString("N")[..8];
 
         var response = await client.PostAsJsonAsync($"{TestConstants.IdentityBasePath}/register", new
@@ -76,7 +74,7 @@ public sealed class UserRegistrationTests
             userName = $"weakuser-{uniqueId}",
             password = "123",
             confirmPassword = "123"
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
 
         // A weak password is a client-input error → 400, not a 500.
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
@@ -96,7 +94,7 @@ public sealed class UserRegistrationTests
             userName = "noauthuser",
             password = "Test@1234!",
             confirmPassword = "Test@1234!"
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
     }
@@ -105,7 +103,7 @@ public sealed class UserRegistrationTests
     public async Task RegisterUser_Should_RequireEmailConfirmation_When_RegisteredByAdmin()
     {
         // Admin-registered users have EmailConfirmed = false and cannot login immediately
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var uniqueId = Guid.NewGuid().ToString("N")[..8];
         string email = $"login-{uniqueId}@example.com";
 
@@ -117,7 +115,7 @@ public sealed class UserRegistrationTests
             userName = $"loginuser-{uniqueId}",
             password = "Test@1234!",
             confirmPassword = "Test@1234!"
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
         registerResponse.StatusCode.ShouldBe(HttpStatusCode.Created);
 
         // Attempt login — should fail because email is not confirmed
@@ -126,7 +124,7 @@ public sealed class UserRegistrationTests
         loginRequest.Headers.Add("tenant", TestConstants.RootTenantId);
         loginRequest.Content = JsonContent.Create(new { email, password = "Test@1234!" });
 
-        var loginResponse = await loginClient.SendAsync(loginRequest);
+        var loginResponse = await loginClient.SendAsync(loginRequest, TestContext.Current.CancellationToken);
 
         loginResponse.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
     }

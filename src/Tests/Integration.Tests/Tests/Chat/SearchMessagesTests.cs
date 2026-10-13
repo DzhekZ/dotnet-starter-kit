@@ -27,7 +27,7 @@ public sealed class SearchMessagesTests
     [Fact]
     public async Task Search_Should_Match_BodyTokens_In_Member_Channels()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var channelId = await CreateChannelAsync(client, Unique("Search"));
         var token = Unique("kangaroo"); // unique-enough to avoid false positives across the shared DB
         await SendMessageAsync(client, channelId, $"the {token} hops far");
@@ -42,7 +42,7 @@ public sealed class SearchMessagesTests
     [Fact]
     public async Task Search_Should_Honor_ChannelId_Scope()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var noiseChannel = await CreateChannelAsync(client, Unique("Noise"));
         var targetChannel = await CreateChannelAsync(client, Unique("Target"));
         var token = Unique("aardvark");
@@ -58,7 +58,7 @@ public sealed class SearchMessagesTests
     [Fact]
     public async Task Search_Should_Exclude_Channels_The_Caller_Is_Not_A_Member_Of()
     {
-        using var adminClient = await _auth.CreateRootAdminClientAsync();
+        using var adminClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var token = Unique("platypus");
 
         // Admin creates and writes in a channel they own.
@@ -69,7 +69,7 @@ public sealed class SearchMessagesTests
         var bobEmail = $"bob-{Guid.NewGuid().ToString("N")[..8]}@example.com";
         const string password = "Test@1234!";
         await RegisterAndConfirmAsync(adminClient, "bob", bobEmail, password);
-        using var bobClient = await _auth.CreateAuthenticatedClientAsync(bobEmail, password);
+        using var bobClient = await _auth.CreateAuthenticatedClientAsync(bobEmail, password, ct: TestContext.Current.CancellationToken);
 
         var results = await SearchAsync(bobClient, token);
         results.ShouldNotContain(m => m.ChannelId == adminChannel,
@@ -79,12 +79,12 @@ public sealed class SearchMessagesTests
     [Fact]
     public async Task Search_Should_Skip_SoftDeleted_Messages()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var channelId = await CreateChannelAsync(client, Unique("Tomb"));
         var token = Unique("narwhal");
         var messageId = await SendMessageAsync(client, channelId, $"the {token} sings");
 
-        using var del = await client.DeleteAsync($"{ChatBasePath}/messages/{messageId}");
+        using var del = await client.DeleteAsync($"{ChatBasePath}/messages/{messageId}", TestContext.Current.CancellationToken);
         del.StatusCode.ShouldBe(System.Net.HttpStatusCode.NoContent);
 
         var results = await SearchAsync(client, token);

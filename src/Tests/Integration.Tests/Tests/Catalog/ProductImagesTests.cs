@@ -25,7 +25,7 @@ public sealed class ProductImagesTests
     [Fact]
     public async Task AddProductImage_Should_Attach_And_MarkAsThumbnail_When_First_Image()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
         // 1. Need a brand and a category. The catalog is seeded — pick the first of each.
         var (brandId, categoryId) = await PickExistingBrandAndCategoryAsync(client);
@@ -37,17 +37,15 @@ public sealed class ProductImagesTests
         var (fileAssetId, publicUrl) = await UploadImageAsync(client, productId);
 
         // 4. Attach the image to the product — this is the call that was returning 500.
-        using var attach = await client.PostAsJsonAsync(
-            $"{TestConstants.CatalogBasePath}/products/{productId}/images",
-            new { fileAssetId, url = publicUrl });
+        using var attach = await client.PostAsJsonAsync($"{TestConstants.CatalogBasePath}/products/{productId}/images", new { fileAssetId, url = publicUrl }, cancellationToken: TestContext.Current.CancellationToken);
 
         if (attach.StatusCode != HttpStatusCode.OK)
         {
-            var body = await attach.Content.ReadAsStringAsync();
+            var body = await attach.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
             throw new InvalidOperationException($"AddProductImage failed: {attach.StatusCode}\n{body}");
         }
 
-        var image = await attach.DeserializeAsync<ProductImageDto>();
+        var image = await attach.DeserializeAsync<ProductImageDto>(ct: TestContext.Current.CancellationToken);
         image.ShouldNotBeNull();
         image.FileAssetId.ShouldBe(fileAssetId);
         image.Url.ShouldBe(publicUrl);
@@ -55,8 +53,8 @@ public sealed class ProductImagesTests
         image.SortOrder.ShouldBe(0);
 
         // 5. The product detail reflects the new image.
-        using var getProduct = await client.GetAsync($"{TestConstants.CatalogBasePath}/products/{productId}");
-        var product = await getProduct.DeserializeAsync<ProductDto>();
+        using var getProduct = await client.GetAsync($"{TestConstants.CatalogBasePath}/products/{productId}", TestContext.Current.CancellationToken);
+        var product = await getProduct.DeserializeAsync<ProductDto>(ct: TestContext.Current.CancellationToken);
         product.Images.ShouldContain(i => i.Id == image.Id);
         product.ThumbnailUrl.ShouldBe(publicUrl);
     }
@@ -64,11 +62,9 @@ public sealed class ProductImagesTests
     [Fact]
     public async Task AddProductImage_Should_Return404_For_Unknown_Product()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
-        using var response = await client.PostAsJsonAsync(
-            $"{TestConstants.CatalogBasePath}/products/{Guid.NewGuid()}/images",
-            new { fileAssetId = (Guid?)null, url = "https://example.com/image.png" });
+        using var response = await client.PostAsJsonAsync($"{TestConstants.CatalogBasePath}/products/{Guid.NewGuid()}/images", new { fileAssetId = (Guid?)null, url = "https://example.com/image.png" }, cancellationToken: TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
@@ -76,13 +72,11 @@ public sealed class ProductImagesTests
     [Fact]
     public async Task AddProductImage_Should_Return400_When_Url_Is_Empty()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var (brandId, categoryId) = await PickExistingBrandAndCategoryAsync(client);
         var productId = await CreateProductAsync(client, brandId, categoryId);
 
-        using var response = await client.PostAsJsonAsync(
-            $"{TestConstants.CatalogBasePath}/products/{productId}/images",
-            new { fileAssetId = (Guid?)null, url = "" });
+        using var response = await client.PostAsJsonAsync($"{TestConstants.CatalogBasePath}/products/{productId}/images", new { fileAssetId = (Guid?)null, url = "" }, cancellationToken: TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
@@ -90,7 +84,7 @@ public sealed class ProductImagesTests
     [Fact]
     public async Task SetProductThumbnail_Should_Move_The_Cover_To_The_Second_Image()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var (brandId, categoryId) = await PickExistingBrandAndCategoryAsync(client);
         var productId = await CreateProductAsync(client, brandId, categoryId);
 
@@ -105,13 +99,11 @@ public sealed class ProductImagesTests
         before.Images.Single(i => i.Id == secondId).IsThumbnail.ShouldBeFalse();
 
         // Promote the second image to thumbnail.
-        using var promote = await client.PutAsync(
-            $"{TestConstants.CatalogBasePath}/products/{productId}/images/{secondId}/thumbnail",
-            content: null);
+        using var promote = await client.PutAsync($"{TestConstants.CatalogBasePath}/products/{productId}/images/{secondId}/thumbnail", content: null, cancellationToken: TestContext.Current.CancellationToken);
 
         if (promote.StatusCode != HttpStatusCode.NoContent)
         {
-            var body = await promote.Content.ReadAsStringAsync();
+            var body = await promote.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
             throw new InvalidOperationException($"SetProductThumbnail failed: {promote.StatusCode}\n{body}");
         }
 
@@ -127,7 +119,7 @@ public sealed class ProductImagesTests
     {
         // Regression: a partial UNIQUE on (ProductId) WHERE IsThumbnail fired mid-statement on promote-before-
         // demote. The aggregate enforces single-thumbnail; walking the cover forward+back locks the bug down.
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var (brandId, categoryId) = await PickExistingBrandAndCategoryAsync(client);
         var productId = await CreateProductAsync(client, brandId, categoryId);
 
@@ -142,13 +134,11 @@ public sealed class ProductImagesTests
         // different demote→promote pair.
         foreach (var nextCoverId in new[] { ids[1], ids[2], ids[0], ids[2], ids[1], ids[0] })
         {
-            using var promote = await client.PutAsync(
-                $"{TestConstants.CatalogBasePath}/products/{productId}/images/{nextCoverId}/thumbnail",
-                content: null);
+            using var promote = await client.PutAsync($"{TestConstants.CatalogBasePath}/products/{productId}/images/{nextCoverId}/thumbnail", content: null, cancellationToken: TestContext.Current.CancellationToken);
 
             if (promote.StatusCode != HttpStatusCode.NoContent)
             {
-                var body = await promote.Content.ReadAsStringAsync();
+                var body = await promote.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
                 throw new InvalidOperationException(
                     $"SetThumbnail to {nextCoverId} failed: {promote.StatusCode}\n{body}");
             }
@@ -163,14 +153,12 @@ public sealed class ProductImagesTests
     [Fact]
     public async Task SetProductThumbnail_Should_Return404_For_Unknown_Image()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var (brandId, categoryId) = await PickExistingBrandAndCategoryAsync(client);
         var productId = await CreateProductAsync(client, brandId, categoryId);
         // No image attached — ImageId is unknown.
 
-        using var response = await client.PutAsync(
-            $"{TestConstants.CatalogBasePath}/products/{productId}/images/{Guid.NewGuid()}/thumbnail",
-            content: null);
+        using var response = await client.PutAsync($"{TestConstants.CatalogBasePath}/products/{productId}/images/{Guid.NewGuid()}/thumbnail", content: null, cancellationToken: TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }

@@ -17,7 +17,7 @@ public sealed class HealthCheckTests
     {
         using var client = _factory.CreateClient();
 
-        var response = await client.GetAsync("/health/live");
+        var response = await client.GetAsync("/health/live", TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
@@ -27,7 +27,7 @@ public sealed class HealthCheckTests
     {
         using var client = _factory.CreateClient();
 
-        var response = await client.GetAsync("/health/ready");
+        var response = await client.GetAsync("/health/ready", TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
@@ -37,10 +37,10 @@ public sealed class HealthCheckTests
     {
         using var client = _factory.CreateClient();
 
-        var response = await client.GetAsync("/");
+        var response = await client.GetAsync("/", TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var content = await response.Content.ReadAsStringAsync();
+        var content = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         content.ShouldContain("hello world");
     }
 }

@@ -55,7 +55,7 @@ public sealed class PurgeJobsPerTenantTests
 
             // Quota is disabled in the harness, so the finalize debit is replayed here against the
             // in-memory counter the job is handed.
-            await quotas.RecordAsync(tenantId, QuotaResource.StorageBytes, FileSize);
+            await quotas.RecordAsync(tenantId, QuotaResource.StorageBytes, FileSize, TestContext.Current.CancellationToken);
             seeded.Add((tenantId, id, key));
         }
 
@@ -73,7 +73,7 @@ public sealed class PurgeJobsPerTenantTests
                 .ShouldBeFalse($"soft-deleted file past retention in tenant '{tenantId}' must be hard-purged");
             (await ObjectExistsAsync(key))
                 .ShouldBeFalse($"storage object of the purged file in tenant '{tenantId}' must be removed");
-            (await quotas.GetCurrentAsync(tenantId, QuotaResource.StorageBytes))
+            (await quotas.GetCurrentAsync(tenantId, QuotaResource.StorageBytes, TestContext.Current.CancellationToken))
                 .ShouldBe(0, $"the purged bytes must be refunded to tenant '{tenantId}'");
         }
 

@@ -45,13 +45,13 @@ public sealed class FileVisibilityAndSharingTests
     public async Task GetMetadata_Should_Return404_For_NonOwner_When_File_Is_Private()
     {
         // Arrange — owner uploads a Private file; a different same-tenant user exists.
-        using var ownerClient = await _auth.CreateRootAdminClientAsync();
+        using var ownerClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var fileId = await UploadAndFinalizeAsync(ownerClient, "private.pdf", "application/pdf", 256, visibility: 1);
 
         using var granteeClient = await RegisterAndLoginAsync("private-reader");
 
         // Act — the non-owner asks for the Private file's metadata.
-        using var response = await granteeClient.GetAsync($"{FilesBasePath}/{fileId}");
+        using var response = await granteeClient.GetAsync($"{FilesBasePath}/{fileId}", TestContext.Current.CancellationToken);
 
         // Assert — Private + non-owner → 404 (CanReadAsync false; existence not leaked).
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
@@ -61,13 +61,13 @@ public sealed class FileVisibilityAndSharingTests
     public async Task GetDownloadUrl_Should_Return404_For_NonOwner_When_File_Is_Private()
     {
         // Arrange
-        using var ownerClient = await _auth.CreateRootAdminClientAsync();
+        using var ownerClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var fileId = await UploadAndFinalizeAsync(ownerClient, "private-dl.pdf", "application/pdf", 256, visibility: 1);
 
         using var granteeClient = await RegisterAndLoginAsync("private-dl-reader");
 
         // Act — non-owner tries to mint a presigned GET for a Private file.
-        using var response = await granteeClient.GetAsync($"{FilesBasePath}/{fileId}/url");
+        using var response = await granteeClient.GetAsync($"{FilesBasePath}/{fileId}/url", TestContext.Current.CancellationToken);
 
         // Assert — no download URL for a non-owner on a Private file.
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
@@ -77,15 +77,15 @@ public sealed class FileVisibilityAndSharingTests
     public async Task GetMetadata_Should_Return_File_For_Owner_When_File_Is_Private()
     {
         // Arrange — positive control: the uploader can always read their own Private file.
-        using var ownerClient = await _auth.CreateRootAdminClientAsync();
+        using var ownerClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var fileId = await UploadAndFinalizeAsync(ownerClient, "owner-private.pdf", "application/pdf", 256, visibility: 1);
 
         // Act
-        using var response = await ownerClient.GetAsync($"{FilesBasePath}/{fileId}");
+        using var response = await ownerClient.GetAsync($"{FilesBasePath}/{fileId}", TestContext.Current.CancellationToken);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var dto = await response.DeserializeAsync<FileAssetDto>();
+        var dto = await response.DeserializeAsync<FileAssetDto>(ct: TestContext.Current.CancellationToken);
         dto.Id.ShouldBe(fileId);
         dto.Visibility.ShouldBe(Visibility.Private);
     }
@@ -98,17 +98,17 @@ public sealed class FileVisibilityAndSharingTests
     public async Task GetMetadata_Should_Return_File_For_NonOwner_When_File_Is_Public()
     {
         // Arrange — a Public file is "shared" with the whole tenant.
-        using var ownerClient = await _auth.CreateRootAdminClientAsync();
+        using var ownerClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var fileId = await UploadAndFinalizeAsync(ownerClient, "public.pdf", "application/pdf", 256, visibility: 0);
 
         using var granteeClient = await RegisterAndLoginAsync("public-reader");
 
         // Act — a different same-tenant user reads the Public file's metadata.
-        using var response = await granteeClient.GetAsync($"{FilesBasePath}/{fileId}");
+        using var response = await granteeClient.GetAsync($"{FilesBasePath}/{fileId}", TestContext.Current.CancellationToken);
 
         // Assert — Public files are readable by anyone in the tenant.
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var dto = await response.DeserializeAsync<FileAssetDto>();
+        var dto = await response.DeserializeAsync<FileAssetDto>(ct: TestContext.Current.CancellationToken);
         dto.Id.ShouldBe(fileId);
         dto.Visibility.ShouldBe(Visibility.Public);
     }
@@ -117,17 +117,17 @@ public sealed class FileVisibilityAndSharingTests
     public async Task GetDownloadUrl_Should_Succeed_For_NonOwner_When_File_Is_Public()
     {
         // Arrange
-        using var ownerClient = await _auth.CreateRootAdminClientAsync();
+        using var ownerClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var fileId = await UploadAndFinalizeAsync(ownerClient, "public-dl.pdf", "application/pdf", 256, visibility: 0);
 
         using var granteeClient = await RegisterAndLoginAsync("public-dl-reader");
 
         // Act — non-owner mints a presigned GET for the Public file.
-        using var response = await granteeClient.GetAsync($"{FilesBasePath}/{fileId}/url");
+        using var response = await granteeClient.GetAsync($"{FilesBasePath}/{fileId}/url", TestContext.Current.CancellationToken);
 
         // Assert — Public read is allowed; a real presigned URL comes back.
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var download = await response.DeserializeAsync<PresignedDownloadResponse>();
+        var download = await response.DeserializeAsync<PresignedDownloadResponse>(ct: TestContext.Current.CancellationToken);
         download.Url.ShouldNotBeNull();
         download.Url.AbsoluteUri.ShouldContain("X-Amz-Signature");
     }
@@ -136,17 +136,17 @@ public sealed class FileVisibilityAndSharingTests
     public async Task ListShared_Should_Include_Public_File_For_NonOwner()
     {
         // Arrange — the /shared surface lists Public, Available MyFiles/User files tenant-wide.
-        using var ownerClient = await _auth.CreateRootAdminClientAsync();
+        using var ownerClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var fileId = await UploadAndFinalizeAsync(ownerClient, "in-shared-view.pdf", "application/pdf", 256, visibility: 0);
 
         using var granteeClient = await RegisterAndLoginAsync("shared-lister");
 
         // Act — a different same-tenant user lists the shared view.
-        using var response = await granteeClient.GetAsync($"{FilesBasePath}/shared?page=1&pageSize=100");
+        using var response = await granteeClient.GetAsync($"{FilesBasePath}/shared?page=1&pageSize=100", TestContext.Current.CancellationToken);
 
         // Assert — the Public file is visible in another user's shared list.
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var list = await response.DeserializeAsync<IReadOnlyList<FileAssetDto>>();
+        var list = await response.DeserializeAsync<IReadOnlyList<FileAssetDto>>(ct: TestContext.Current.CancellationToken);
         list.ShouldContain(f => f.Id == fileId);
     }
 
@@ -154,15 +154,15 @@ public sealed class FileVisibilityAndSharingTests
     public async Task ListShared_Should_Not_Include_Private_File()
     {
         // Arrange — a Private file must never surface in the tenant-wide shared view, even for the owner.
-        using var ownerClient = await _auth.CreateRootAdminClientAsync();
+        using var ownerClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var privateId = await UploadAndFinalizeAsync(ownerClient, "not-shared.pdf", "application/pdf", 256, visibility: 1);
 
         // Act
-        using var response = await ownerClient.GetAsync($"{FilesBasePath}/shared?page=1&pageSize=100");
+        using var response = await ownerClient.GetAsync($"{FilesBasePath}/shared?page=1&pageSize=100", TestContext.Current.CancellationToken);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var list = await response.DeserializeAsync<IReadOnlyList<FileAssetDto>>();
+        var list = await response.DeserializeAsync<IReadOnlyList<FileAssetDto>>(ct: TestContext.Current.CancellationToken);
         list.ShouldNotContain(f => f.Id == privateId);
     }
 
@@ -174,24 +174,24 @@ public sealed class FileVisibilityAndSharingTests
     public async Task ChangeVisibility_Should_Make_Private_File_Reachable_By_NonOwner()
     {
         // Arrange — start Private (non-owner is locked out), then the owner shares it (→ Public).
-        using var ownerClient = await _auth.CreateRootAdminClientAsync();
+        using var ownerClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var fileId = await UploadAndFinalizeAsync(ownerClient, "to-share.pdf", "application/pdf", 256, visibility: 1);
 
         using var granteeClient = await RegisterAndLoginAsync("share-target");
 
-        using var before = await granteeClient.GetAsync($"{FilesBasePath}/{fileId}");
+        using var before = await granteeClient.GetAsync($"{FilesBasePath}/{fileId}", TestContext.Current.CancellationToken);
         before.StatusCode.ShouldBe(HttpStatusCode.NotFound, "Private file must be hidden from a non-owner before sharing.");
 
         // Act — owner flips it to Public (visibility 0).
-        using var flip = await ownerClient.PatchAsJsonAsync($"{FilesBasePath}/{fileId}/visibility", new { visibility = 0 });
+        using var flip = await ownerClient.PatchAsJsonAsync($"{FilesBasePath}/{fileId}/visibility", new { visibility = 0 }, cancellationToken: TestContext.Current.CancellationToken);
         flip.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var flipped = await flip.DeserializeAsync<FileAssetDto>();
+        var flipped = await flip.DeserializeAsync<FileAssetDto>(ct: TestContext.Current.CancellationToken);
         flipped.Visibility.ShouldBe(Visibility.Public);
 
         // Assert — the same non-owner can now read it.
-        using var after = await granteeClient.GetAsync($"{FilesBasePath}/{fileId}");
+        using var after = await granteeClient.GetAsync($"{FilesBasePath}/{fileId}", TestContext.Current.CancellationToken);
         after.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var dto = await after.DeserializeAsync<FileAssetDto>();
+        var dto = await after.DeserializeAsync<FileAssetDto>(ct: TestContext.Current.CancellationToken);
         dto.Id.ShouldBe(fileId);
     }
 
@@ -199,14 +199,13 @@ public sealed class FileVisibilityAndSharingTests
     public async Task ChangeVisibility_Should_Return403_When_Caller_Is_Not_The_Uploader()
     {
         // Arrange — a non-owner must not be able to flip another user's file visibility.
-        using var ownerClient = await _auth.CreateRootAdminClientAsync();
+        using var ownerClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var fileId = await UploadAndFinalizeAsync(ownerClient, "owner-controls.pdf", "application/pdf", 256, visibility: 0);
 
         using var granteeClient = await RegisterAndLoginAsync("not-the-uploader");
 
         // Act — non-owner tries to flip Public → Private.
-        using var response = await granteeClient.PatchAsJsonAsync(
-            $"{FilesBasePath}/{fileId}/visibility", new { visibility = 1 });
+        using var response = await granteeClient.PatchAsJsonAsync($"{FilesBasePath}/{fileId}/visibility", new { visibility = 1 }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert — CanChangeVisibilityAsync defaults to uploader-only → 403 Forbidden.
         response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
@@ -216,20 +215,20 @@ public sealed class FileVisibilityAndSharingTests
     public async Task ChangeVisibility_Should_Hide_Public_File_From_NonOwner_When_Flipped_To_Private()
     {
         // Arrange — start Public (non-owner can read), then the owner un-shares it (→ Private).
-        using var ownerClient = await _auth.CreateRootAdminClientAsync();
+        using var ownerClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var fileId = await UploadAndFinalizeAsync(ownerClient, "unshare.pdf", "application/pdf", 256, visibility: 0);
 
         using var granteeClient = await RegisterAndLoginAsync("unshare-target");
 
-        using var before = await granteeClient.GetAsync($"{FilesBasePath}/{fileId}");
+        using var before = await granteeClient.GetAsync($"{FilesBasePath}/{fileId}", TestContext.Current.CancellationToken);
         before.StatusCode.ShouldBe(HttpStatusCode.OK, "Public file must be readable by a non-owner before un-sharing.");
 
         // Act — owner flips it back to Private.
-        using var flip = await ownerClient.PatchAsJsonAsync($"{FilesBasePath}/{fileId}/visibility", new { visibility = 1 });
+        using var flip = await ownerClient.PatchAsJsonAsync($"{FilesBasePath}/{fileId}/visibility", new { visibility = 1 }, cancellationToken: TestContext.Current.CancellationToken);
         flip.StatusCode.ShouldBe(HttpStatusCode.OK);
 
         // Assert — the non-owner loses access.
-        using var after = await granteeClient.GetAsync($"{FilesBasePath}/{fileId}");
+        using var after = await granteeClient.GetAsync($"{FilesBasePath}/{fileId}", TestContext.Current.CancellationToken);
         after.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
 

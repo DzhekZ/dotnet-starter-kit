@@ -23,7 +23,7 @@ public sealed class AuditQueryTenantIsolationTests
     public async Task ByIdCorrelationTrace_Should_NotLeakAcrossTenants()
     {
         // Arrange — provision a second tenant and generate audits there.
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var uniqueId = Guid.NewGuid().ToString("N")[..8];
         var otherTenantId = $"audit-key-iso-{uniqueId}";
         var otherAdminEmail = $"audit-key-admin-{uniqueId}@tenant.com";
@@ -46,7 +46,7 @@ public sealed class AuditQueryTenantIsolationTests
 
         // by-id → not-found (Finbuckle filter hides the row; handler raises
         // KeyNotFoundException → 404 in prod, see AuditTestHelper.IsNotFoundAsync).
-        var byId = await rootClient.GetAsync($"{TestConstants.AuditsBasePath}/{otherSeed.Id}");
+        var byId = await rootClient.GetAsync($"{TestConstants.AuditsBasePath}/{otherSeed.Id}", TestContext.Current.CancellationToken);
         (await AuditTestHelper.IsNotFoundAsync(byId)).ShouldBeTrue();
 
         // by-correlation → empty (no rows for that correlation in root's scope).

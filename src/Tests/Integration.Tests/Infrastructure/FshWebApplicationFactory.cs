@@ -10,6 +10,7 @@ using FSH.Framework.Persistence;
 using FSH.Framework.Shared.Multitenancy;
 using Microsoft.AspNetCore.WebUtilities;
 using System.Text;
+using FSH.Modules.Auditing;
 using FSH.Modules.Multitenancy.Data;
 using FSH.Framework.Web.Modules;
 using Hangfire;
@@ -34,6 +35,7 @@ public sealed class FshWebApplicationFactory : WebApplicationFactory<Program>, I
     internal const string S3Bucket = "fsh-integration-test-uploads";
 
     private static readonly SemaphoreSlim _migrationLock = new(1, 1);
+    private JobStorage? _primaryJobStorage;
     private readonly PostgreSqlContainer _postgres = new PostgreSqlBuilder("postgres:17-alpine")
         .WithDatabase("fsh_integration_tests")
         .WithUsername("postgres")
@@ -74,11 +76,12 @@ public sealed class FshWebApplicationFactory : WebApplicationFactory<Program>, I
         }
     }
 
-    public new async Task DisposeAsync()
+    public override async ValueTask DisposeAsync()
     {
         await base.DisposeAsync();
         await _postgres.DisposeAsync();
         await _s3.DisposeAsync();
+        GC.SuppressFinalize(this);
     }
 
     /// <summary>The S3 (RustFS) endpoint URL exposed to the host configuration; useful for tests that need to PUT bytes directly.</summary>
@@ -217,6 +220,14 @@ public sealed class FshWebApplicationFactory : WebApplicationFactory<Program>, I
             });
             services.TryAddTransient<IJobService, HangfireService>();
 
+            // Two pieces of production state are process-static and follow the most recently started host:
+            // HangfireService enqueues through JobStorage.Current, and AuditHttpMiddleware writes through the
+            // static Audit.Publisher (AuditingConfigurator). A WithWebHostBuilder host (webhook tests) builds its own
+            // storage / publisher and tears them down with the host, which would leave both statics pointing at a dead
+            // host for every later test (tenant provisioning -> ObjectDisposedException; Activity audits that are
+            // never persisted). Put them back on the factory's own host when a derived host stops.
+            services.AddSingleton<IHostedService>(sp => new PrimaryHostStaticsRestorer(this, sp.GetRequiredService<JobStorage>()));
+
             services.PostConfigure<JwtBearerOptions>(
                 JwtBearerDefaults.AuthenticationScheme,
                 options => options.RequireHttpsMetadata = false);
@@ -338,6 +349,35 @@ public sealed class FshWebApplicationFactory : WebApplicationFactory<Program>, I
             // 5. Run the role-permission syncer through the production code path.
             var syncer = scope.ServiceProvider.GetRequiredService<FSH.Modules.Identity.Authorization.RolePermissionSyncer>();
             await syncer.SyncAsync(CancellationToken.None);
+        }
+    }
+
+    /// <summary>
+    /// Remembers the Hangfire storage of the factory's own (first-started) host and, when any other host built from
+    /// this factory stops, points the process-static <see cref="JobStorage.Current"/> and <see cref="Audit"/>
+    /// publisher back at the factory's own host.
+    /// </summary>
+    private sealed class PrimaryHostStaticsRestorer(FshWebApplicationFactory factory, JobStorage own) : IHostedService
+    {
+        public Task StartAsync(CancellationToken cancellationToken)
+        {
+            // InitializeAsync forces the factory's own host first, so the first storage seen is the one to restore.
+            Interlocked.CompareExchange(ref factory._primaryJobStorage, own, null);
+            return Task.CompletedTask;
+        }
+
+        public async Task StopAsync(CancellationToken cancellationToken)
+        {
+            if (factory._primaryJobStorage is not { } primary || ReferenceEquals(primary, own))
+            {
+                return;
+            }
+
+            JobStorage.Current = primary;
+
+            // Same call the host makes at startup (Audit.Configure), this time against the factory's own services.
+            await ActivatorUtilities.CreateInstance<AuditingConfigurator>(factory.Services)
+                .StartAsync(cancellationToken);
         }
     }
 

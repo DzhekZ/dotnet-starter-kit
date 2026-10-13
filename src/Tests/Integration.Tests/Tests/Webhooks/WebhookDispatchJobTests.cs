@@ -61,19 +61,17 @@ public sealed class WebhookDispatchJobTests
     public async Task DispatchAsync_Should_PersistDeliveryRow_And_ThrowOnTransientFailure()
     {
         _ = _factory.Server;
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
         var uniqueEvent = $"dispatch-test-{Guid.NewGuid():N}";
-        var createResponse = await rootClient.PostAsJsonAsync(
-            $"{TestConstants.WebhooksBasePath}/subscriptions",
-            new
+        var createResponse = await rootClient.PostAsJsonAsync($"{TestConstants.WebhooksBasePath}/subscriptions", new
             {
                 url = "https://webhook-dispatch.invalid/dispatch-test", // .invalid never resolves → transient failure (and passes the SSRF create guard, unlike a loopback/private target)
                 events = new[] { uniqueEvent },
                 secret = "dispatch-secret"
-            });
+            }, cancellationToken: TestContext.Current.CancellationToken);
         createResponse.StatusCode.ShouldBe(HttpStatusCode.Created);
-        var subscriptionId = await createResponse.Content.ReadFromJsonAsync<Guid>();
+        var subscriptionId = await createResponse.Content.ReadFromJsonAsync<Guid>(cancellationToken: TestContext.Current.CancellationToken);
 
         using var scope = _factory.Services.CreateScope();
         var job = scope.ServiceProvider.GetRequiredService<WebhookDispatchJob>();
@@ -100,7 +98,7 @@ public sealed class WebhookDispatchJobTests
         var db = readScope.ServiceProvider.GetRequiredService<WebhookDbContext>();
         var delivery = await db.Deliveries
             .AsNoTracking()
-            .FirstOrDefaultAsync(d => d.SubscriptionId == subscriptionId && d.EventType == uniqueEvent);
+            .FirstOrDefaultAsync(d => d.SubscriptionId == subscriptionId && d.EventType == uniqueEvent, cancellationToken: TestContext.Current.CancellationToken);
 
         delivery.ShouldNotBeNull("Dispatch job must persist a WebhookDelivery row even when the attempt fails.");
         delivery.Success.ShouldBeFalse();

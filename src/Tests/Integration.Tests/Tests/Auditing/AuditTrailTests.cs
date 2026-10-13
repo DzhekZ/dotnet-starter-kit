@@ -17,9 +17,9 @@ public sealed class AuditTrailTests
     [Fact]
     public async Task GetAudits_Should_ReturnOk_When_Authenticated()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
-        var response = await client.GetAsync($"{TestConstants.AuditsBasePath}?pageNumber=1&pageSize=10");
+        var response = await client.GetAsync($"{TestConstants.AuditsBasePath}?pageNumber=1&pageSize=10", TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
@@ -28,11 +28,10 @@ public sealed class AuditTrailTests
     public async Task GetSecurityAudits_Should_ReturnOk_When_LoginEventsExist()
     {
         // Generate a login event
-        await _auth.GetRootAdminTokenAsync();
-        using var client = await _auth.CreateRootAdminClientAsync();
+        await _auth.GetRootAdminTokenAsync(TestContext.Current.CancellationToken);
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
-        var response = await client.GetAsync(
-            $"{TestConstants.AuditsBasePath}/security?pageNumber=1&pageSize=10");
+        var response = await client.GetAsync($"{TestConstants.AuditsBasePath}/security?pageNumber=1&pageSize=10", TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
@@ -40,9 +39,9 @@ public sealed class AuditTrailTests
     [Fact]
     public async Task GetAuditSummary_Should_ReturnOk_When_Authenticated()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
-        var response = await client.GetAsync($"{TestConstants.AuditsBasePath}/summary");
+        var response = await client.GetAsync($"{TestConstants.AuditsBasePath}/summary", TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
@@ -53,7 +52,7 @@ public sealed class AuditTrailTests
         using var client = _factory.CreateClient();
         client.DefaultRequestHeaders.Add("tenant", TestConstants.RootTenantId);
 
-        var response = await client.GetAsync($"{TestConstants.AuditsBasePath}?pageNumber=1&pageSize=10");
+        var response = await client.GetAsync($"{TestConstants.AuditsBasePath}?pageNumber=1&pageSize=10", TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
     }

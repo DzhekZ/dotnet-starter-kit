@@ -49,7 +49,7 @@ public sealed class WebhookSignatureTests
         var capture = new RequestCapture();
 
         await using var capturingFactory = CreateCapturingFactory(capture);
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
         var (subscriptionId, eventType) = await CreateSubscriptionAsync(rootClient, secret);
 
@@ -82,7 +82,7 @@ public sealed class WebhookSignatureTests
         var capture = new RequestCapture();
 
         await using var capturingFactory = CreateCapturingFactory(capture);
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
         var (subscriptionId, eventType) = await CreateSubscriptionAsync(rootClient, secret);
 
@@ -115,7 +115,7 @@ public sealed class WebhookSignatureTests
         var capture = new RequestCapture();
 
         await using var capturingFactory = CreateCapturingFactory(capture);
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
         var (subscriptionId, eventType) = await CreateSubscriptionAsync(rootClient, secret);
 

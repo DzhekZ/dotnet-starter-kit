@@ -42,7 +42,7 @@ public sealed class RetryTenantProvisioningTests
     public async Task RetryProvisioning_Should_StartNewAttempt_When_TenantPreviouslyFailed()
     {
         // Arrange — create a tenant whose provisioning will fail at the Migrations step.
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var unique = Guid.NewGuid().ToString("N")[..8];
         var tenantId = $"retry-{unique}";
 
@@ -54,8 +54,8 @@ public sealed class RetryTenantProvisioningTests
             adminEmail = $"retry-{unique}@tenant.com",
             adminPassword = TestConstants.DefaultPassword,
             issuer = $"{tenantId}.issuer",
-        });
-        var createBody = await createResponse.Content.ReadAsStringAsync();
+        }, cancellationToken: TestContext.Current.CancellationToken);
+        var createBody = await createResponse.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         createResponse.StatusCode.ShouldBe(HttpStatusCode.Created, $"Create failed: {createBody}");
 
         var failedStatus = await PollUntilStatusAsync(rootClient, tenantId, "Failed");
@@ -64,12 +64,11 @@ public sealed class RetryTenantProvisioningTests
         firstCorrelation.ShouldNotBeNullOrEmpty();
 
         // Act — retry provisioning. A new attempt is started (new correlation id).
-        var retryResponse = await rootClient.PostAsync(
-            $"{TestConstants.TenantsBasePath}/{tenantId}/provisioning/retry", content: null);
+        var retryResponse = await rootClient.PostAsync($"{TestConstants.TenantsBasePath}/{tenantId}/provisioning/retry", content: null, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert — the retry call succeeds and reports a fresh provisioning record.
         retryResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var retryStatus = await retryResponse.Content.ReadFromJsonAsync<ProvisioningStatus>(Json);
+        var retryStatus = await retryResponse.Content.ReadFromJsonAsync<ProvisioningStatus>(Json, cancellationToken: TestContext.Current.CancellationToken);
         retryStatus.ShouldNotBeNull();
         retryStatus.TenantId.ShouldBe(tenantId);
         retryStatus.CorrelationId.ShouldNotBe(firstCorrelation, "retry must create a new provisioning attempt");
@@ -80,7 +79,7 @@ public sealed class RetryTenantProvisioningTests
     public async Task RetryProvisioning_Should_Succeed_When_RetriedAfterCompletion()
     {
         // Arrange — a healthy tenant (null connection string => shared DB) provisions OK.
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var unique = Guid.NewGuid().ToString("N")[..8];
         var tenantId = $"retry-ok-{unique}";
 
@@ -92,7 +91,7 @@ public sealed class RetryTenantProvisioningTests
             adminEmail = $"retry-ok-{unique}@tenant.com",
             adminPassword = TestConstants.DefaultPassword,
             issuer = $"{tenantId}.issuer",
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
         createResponse.StatusCode.ShouldBe(HttpStatusCode.Created);
 
         var completed = await PollUntilTerminalAsync(rootClient, tenantId);
@@ -100,12 +99,11 @@ public sealed class RetryTenantProvisioningTests
         var firstCorrelation = completed.CorrelationId;
 
         // Act — retry an already-completed tenant.
-        var retryResponse = await rootClient.PostAsync(
-            $"{TestConstants.TenantsBasePath}/{tenantId}/provisioning/retry", content: null);
+        var retryResponse = await rootClient.PostAsync($"{TestConstants.TenantsBasePath}/{tenantId}/provisioning/retry", content: null, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert — accepted and a new attempt is recorded; idempotent steps re-complete.
         retryResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var retryStatus = await retryResponse.Content.ReadFromJsonAsync<ProvisioningStatus>(Json);
+        var retryStatus = await retryResponse.Content.ReadFromJsonAsync<ProvisioningStatus>(Json, cancellationToken: TestContext.Current.CancellationToken);
         retryStatus.ShouldNotBeNull();
         retryStatus.CorrelationId.ShouldNotBe(firstCorrelation);
 
@@ -125,8 +123,7 @@ public sealed class RetryTenantProvisioningTests
         client.DefaultRequestHeaders.Add("tenant", TestConstants.RootTenantId);
 
         // Act
-        var response = await client.PostAsync(
-            $"{TestConstants.TenantsBasePath}/anytenant/provisioning/retry", content: null);
+        var response = await client.PostAsync($"{TestConstants.TenantsBasePath}/anytenant/provisioning/retry", content: null, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
@@ -137,12 +134,11 @@ public sealed class RetryTenantProvisioningTests
     {
         // Arrange — StartAsync resolves the tenant from the store first; a missing
         // tenant raises NotFoundException => 404.
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var missing = $"missing-{Guid.NewGuid():N}";
 
         // Act
-        var response = await rootClient.PostAsync(
-            $"{TestConstants.TenantsBasePath}/{missing}/provisioning/retry", content: null);
+        var response = await rootClient.PostAsync($"{TestConstants.TenantsBasePath}/{missing}/provisioning/retry", content: null, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);

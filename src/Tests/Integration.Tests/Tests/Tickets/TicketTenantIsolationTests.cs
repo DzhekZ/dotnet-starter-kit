@@ -25,22 +25,20 @@ public sealed class TicketTenantIsolationTests
     public async Task GetTicketById_Should_Return404_When_OwnedByDifferentTenant()
     {
         // Arrange — tenant A (root) creates a ticket; tenant B is freshly provisioned.
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var uniqueId = Guid.NewGuid().ToString("N")[..8];
         using var otherClient = await ProvisionTenantClientAsync(rootClient, $"ticket-get-{uniqueId}");
 
         var ticketId = await CreateTicketAsync(rootClient, $"Ticket-RootOnly-{uniqueId}");
 
         // Act — tenant B tries to fetch tenant A's ticket.
-        using var crossGet = await otherClient.GetAsync(
-            $"{TestConstants.TicketsBasePath}/tickets/{ticketId}");
+        using var crossGet = await otherClient.GetAsync($"{TestConstants.TicketsBasePath}/tickets/{ticketId}", TestContext.Current.CancellationToken);
 
         // Assert — clean 404, never tenant A's data.
         crossGet.StatusCode.ShouldBe(HttpStatusCode.NotFound);
 
         // Sanity: tenant A still sees its own ticket.
-        using var ownGet = await rootClient.GetAsync(
-            $"{TestConstants.TicketsBasePath}/tickets/{ticketId}");
+        using var ownGet = await rootClient.GetAsync($"{TestConstants.TicketsBasePath}/tickets/{ticketId}", TestContext.Current.CancellationToken);
         ownGet.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
@@ -48,7 +46,7 @@ public sealed class TicketTenantIsolationTests
     public async Task SearchTickets_Should_NotReturn_OtherTenants_Tickets()
     {
         // Arrange.
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var uniqueId = Guid.NewGuid().ToString("N")[..8];
         using var otherClient = await ProvisionTenantClientAsync(rootClient, $"ticket-list-{uniqueId}");
 
@@ -56,12 +54,10 @@ public sealed class TicketTenantIsolationTests
         var ticketId = await CreateTicketAsync(rootClient, rootTitle);
 
         // Act — tenant B lists tickets.
-        using var listResponse = await otherClient.GetAsync(
-            $"{TestConstants.TicketsBasePath}/tickets?pageNumber=1&pageSize=200");
+        using var listResponse = await otherClient.GetAsync($"{TestConstants.TicketsBasePath}/tickets?pageNumber=1&pageSize=200", TestContext.Current.CancellationToken);
         listResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var page = await listResponse.DeserializeAsync<PagedResult<TicketDto>>();
-        var body = await otherClient.GetStringAsync(
-            $"{TestConstants.TicketsBasePath}/tickets?pageNumber=1&pageSize=200");
+        var page = await listResponse.DeserializeAsync<PagedResult<TicketDto>>(ct: TestContext.Current.CancellationToken);
+        var body = await otherClient.GetStringAsync($"{TestConstants.TicketsBasePath}/tickets?pageNumber=1&pageSize=200", TestContext.Current.CancellationToken);
 
         // Assert — tenant A's ticket never appears in tenant B's listing.
         page.Items.ShouldNotContain(t => t.Id == ticketId,
@@ -73,25 +69,22 @@ public sealed class TicketTenantIsolationTests
     public async Task AssignTicket_Should_Return404_When_OwnedByDifferentTenant()
     {
         // Arrange.
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var uniqueId = Guid.NewGuid().ToString("N")[..8];
         using var otherClient = await ProvisionTenantClientAsync(rootClient, $"ticket-mut-{uniqueId}");
 
         var ticketId = await CreateTicketAsync(rootClient, $"Ticket-Mutate-{uniqueId}");
 
         // Act — tenant B tries to mutate (assign) tenant A's ticket.
-        using var crossAssign = await otherClient.PostAsJsonAsync(
-            $"{TestConstants.TicketsBasePath}/tickets/{ticketId}/assign",
-            new { assigneeUserId = Guid.NewGuid() });
+        using var crossAssign = await otherClient.PostAsJsonAsync($"{TestConstants.TicketsBasePath}/tickets/{ticketId}/assign", new { assigneeUserId = Guid.NewGuid() }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert — 404: the mutation never reaches tenant A's row.
         crossAssign.StatusCode.ShouldBe(HttpStatusCode.NotFound);
 
         // Sanity: tenant A's ticket is untouched — still Open, no assignee.
-        using var ownGet = await rootClient.GetAsync(
-            $"{TestConstants.TicketsBasePath}/tickets/{ticketId}");
+        using var ownGet = await rootClient.GetAsync($"{TestConstants.TicketsBasePath}/tickets/{ticketId}", TestContext.Current.CancellationToken);
         ownGet.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var fetched = await ownGet.DeserializeAsync<TicketDto>();
+        var fetched = await ownGet.DeserializeAsync<TicketDto>(ct: TestContext.Current.CancellationToken);
         fetched.Status.ShouldBe("Open");
         fetched.AssignedToUserId.ShouldBeNull();
     }

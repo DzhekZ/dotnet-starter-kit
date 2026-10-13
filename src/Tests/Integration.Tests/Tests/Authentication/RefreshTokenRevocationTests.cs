@@ -23,23 +23,23 @@ public sealed class RefreshTokenRevocationTests
     public async Task RevokeSession_Should_InvalidateRefreshToken_When_SessionIsRevoked()
     {
         // Arrange - Login and get tokens
-        var tokenPair = await _auth.GetRootAdminTokenAsync();
+        var tokenPair = await _auth.GetRootAdminTokenAsync(TestContext.Current.CancellationToken);
         using var client = _factory.CreateClient();
         client.DefaultRequestHeaders.Add("tenant", TestConstants.RootTenantId);
         client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", tokenPair.AccessToken);
 
         // Get current sessions
-        var sessionsResponse = await client.GetAsync($"{TestConstants.IdentityBasePath}/sessions/me");
-        var sessionsContent = await sessionsResponse.Content.ReadAsStringAsync();
+        var sessionsResponse = await client.GetAsync($"{TestConstants.IdentityBasePath}/sessions/me", TestContext.Current.CancellationToken);
+        var sessionsContent = await sessionsResponse.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         sessionsResponse.StatusCode.ShouldBe(HttpStatusCode.OK, $"Content: {sessionsContent}");
-        var sessions = await sessionsResponse.Content.ReadFromJsonAsync<IEnumerable<UserSessionDto>>();
+        var sessions = await sessionsResponse.Content.ReadFromJsonAsync<IEnumerable<UserSessionDto>>(cancellationToken: TestContext.Current.CancellationToken);
         // Note: isCurrentSession is currently hardcoded to false in GetUserSessionsAsync
         // so we take the first active session for this user.
         var currentSession = sessions?.FirstOrDefault();
         currentSession.ShouldNotBeNull();
 
         // Act - Revoke current session
-        var revokeResponse = await client.DeleteAsync($"{TestConstants.IdentityBasePath}/sessions/{currentSession.Id}");
+        var revokeResponse = await client.DeleteAsync($"{TestConstants.IdentityBasePath}/sessions/{currentSession.Id}", TestContext.Current.CancellationToken);
         revokeResponse.StatusCode.ShouldBe(HttpStatusCode.NoContent);
 
         // Assert - Try to refresh token
@@ -51,7 +51,7 @@ public sealed class RefreshTokenRevocationTests
             refreshToken = tokenPair.RefreshToken
         });
 
-        var refreshResponse = await client.SendAsync(refreshRequest);
+        var refreshResponse = await client.SendAsync(refreshRequest, TestContext.Current.CancellationToken);
 
         // The refresh should fail because the session (and its refresh token) has been revoked
         refreshResponse.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);

@@ -16,7 +16,7 @@ public sealed class WebhookTenantIsolationTests
     [Fact]
     public async Task GetSubscriptions_Should_OnlyReturnCurrentTenantsSubscriptions()
     {
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var uniqueId = Guid.NewGuid().ToString("N")[..8];
         var otherTenantId = $"webhook-iso-{uniqueId}";
         var otherAdminEmail = $"webhook-admin-{uniqueId}@tenant.com";
@@ -27,28 +27,25 @@ public sealed class WebhookTenantIsolationTests
             otherAdminEmail, TestConstants.DefaultPassword, otherTenantId);
 
         var rootMarker = $"root-only-{uniqueId}";
-        var rootCreate = await rootClient.PostAsJsonAsync(
-            $"{TestConstants.WebhooksBasePath}/subscriptions", new
+        var rootCreate = await rootClient.PostAsJsonAsync($"{TestConstants.WebhooksBasePath}/subscriptions", new
             {
                 url = $"https://example.com/{rootMarker}",
                 events = new[] { "user.created" },
                 secret = "root-secret"
-            });
+            }, cancellationToken: TestContext.Current.CancellationToken);
         rootCreate.StatusCode.ShouldBe(HttpStatusCode.Created);
 
-        var otherCreate = await otherClient.PostAsJsonAsync(
-            $"{TestConstants.WebhooksBasePath}/subscriptions", new
+        var otherCreate = await otherClient.PostAsJsonAsync($"{TestConstants.WebhooksBasePath}/subscriptions", new
             {
                 url = $"https://example.com/other-{uniqueId}",
                 events = new[] { "user.created" },
                 secret = "other-secret"
-            });
+            }, cancellationToken: TestContext.Current.CancellationToken);
         otherCreate.StatusCode.ShouldBe(HttpStatusCode.Created);
 
-        var otherListResponse = await otherClient.GetAsync(
-            $"{TestConstants.WebhooksBasePath}/subscriptions?pageNumber=1&pageSize=100");
+        var otherListResponse = await otherClient.GetAsync($"{TestConstants.WebhooksBasePath}/subscriptions?pageNumber=1&pageSize=100", TestContext.Current.CancellationToken);
         otherListResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var otherListBody = await otherListResponse.Content.ReadAsStringAsync();
+        var otherListBody = await otherListResponse.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
 
         otherListBody.ShouldNotContain(rootMarker);
         otherListBody.ShouldContain($"other-{uniqueId}");
@@ -57,7 +54,7 @@ public sealed class WebhookTenantIsolationTests
     [Fact]
     public async Task DeleteSubscription_Should_Return404_When_OwnedByDifferentTenant()
     {
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var uniqueId = Guid.NewGuid().ToString("N")[..8];
         var otherTenantId = $"webhook-del-{uniqueId}";
         var otherAdminEmail = $"webhook-deladmin-{uniqueId}@tenant.com";
@@ -67,29 +64,26 @@ public sealed class WebhookTenantIsolationTests
         using var otherClient = await CreateTenantAdminClientWithRetryAsync(
             otherAdminEmail, TestConstants.DefaultPassword, otherTenantId);
 
-        var rootCreate = await rootClient.PostAsJsonAsync(
-            $"{TestConstants.WebhooksBasePath}/subscriptions", new
+        var rootCreate = await rootClient.PostAsJsonAsync($"{TestConstants.WebhooksBasePath}/subscriptions", new
             {
                 url = $"https://example.com/del-target-{uniqueId}",
                 events = new[] { "user.deleted" },
                 secret = "del-secret"
-            });
+            }, cancellationToken: TestContext.Current.CancellationToken);
         rootCreate.StatusCode.ShouldBe(HttpStatusCode.Created);
-        var rootSubId = await rootCreate.Content.ReadFromJsonAsync<Guid>();
+        var rootSubId = await rootCreate.Content.ReadFromJsonAsync<Guid>(cancellationToken: TestContext.Current.CancellationToken);
 
-        var crossDelete = await otherClient.DeleteAsync(
-            $"{TestConstants.WebhooksBasePath}/subscriptions/{rootSubId}");
+        var crossDelete = await otherClient.DeleteAsync($"{TestConstants.WebhooksBasePath}/subscriptions/{rootSubId}", TestContext.Current.CancellationToken);
         crossDelete.StatusCode.ShouldBe(HttpStatusCode.NotFound);
 
-        var ownDelete = await rootClient.DeleteAsync(
-            $"{TestConstants.WebhooksBasePath}/subscriptions/{rootSubId}");
+        var ownDelete = await rootClient.DeleteAsync($"{TestConstants.WebhooksBasePath}/subscriptions/{rootSubId}", TestContext.Current.CancellationToken);
         ownDelete.StatusCode.ShouldBe(HttpStatusCode.NoContent);
     }
 
     [Fact]
     public async Task TestSubscription_Should_Return404_When_OwnedByDifferentTenant()
     {
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var uniqueId = Guid.NewGuid().ToString("N")[..8];
         var otherTenantId = $"webhook-test-{uniqueId}";
         var otherAdminEmail = $"webhook-testadmin-{uniqueId}@tenant.com";
@@ -99,19 +93,16 @@ public sealed class WebhookTenantIsolationTests
         using var otherClient = await CreateTenantAdminClientWithRetryAsync(
             otherAdminEmail, TestConstants.DefaultPassword, otherTenantId);
 
-        var rootCreate = await rootClient.PostAsJsonAsync(
-            $"{TestConstants.WebhooksBasePath}/subscriptions", new
+        var rootCreate = await rootClient.PostAsJsonAsync($"{TestConstants.WebhooksBasePath}/subscriptions", new
             {
                 url = $"https://example.com/test-target-{uniqueId}",
                 events = new[] { "webhook.test" },
                 secret = "test-secret"
-            });
+            }, cancellationToken: TestContext.Current.CancellationToken);
         rootCreate.StatusCode.ShouldBe(HttpStatusCode.Created);
-        var rootSubId = await rootCreate.Content.ReadFromJsonAsync<Guid>();
+        var rootSubId = await rootCreate.Content.ReadFromJsonAsync<Guid>(cancellationToken: TestContext.Current.CancellationToken);
 
-        var crossTrigger = await otherClient.PostAsync(
-            $"{TestConstants.WebhooksBasePath}/subscriptions/{rootSubId}/test",
-            content: null);
+        var crossTrigger = await otherClient.PostAsync($"{TestConstants.WebhooksBasePath}/subscriptions/{rootSubId}/test", content: null, cancellationToken: TestContext.Current.CancellationToken);
         crossTrigger.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
 

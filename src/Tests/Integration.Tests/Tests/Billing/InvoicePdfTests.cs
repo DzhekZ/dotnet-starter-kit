@@ -27,7 +27,7 @@ public sealed class InvoicePdfTests
     [Fact]
     public async Task InvoicePdf_Should_Be_Downloadable_By_Owner_And_RootOperator_But_Not_AnotherTenant()
     {
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var unique = Guid.NewGuid().ToString("N")[..8];
         var tenantId = $"pdf-{unique}";
         var adminEmail = $"pdf-{unique}@tenant.com";
@@ -45,15 +45,15 @@ public sealed class InvoicePdfTests
         using var tenantClient = await CreateTenantAdminClientWithRetryAsync(adminEmail, TestConstants.DefaultPassword, tenantId);
 
         // Owner → 200 application/pdf with a real PDF body.
-        using var ownResponse = await tenantClient.GetAsync($"{BillingBasePath}/invoices/{invoiceId}/pdf");
-        ownResponse.StatusCode.ShouldBe(HttpStatusCode.OK, await ownResponse.Content.ReadAsStringAsync());
+        using var ownResponse = await tenantClient.GetAsync($"{BillingBasePath}/invoices/{invoiceId}/pdf", TestContext.Current.CancellationToken);
+        ownResponse.StatusCode.ShouldBe(HttpStatusCode.OK, await ownResponse.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
         ownResponse.Content.Headers.ContentType?.MediaType.ShouldBe("application/pdf");
-        var bytes = await ownResponse.Content.ReadAsByteArrayAsync();
+        var bytes = await ownResponse.Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         bytes.Length.ShouldBeGreaterThan(0);
         Encoding.ASCII.GetString(bytes, 0, 4).ShouldBe("%PDF");
 
         // Root operator → 200: the operator may download ANY tenant's invoice (admin "Download PDF").
-        using var rootResponse = await rootClient.GetAsync($"{BillingBasePath}/invoices/{invoiceId}/pdf");
+        using var rootResponse = await rootClient.GetAsync($"{BillingBasePath}/invoices/{invoiceId}/pdf", TestContext.Current.CancellationToken);
         rootResponse.StatusCode.ShouldBe(HttpStatusCode.OK,
             "the root operator must be able to download any tenant's invoice PDF");
 
@@ -66,7 +66,7 @@ public sealed class InvoicePdfTests
         using var otherClient = await CreateTenantAdminClientWithRetryAsync(
             otherEmail, TestConstants.DefaultPassword, otherTenantId);
 
-        using var crossResponse = await otherClient.GetAsync($"{BillingBasePath}/invoices/{invoiceId}/pdf");
+        using var crossResponse = await otherClient.GetAsync($"{BillingBasePath}/invoices/{invoiceId}/pdf", TestContext.Current.CancellationToken);
         crossResponse.StatusCode.ShouldBe(HttpStatusCode.NotFound,
             "a tenant must not be able to download another tenant's invoice PDF");
     }

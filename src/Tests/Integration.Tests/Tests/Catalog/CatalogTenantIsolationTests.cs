@@ -26,22 +26,20 @@ public sealed class CatalogTenantIsolationTests
     public async Task GetProductById_Should_Return404_When_OwnedByDifferentTenant()
     {
         // Arrange — tenant A (root) creates a product; tenant B is freshly provisioned.
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var uniqueId = Guid.NewGuid().ToString("N")[..8];
         using var otherClient = await ProvisionTenantClientAsync(rootClient, $"catalog-get-{uniqueId}");
 
         var productId = await CreateProductAsync(rootClient);
 
         // Act — tenant B tries to fetch tenant A's product.
-        using var crossGet = await otherClient.GetAsync(
-            $"{TestConstants.CatalogBasePath}/products/{productId}");
+        using var crossGet = await otherClient.GetAsync($"{TestConstants.CatalogBasePath}/products/{productId}", TestContext.Current.CancellationToken);
 
         // Assert — must be a clean 404, never tenant A's data.
         crossGet.StatusCode.ShouldBe(HttpStatusCode.NotFound);
 
         // Sanity: tenant A still sees its own product.
-        using var ownGet = await rootClient.GetAsync(
-            $"{TestConstants.CatalogBasePath}/products/{productId}");
+        using var ownGet = await rootClient.GetAsync($"{TestConstants.CatalogBasePath}/products/{productId}", TestContext.Current.CancellationToken);
         ownGet.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
@@ -49,7 +47,7 @@ public sealed class CatalogTenantIsolationTests
     public async Task SearchProducts_Should_NotReturn_OtherTenants_Products()
     {
         // Arrange.
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var uniqueId = Guid.NewGuid().ToString("N")[..8];
         using var otherClient = await ProvisionTenantClientAsync(rootClient, $"catalog-list-{uniqueId}");
 
@@ -57,12 +55,10 @@ public sealed class CatalogTenantIsolationTests
         var productId = await CreateProductAsync(rootClient, name: rootName);
 
         // Act — tenant B lists products.
-        using var listResponse = await otherClient.GetAsync(
-            $"{TestConstants.CatalogBasePath}/products?pageNumber=1&pageSize=200");
+        using var listResponse = await otherClient.GetAsync($"{TestConstants.CatalogBasePath}/products?pageNumber=1&pageSize=200", TestContext.Current.CancellationToken);
         listResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var page = await listResponse.DeserializeAsync<PagedResult<ProductDto>>();
-        var body = await otherClient.GetStringAsync(
-            $"{TestConstants.CatalogBasePath}/products?pageNumber=1&pageSize=200");
+        var page = await listResponse.DeserializeAsync<PagedResult<ProductDto>>(ct: TestContext.Current.CancellationToken);
+        var body = await otherClient.GetStringAsync($"{TestConstants.CatalogBasePath}/products?pageNumber=1&pageSize=200", TestContext.Current.CancellationToken);
 
         // Assert — tenant A's product never appears in tenant B's listing.
         page.Items.ShouldNotContain(p => p.Id == productId,
@@ -74,22 +70,20 @@ public sealed class CatalogTenantIsolationTests
     public async Task DeleteProduct_Should_Return404_When_OwnedByDifferentTenant()
     {
         // Arrange.
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var uniqueId = Guid.NewGuid().ToString("N")[..8];
         using var otherClient = await ProvisionTenantClientAsync(rootClient, $"catalog-del-{uniqueId}");
 
         var productId = await CreateProductAsync(rootClient);
 
         // Act — tenant B tries to delete tenant A's product.
-        using var crossDelete = await otherClient.DeleteAsync(
-            $"{TestConstants.CatalogBasePath}/products/{productId}");
+        using var crossDelete = await otherClient.DeleteAsync($"{TestConstants.CatalogBasePath}/products/{productId}", TestContext.Current.CancellationToken);
 
         // Assert — 404 (not 204): the mutation never reaches tenant A's row.
         crossDelete.StatusCode.ShouldBe(HttpStatusCode.NotFound);
 
         // Sanity: tenant A's product is untouched and still fetchable.
-        using var ownGet = await rootClient.GetAsync(
-            $"{TestConstants.CatalogBasePath}/products/{productId}");
+        using var ownGet = await rootClient.GetAsync($"{TestConstants.CatalogBasePath}/products/{productId}", TestContext.Current.CancellationToken);
         ownGet.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 

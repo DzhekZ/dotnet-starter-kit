@@ -28,7 +28,7 @@ public sealed class AuditExceptionAndFilterTests
     public async Task GetExceptionAudits_Should_ReturnRows_When_ExceptionAuditExists()
     {
         // Arrange
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         await TriggerApiExceptionAsync(client);
 
         // Act + Assert (poll: the exception audit is written asynchronously)
@@ -43,7 +43,7 @@ public sealed class AuditExceptionAndFilterTests
     public async Task GetExceptionAudits_Should_FilterByArea_When_ApiAreaRequested()
     {
         // Arrange
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         await TriggerApiExceptionAsync(client);
 
         // Act — Api-area filter exercises the payload ILIKE branch.
@@ -58,7 +58,7 @@ public sealed class AuditExceptionAndFilterTests
     public async Task GetExceptionAudits_Should_FilterBySeverity_When_ErrorRequested()
     {
         // Arrange
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         await TriggerApiExceptionAsync(client);
 
         // Act — KeyNotFoundException classifies as Error severity.
@@ -74,7 +74,7 @@ public sealed class AuditExceptionAndFilterTests
     public async Task GetExceptionAudits_Should_FilterByExceptionType_When_TypeProvided()
     {
         // Arrange
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         await TriggerApiExceptionAsync(client);
 
         // Act — exercises the exceptionType payload ILIKE branch.
@@ -89,7 +89,7 @@ public sealed class AuditExceptionAndFilterTests
     public async Task GetExceptionAudits_Should_ReturnEmpty_When_UnknownExceptionType()
     {
         // Arrange
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         await TriggerApiExceptionAsync(client);
 
         // Act
@@ -104,7 +104,7 @@ public sealed class AuditExceptionAndFilterTests
     public async Task GetExceptionAudits_Should_FilterByRouteOrLocation_When_RouteProvided()
     {
         // Arrange
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         await TriggerApiExceptionAsync(client);
 
         // Act — the recorded routeOrLocation is the audits base path.
@@ -120,13 +120,12 @@ public sealed class AuditExceptionAndFilterTests
     public async Task GetExceptionAudits_Should_Return400_When_FromAfterTo()
     {
         // Arrange
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         string from = DateTime.UtcNow.ToString("o");
         string to = DateTime.UtcNow.AddDays(-1).ToString("o");
 
         // Act
-        var response = await client.GetAsync(
-            $"{TestConstants.AuditsBasePath}/exceptions?fromUtc={Uri.EscapeDataString(from)}&toUtc={Uri.EscapeDataString(to)}");
+        var response = await client.GetAsync($"{TestConstants.AuditsBasePath}/exceptions?fromUtc={Uri.EscapeDataString(from)}&toUtc={Uri.EscapeDataString(to)}", TestContext.Current.CancellationToken);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
@@ -140,8 +139,8 @@ public sealed class AuditExceptionAndFilterTests
     public async Task GetSecurityAudits_Should_ReturnLoginEvents_When_TokenIssued()
     {
         // Arrange — issuing a token records a Security audit.
-        await _auth.GetRootAdminTokenAsync();
-        using var client = await _auth.CreateRootAdminClientAsync();
+        await _auth.GetRootAdminTokenAsync(TestContext.Current.CancellationToken);
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
         // Act
         var rows = await PollSecurityAsync(client, string.Empty,
@@ -156,8 +155,8 @@ public sealed class AuditExceptionAndFilterTests
     public async Task GetSecurityAudits_Should_FilterByAction_When_TokenIssuedRequested()
     {
         // Arrange
-        await _auth.GetRootAdminTokenAsync();
-        using var client = await _auth.CreateRootAdminClientAsync();
+        await _auth.GetRootAdminTokenAsync(TestContext.Current.CancellationToken);
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
         // Act — exercises the action payload ILIKE branch.
         var rows = await PollSecurityAsync(client, $"action={SecurityAction.TokenIssued}",
@@ -171,7 +170,7 @@ public sealed class AuditExceptionAndFilterTests
     public async Task GetSecurityAudits_Should_ReturnEmpty_When_UnknownUser()
     {
         // Arrange
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
         // Act — userId filter with a value that never appears.
         var rows = await AuditTestHelper.GetListAsync(
@@ -185,8 +184,8 @@ public sealed class AuditExceptionAndFilterTests
     public async Task GetSecurityAudits_Should_HonorDateWindow_When_FromInFuture()
     {
         // Arrange
-        await _auth.GetRootAdminTokenAsync();
-        using var client = await _auth.CreateRootAdminClientAsync();
+        await _auth.GetRootAdminTokenAsync(TestContext.Current.CancellationToken);
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         string future = DateTime.UtcNow.AddDays(1).ToString("o");
 
         // Act
@@ -205,7 +204,7 @@ public sealed class AuditExceptionAndFilterTests
     public async Task GetAudits_Should_FilterByEventType_When_ActivityRequested()
     {
         // Arrange
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         await AuditTestHelper.GenerateActivityAuditAsync(client);
 
         // Act
@@ -221,7 +220,7 @@ public sealed class AuditExceptionAndFilterTests
     public async Task GetAudits_Should_FilterBySource_When_SourceProvided()
     {
         // Arrange
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var seed = await AuditTestHelper.GenerateActivityAuditAsync(client);
         seed.Source.ShouldNotBeNull();
 
@@ -238,7 +237,7 @@ public sealed class AuditExceptionAndFilterTests
     public async Task GetAudits_Should_FilterByCorrelationId_When_Provided()
     {
         // Arrange
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var seed = await AuditTestHelper.GenerateActivityAuditAsync(client);
 
         // Act
@@ -254,7 +253,7 @@ public sealed class AuditExceptionAndFilterTests
     public async Task GetAudits_Should_FilterByTraceId_When_Provided()
     {
         // Arrange
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var seed = await AuditTestHelper.GenerateActivityAuditAsync(client);
 
         // Act
@@ -270,7 +269,7 @@ public sealed class AuditExceptionAndFilterTests
     public async Task GetAudits_Should_SearchPayload_When_SearchTermProvided()
     {
         // Arrange
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         await AuditTestHelper.GenerateActivityAuditAsync(client);
 
         // Act — search hits the UserName/Source/PayloadJson ILIKE branch.
@@ -286,7 +285,7 @@ public sealed class AuditExceptionAndFilterTests
     public async Task GetAudits_Should_FilterBySeverity_When_InformationRequested()
     {
         // Arrange
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         await AuditTestHelper.GenerateActivityAuditAsync(client);
 
         // Act
@@ -302,7 +301,7 @@ public sealed class AuditExceptionAndFilterTests
     {
         // Only fromUtc (well beyond MaxWindow) bypasses the validator's both-endpoints rule and exercises
         // the handler's clamp to the 90-day MaxWindow. A both-endpoints range >90d would 400 instead.
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         await AuditTestHelper.GenerateActivityAuditAsync(client);
         string from = DateTime.UtcNow.AddDays(-400).ToString("o");
 
@@ -321,13 +320,12 @@ public sealed class AuditExceptionAndFilterTests
     {
         // Arrange — a both-endpoints window wider than the 90-day MaxWindow is
         // rejected by the validator (defence-in-depth over the handler clamp).
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         string from = DateTime.UtcNow.AddDays(-400).ToString("o");
         string to = DateTime.UtcNow.ToString("o");
 
         // Act
-        var response = await client.GetAsync(
-            $"{TestConstants.AuditsBasePath}?pageNumber=1&pageSize=10&fromUtc={Uri.EscapeDataString(from)}&toUtc={Uri.EscapeDataString(to)}");
+        var response = await client.GetAsync($"{TestConstants.AuditsBasePath}?pageNumber=1&pageSize=10&fromUtc={Uri.EscapeDataString(from)}&toUtc={Uri.EscapeDataString(to)}", TestContext.Current.CancellationToken);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
@@ -337,11 +335,10 @@ public sealed class AuditExceptionAndFilterTests
     public async Task GetAudits_Should_Return400_When_PageSizeInvalid()
     {
         // Arrange
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
         // Act — pageSize beyond the allowed maximum trips the paged-query validator.
-        var response = await client.GetAsync(
-            $"{TestConstants.AuditsBasePath}?pageNumber=1&pageSize=100000");
+        var response = await client.GetAsync($"{TestConstants.AuditsBasePath}?pageNumber=1&pageSize=100000", TestContext.Current.CancellationToken);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
@@ -355,15 +352,15 @@ public sealed class AuditExceptionAndFilterTests
     public async Task GetAuditSummary_Should_AggregateByType_When_ActivityExists()
     {
         // Arrange
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         await AuditTestHelper.GenerateActivityAuditAsync(client);
 
         // Act
-        var response = await client.GetAsync($"{TestConstants.AuditsBasePath}/summary");
+        var response = await client.GetAsync($"{TestConstants.AuditsBasePath}/summary", TestContext.Current.CancellationToken);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        string body = await response.Content.ReadAsStringAsync();
+        string body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         body.ShouldContain("eventsByType");
         body.ShouldContain("eventsBySeverity");
     }
@@ -372,13 +369,12 @@ public sealed class AuditExceptionAndFilterTests
     public async Task GetAuditSummary_Should_ReturnOk_When_NarrowWindowProvided()
     {
         // Arrange
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         string from = DateTime.UtcNow.AddHours(-1).ToString("o");
         string to = DateTime.UtcNow.ToString("o");
 
         // Act
-        var response = await client.GetAsync(
-            $"{TestConstants.AuditsBasePath}/summary?fromUtc={Uri.EscapeDataString(from)}&toUtc={Uri.EscapeDataString(to)}");
+        var response = await client.GetAsync($"{TestConstants.AuditsBasePath}/summary?fromUtc={Uri.EscapeDataString(from)}&toUtc={Uri.EscapeDataString(to)}", TestContext.Current.CancellationToken);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
@@ -388,13 +384,12 @@ public sealed class AuditExceptionAndFilterTests
     public async Task GetAuditSummary_Should_Return400_When_FromAfterTo()
     {
         // Arrange
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         string from = DateTime.UtcNow.ToString("o");
         string to = DateTime.UtcNow.AddDays(-1).ToString("o");
 
         // Act
-        var response = await client.GetAsync(
-            $"{TestConstants.AuditsBasePath}/summary?fromUtc={Uri.EscapeDataString(from)}&toUtc={Uri.EscapeDataString(to)}");
+        var response = await client.GetAsync($"{TestConstants.AuditsBasePath}/summary?fromUtc={Uri.EscapeDataString(from)}&toUtc={Uri.EscapeDataString(to)}", TestContext.Current.CancellationToken);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);

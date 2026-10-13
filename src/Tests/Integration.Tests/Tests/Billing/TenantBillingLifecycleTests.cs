@@ -38,7 +38,7 @@ public sealed class TenantBillingLifecycleTests
     [Fact]
     public async Task CreateTenant_With_Paid_Plan_Should_Start_Subscription_And_Issue_Invoice()
     {
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var unique = Guid.NewGuid().ToString("N")[..8];
         var planKey = await CreatePlanAsync(rootClient, $"life-{unique}", monthlyBasePrice: 20m);
         var tenantId = $"life-{unique}";
@@ -49,8 +49,7 @@ public sealed class TenantBillingLifecycleTests
         await OutboxDrain.DrainAsync(_factory.Services);
 
         // Active subscription on the new plan.
-        var subscription = await rootClient.GetFromJsonAsync<SubscriptionDto>(
-            $"{BillingBasePath}/subscriptions?tenantId={tenantId}", Json);
+        var subscription = await rootClient.GetFromJsonAsync<SubscriptionDto>($"{BillingBasePath}/subscriptions?tenantId={tenantId}", Json, cancellationToken: TestContext.Current.CancellationToken);
         subscription.ShouldNotBeNull("creating a tenant must start a subscription");
         subscription.PlanKey.ShouldBe(planKey);
         subscription.Status.ShouldBe(SubscriptionStatus.Active);
@@ -63,8 +62,7 @@ public sealed class TenantBillingLifecycleTests
         subInvoices[0].SubtotalAmount.ShouldBe(20m);
 
         // Validity set from the monthly plan term (~1 month out).
-        var status = await rootClient.GetFromJsonAsync<TenantStatus>(
-            $"{TestConstants.TenantsBasePath}/{tenantId}/status", Json);
+        var status = await rootClient.GetFromJsonAsync<TenantStatus>($"{TestConstants.TenantsBasePath}/{tenantId}/status", Json, cancellationToken: TestContext.Current.CancellationToken);
         status.ShouldNotBeNull();
         status.Plan.ShouldBe(planKey);
         status.ValidUpto!.Value.ShouldBeGreaterThan(DateTime.UtcNow.AddDays(27));
@@ -74,15 +72,14 @@ public sealed class TenantBillingLifecycleTests
     [Fact]
     public async Task CreateTenant_With_Free_Plan_Should_Start_Subscription_Without_Invoice()
     {
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var unique = Guid.NewGuid().ToString("N")[..8];
         var planKey = await CreatePlanAsync(rootClient, $"free-{unique}", monthlyBasePrice: 0m);
         var tenantId = $"free-{unique}";
         await CreateTenantAsync(rootClient, tenantId, $"free-{unique}@tenant.com", planKey);
         await OutboxDrain.DrainAsync(_factory.Services);
 
-        var subscription = await rootClient.GetFromJsonAsync<SubscriptionDto>(
-            $"{BillingBasePath}/subscriptions?tenantId={tenantId}", Json);
+        var subscription = await rootClient.GetFromJsonAsync<SubscriptionDto>($"{BillingBasePath}/subscriptions?tenantId={tenantId}", Json, cancellationToken: TestContext.Current.CancellationToken);
         subscription.ShouldNotBeNull("a free plan still gets a subscription");
         subscription.Status.ShouldBe(SubscriptionStatus.Active);
 

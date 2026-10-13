@@ -25,14 +25,13 @@ public sealed class TicketCrudAndCloseTests
     public async Task CloseTicket_Should_TransitionResolvedToClosed_And_StampClosedAt()
     {
         #region Arrange
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var ticketId = await CreateAsync(client, UniqueTitle("CloseHappy"));
         await ResolveAsync(client, ticketId, "shipped");
         #endregion
 
         #region Act
-        var response = await client.PostAsync(
-            $"{TestConstants.TicketsBasePath}/tickets/{ticketId}/close", content: null);
+        var response = await client.PostAsync($"{TestConstants.TicketsBasePath}/tickets/{ticketId}/close", content: null, cancellationToken: TestContext.Current.CancellationToken);
         #endregion
 
         #region Assert
@@ -47,13 +46,12 @@ public sealed class TicketCrudAndCloseTests
     public async Task CloseTicket_Should_Return409_When_TicketNotResolved()
     {
         #region Arrange
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var ticketId = await CreateAsync(client, UniqueTitle("CloseOpen"));
         #endregion
 
         #region Act
-        var response = await client.PostAsync(
-            $"{TestConstants.TicketsBasePath}/tickets/{ticketId}/close", content: null);
+        var response = await client.PostAsync($"{TestConstants.TicketsBasePath}/tickets/{ticketId}/close", content: null, cancellationToken: TestContext.Current.CancellationToken);
         #endregion
 
         #region Assert
@@ -66,17 +64,15 @@ public sealed class TicketCrudAndCloseTests
     public async Task CloseTicket_Should_BeIdempotent_When_AlreadyClosed()
     {
         #region Arrange
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var ticketId = await CreateAsync(client, UniqueTitle("CloseTwice"));
         await ResolveAsync(client, ticketId, "done");
-        var first = await client.PostAsync(
-            $"{TestConstants.TicketsBasePath}/tickets/{ticketId}/close", content: null);
+        var first = await client.PostAsync($"{TestConstants.TicketsBasePath}/tickets/{ticketId}/close", content: null, cancellationToken: TestContext.Current.CancellationToken);
         first.StatusCode.ShouldBe(HttpStatusCode.OK);
         #endregion
 
         #region Act
-        var second = await client.PostAsync(
-            $"{TestConstants.TicketsBasePath}/tickets/{ticketId}/close", content: null);
+        var second = await client.PostAsync($"{TestConstants.TicketsBasePath}/tickets/{ticketId}/close", content: null, cancellationToken: TestContext.Current.CancellationToken);
         #endregion
 
         #region Assert
@@ -90,15 +86,14 @@ public sealed class TicketCrudAndCloseTests
     public async Task ReopenTicket_Should_Succeed_After_Close()
     {
         #region Arrange
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var ticketId = await CreateAsync(client, UniqueTitle("CloseThenReopen"));
         await ResolveAsync(client, ticketId, "done");
-        await client.PostAsync($"{TestConstants.TicketsBasePath}/tickets/{ticketId}/close", content: null);
+        await client.PostAsync($"{TestConstants.TicketsBasePath}/tickets/{ticketId}/close", content: null, cancellationToken: TestContext.Current.CancellationToken);
         #endregion
 
         #region Act
-        var reopen = await client.PostAsync(
-            $"{TestConstants.TicketsBasePath}/tickets/{ticketId}/reopen", content: null);
+        var reopen = await client.PostAsync($"{TestConstants.TicketsBasePath}/tickets/{ticketId}/reopen", content: null, cancellationToken: TestContext.Current.CancellationToken);
         #endregion
 
         #region Assert
@@ -115,15 +110,13 @@ public sealed class TicketCrudAndCloseTests
     public async Task UpdateTicket_Should_EditTitleDescriptionAndPriority()
     {
         #region Arrange
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var ticketId = await CreateAsync(client, UniqueTitle("BeforeEdit"), priority: "Low");
         var newTitle = UniqueTitle("AfterEdit");
         #endregion
 
         #region Act
-        var response = await client.PutAsJsonAsync(
-            $"{TestConstants.TicketsBasePath}/tickets/{ticketId}",
-            new { title = newTitle, description = "edited body", priority = "High" });
+        var response = await client.PutAsJsonAsync($"{TestConstants.TicketsBasePath}/tickets/{ticketId}", new { title = newTitle, description = "edited body", priority = "High" }, cancellationToken: TestContext.Current.CancellationToken);
         #endregion
 
         #region Assert
@@ -139,14 +132,12 @@ public sealed class TicketCrudAndCloseTests
     public async Task UpdateTicket_Should_Return400_When_TitleEmpty()
     {
         #region Arrange
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var ticketId = await CreateAsync(client, UniqueTitle("EditValidation"));
         #endregion
 
         #region Act
-        var response = await client.PutAsJsonAsync(
-            $"{TestConstants.TicketsBasePath}/tickets/{ticketId}",
-            new { title = "", description = (string?)null, priority = "Medium" });
+        var response = await client.PutAsJsonAsync($"{TestConstants.TicketsBasePath}/tickets/{ticketId}", new { title = "", description = (string?)null, priority = "Medium" }, cancellationToken: TestContext.Current.CancellationToken);
         #endregion
 
         #region Assert
@@ -158,16 +149,14 @@ public sealed class TicketCrudAndCloseTests
     public async Task UpdateTicket_Should_Return409_When_TicketClosed()
     {
         #region Arrange
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var ticketId = await CreateAsync(client, UniqueTitle("EditClosed"));
         await ResolveAsync(client, ticketId, "done");
-        await client.PostAsync($"{TestConstants.TicketsBasePath}/tickets/{ticketId}/close", content: null);
+        await client.PostAsync($"{TestConstants.TicketsBasePath}/tickets/{ticketId}/close", content: null, cancellationToken: TestContext.Current.CancellationToken);
         #endregion
 
         #region Act
-        var response = await client.PutAsJsonAsync(
-            $"{TestConstants.TicketsBasePath}/tickets/{ticketId}",
-            new { title = UniqueTitle("NoEdit"), description = (string?)null, priority = "Medium" });
+        var response = await client.PutAsJsonAsync($"{TestConstants.TicketsBasePath}/tickets/{ticketId}", new { title = UniqueTitle("NoEdit"), description = (string?)null, priority = "Medium" }, cancellationToken: TestContext.Current.CancellationToken);
         #endregion
 
         #region Assert
@@ -182,13 +171,13 @@ public sealed class TicketCrudAndCloseTests
     public async Task DeleteTicket_Should_SoftDelete_And_HideFromGet()
     {
         #region Arrange
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var ticketId = await CreateAsync(client, UniqueTitle("DeleteHide"));
         #endregion
 
         #region Act
-        var delete = await client.DeleteAsync($"{TestConstants.TicketsBasePath}/tickets/{ticketId}");
-        var get = await client.GetAsync($"{TestConstants.TicketsBasePath}/tickets/{ticketId}");
+        var delete = await client.DeleteAsync($"{TestConstants.TicketsBasePath}/tickets/{ticketId}", TestContext.Current.CancellationToken);
+        var get = await client.GetAsync($"{TestConstants.TicketsBasePath}/tickets/{ticketId}", TestContext.Current.CancellationToken);
         #endregion
 
         #region Assert
@@ -202,17 +191,14 @@ public sealed class TicketCrudAndCloseTests
     public async Task DeleteTicket_Then_Restore_Should_BringItBack_WithComments()
     {
         #region Arrange
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var ticketId = await CreateAsync(client, UniqueTitle("DeleteRestore"));
-        await client.PostAsJsonAsync(
-            $"{TestConstants.TicketsBasePath}/tickets/{ticketId}/comments",
-            new { body = "a comment that must survive the round-trip" });
-        await client.DeleteAsync($"{TestConstants.TicketsBasePath}/tickets/{ticketId}");
+        await client.PostAsJsonAsync($"{TestConstants.TicketsBasePath}/tickets/{ticketId}/comments", new { body = "a comment that must survive the round-trip" }, cancellationToken: TestContext.Current.CancellationToken);
+        await client.DeleteAsync($"{TestConstants.TicketsBasePath}/tickets/{ticketId}", TestContext.Current.CancellationToken);
         #endregion
 
         #region Act
-        var restore = await client.PostAsync(
-            $"{TestConstants.TicketsBasePath}/tickets/{ticketId}/restore", content: null);
+        var restore = await client.PostAsync($"{TestConstants.TicketsBasePath}/tickets/{ticketId}/restore", content: null, cancellationToken: TestContext.Current.CancellationToken);
         #endregion
 
         #region Assert
@@ -220,8 +206,7 @@ public sealed class TicketCrudAndCloseTests
         var fetched = await GetAsync(client, ticketId);
         fetched.Status.ShouldNotBe("Closed");
 
-        var comments = await client.GetAsync(
-            $"{TestConstants.TicketsBasePath}/tickets/{ticketId}/comments");
+        var comments = await client.GetAsync($"{TestConstants.TicketsBasePath}/tickets/{ticketId}/comments", TestContext.Current.CancellationToken);
         comments.StatusCode.ShouldBe(HttpStatusCode.OK,
             "Comments must survive a delete/restore round-trip (not cascade-hard-deleted).");
         #endregion
@@ -231,12 +216,11 @@ public sealed class TicketCrudAndCloseTests
     public async Task DeleteTicket_Should_Return404_When_TicketDoesNotExist()
     {
         #region Arrange
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         #endregion
 
         #region Act
-        var response = await client.DeleteAsync(
-            $"{TestConstants.TicketsBasePath}/tickets/{Guid.NewGuid()}");
+        var response = await client.DeleteAsync($"{TestConstants.TicketsBasePath}/tickets/{Guid.NewGuid()}", TestContext.Current.CancellationToken);
         #endregion
 
         #region Assert
@@ -248,13 +232,12 @@ public sealed class TicketCrudAndCloseTests
     public async Task ListTicketComments_Should_Return404_When_TicketDoesNotExist()
     {
         #region Arrange
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         #endregion
 
         #region Act
         // A missing ticket must 404 (not a misleading empty 200 that also leaks id existence).
-        var response = await client.GetAsync(
-            $"{TestConstants.TicketsBasePath}/tickets/{Guid.NewGuid()}/comments");
+        var response = await client.GetAsync($"{TestConstants.TicketsBasePath}/tickets/{Guid.NewGuid()}/comments", TestContext.Current.CancellationToken);
         #endregion
 
         #region Assert

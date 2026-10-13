@@ -51,7 +51,7 @@ public sealed class TenantProvisioningFailureTests
     public async Task Provisioning_Should_TransitionToFailed_When_MigrationsStepThrows()
     {
         // Arrange
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var uniqueId = Guid.NewGuid().ToString("N")[..8];
         var tenantId = $"fail-{uniqueId}";
 
@@ -63,7 +63,7 @@ public sealed class TenantProvisioningFailureTests
             adminEmail = $"fail-admin-{uniqueId}@tenant.com",
             adminPassword = TestConstants.DefaultPassword,
             issuer = $"{tenantId}.issuer"
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
         createResponse.StatusCode.ShouldBe(HttpStatusCode.Created);
 
         // Act
@@ -97,7 +97,7 @@ public sealed class TenantProvisioningFailureTests
     public async Task EnsureCanActivate_Should_Throw_When_ProvisioningStatusIsFailed()
     {
         // Arrange — create a tenant whose provisioning fails on the Migrations step.
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var uniqueId = Guid.NewGuid().ToString("N")[..8];
         var tenantId = $"failguard-{uniqueId}";
 
@@ -109,7 +109,7 @@ public sealed class TenantProvisioningFailureTests
             adminEmail = $"failguard-admin-{uniqueId}@tenant.com",
             adminPassword = TestConstants.DefaultPassword,
             issuer = $"{tenantId}.issuer"
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
         createResponse.StatusCode.ShouldBe(HttpStatusCode.Created);
 
         var status = await PollUntilTerminalAsync(rootClient, tenantId);
@@ -132,7 +132,7 @@ public sealed class TenantProvisioningFailureTests
     {
         // Arrange — a tenant that fails provisioning. It is created active, so we must first
         // deactivate it, then prove reactivation is blocked by the provisioning guard.
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var uniqueId = Guid.NewGuid().ToString("N")[..8];
         var tenantId = $"reactivate-{uniqueId}";
 
@@ -144,31 +144,26 @@ public sealed class TenantProvisioningFailureTests
             adminEmail = $"reactivate-admin-{uniqueId}@tenant.com",
             adminPassword = TestConstants.DefaultPassword,
             issuer = $"{tenantId}.issuer"
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
         createResponse.StatusCode.ShouldBe(HttpStatusCode.Created);
 
         var status = await PollUntilTerminalAsync(rootClient, tenantId);
         status.Status.ShouldBe("Failed");
 
         // Deactivate succeeds (root + this tenant keep the active-tenant count > 1).
-        var deactivateResponse = await rootClient.PostAsJsonAsync(
-            $"{TestConstants.TenantsBasePath}/{tenantId}/activation",
-            new { tenantId, isActive = false });
+        var deactivateResponse = await rootClient.PostAsJsonAsync($"{TestConstants.TenantsBasePath}/{tenantId}/activation", new { tenantId, isActive = false }, cancellationToken: TestContext.Current.CancellationToken);
         deactivateResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
 
         // Act — attempt reactivation; ActivateAsync calls EnsureCanActivateAsync, which throws
         // because the latest provisioning status is Failed (not Completed).
-        var reactivateResponse = await rootClient.PostAsJsonAsync(
-            $"{TestConstants.TenantsBasePath}/{tenantId}/activation",
-            new { tenantId, isActive = true });
+        var reactivateResponse = await rootClient.PostAsJsonAsync($"{TestConstants.TenantsBasePath}/{tenantId}/activation", new { tenantId, isActive = true }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert — reactivation is rejected and the tenant remains inactive.
         reactivateResponse.IsSuccessStatusCode.ShouldBeFalse();
 
-        var statusResponse = await rootClient.GetAsync(
-            $"{TestConstants.TenantsBasePath}/{tenantId}/status");
+        var statusResponse = await rootClient.GetAsync($"{TestConstants.TenantsBasePath}/{tenantId}/status", TestContext.Current.CancellationToken);
         statusResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var statusBody = await statusResponse.Content.ReadAsStringAsync();
+        var statusBody = await statusResponse.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         var tenantStatus = JsonSerializer.Deserialize<TenantStatusProbe>(statusBody, JsonOptions)
             ?? throw new InvalidOperationException("Failed to deserialize tenant status.");
         tenantStatus.IsActive.ShouldBeFalse();

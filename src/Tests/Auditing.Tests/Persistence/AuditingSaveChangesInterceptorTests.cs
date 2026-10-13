@@ -15,7 +15,7 @@ public sealed class AuditingSaveChangesInterceptorTests
         db.Accounts.Add(new Account { Id = 1, Email = "a@b.com", PasswordHash = "hash-value", RefreshToken = "refresh-value" });
 
         // Act
-        await db.SaveChangesAsync();
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Assert
         var changes = publisher.ChangesFor(nameof(Account));
@@ -32,12 +32,12 @@ public sealed class AuditingSaveChangesInterceptorTests
         await using var db = CreateContext(publisher);
         var account = new Account { Id = 1, Email = "a@b.com", PasswordHash = "old-hash", RefreshToken = null };
         db.Accounts.Add(account);
-        await db.SaveChangesAsync();
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
         publisher.Events.Clear();
 
         // Act
         account.PasswordHash = "new-hash";
-        await db.SaveChangesAsync();
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Assert
         var change = publisher.ChangesFor(nameof(Account)).Single(c => c.Name == nameof(Account.PasswordHash));
@@ -56,7 +56,7 @@ public sealed class AuditingSaveChangesInterceptorTests
         db.Accounts.Add(new Account { Id = 1, Email = "a@b.com", PasswordHash = "x" });
 
         // Act
-        await db.SaveChangesAsync();
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Assert — the non-exempt entity is audited (positive control), the exempt one never is.
         publisher.ChangesFor(nameof(Account)).ShouldNotBeEmpty();

@@ -49,14 +49,13 @@ public sealed class BillingEndpointTests
     [Fact]
     public async Task CreatePlan_Should_Return200_And_Persist()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var key = UniqueKey("create");
 
-        using var response = await client.PostAsJsonAsync($"{BillingBasePath}/plans",
-            new { key, name = "Plan-create", currency = "USD", monthlyBasePrice = 9.99m });
+        using var response = await client.PostAsJsonAsync($"{BillingBasePath}/plans", new { key, name = "Plan-create", currency = "USD", monthlyBasePrice = 9.99m }, cancellationToken: TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var planId = await response.DeserializeAsync<Guid>();
+        var planId = await response.DeserializeAsync<Guid>(ct: TestContext.Current.CancellationToken);
         planId.ShouldNotBe(Guid.Empty);
 
         var plans = await GetPlansAsync(client);
@@ -69,7 +68,7 @@ public sealed class BillingEndpointTests
     [Fact]
     public async Task GetPlans_Should_Return_NewlyCreated()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var key = UniqueKey("list");
         var planId = await CreatePlanAsync(client, key, name: "Plan-list", monthlyBasePrice: 1m);
 
@@ -80,7 +79,7 @@ public sealed class BillingEndpointTests
     [Fact]
     public async Task GetPlans_Default_Should_Exclude_Inactive_Plans()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var key = UniqueKey("inactive");
         var planId = await CreatePlanAsync(client, key, name: "Plan-inactive", monthlyBasePrice: 1m);
 
@@ -105,12 +104,11 @@ public sealed class BillingEndpointTests
     [Fact]
     public async Task UpdatePlan_Should_Persist_Name_And_Price()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var key = UniqueKey("update");
         var planId = await CreatePlanAsync(client, key, name: "Old name", monthlyBasePrice: 5m);
 
-        using var response = await client.PutAsJsonAsync($"{BillingBasePath}/plans/{planId}",
-            new { planId, name = "New name", monthlyBasePrice = 25.50m });
+        using var response = await client.PutAsJsonAsync($"{BillingBasePath}/plans/{planId}", new { planId, name = "New name", monthlyBasePrice = 25.50m }, cancellationToken: TestContext.Current.CancellationToken);
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
         var plans = await GetPlansAsync(client);
@@ -122,11 +120,10 @@ public sealed class BillingEndpointTests
     [Fact]
     public async Task UpdatePlan_Should_Return404_When_PlanDoesNotExist()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var unknownId = Guid.NewGuid();
 
-        using var response = await client.PutAsJsonAsync($"{BillingBasePath}/plans/{unknownId}",
-            new { planId = unknownId, name = "Ghost", monthlyBasePrice = 1m });
+        using var response = await client.PutAsJsonAsync($"{BillingBasePath}/plans/{unknownId}", new { planId = unknownId, name = "Ghost", monthlyBasePrice = 1m }, cancellationToken: TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
@@ -137,8 +134,7 @@ public sealed class BillingEndpointTests
         using var client = _factory.CreateClient();
         client.DefaultRequestHeaders.Add("tenant", TestConstants.RootTenantId);
 
-        using var response = await client.PostAsJsonAsync($"{BillingBasePath}/plans",
-            new { key = UniqueKey("unauth"), name = "x", currency = "USD", monthlyBasePrice = 1m });
+        using var response = await client.PostAsJsonAsync($"{BillingBasePath}/plans", new { key = UniqueKey("unauth"), name = "x", currency = "USD", monthlyBasePrice = 1m }, cancellationToken: TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
     }
@@ -149,7 +145,7 @@ public sealed class BillingEndpointTests
         using var client = _factory.CreateClient();
         client.DefaultRequestHeaders.Add("tenant", TestConstants.RootTenantId);
 
-        using var response = await client.GetAsync($"{BillingBasePath}/plans");
+        using var response = await client.GetAsync($"{BillingBasePath}/plans", TestContext.Current.CancellationToken);
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
     }
 
@@ -158,14 +154,13 @@ public sealed class BillingEndpointTests
     [Fact]
     public async Task AssignSubscription_Should_Return200_And_Persist()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var key = UniqueKey("sub-basic");
         await CreatePlanAsync(client, key, name: "Plan-sub-basic", monthlyBasePrice: 1m);
 
-        using var response = await client.PostAsJsonAsync($"{BillingBasePath}/subscriptions",
-            new { tenantId = TestConstants.RootTenantId, planKey = key });
+        using var response = await client.PostAsJsonAsync($"{BillingBasePath}/subscriptions", new { tenantId = TestConstants.RootTenantId, planKey = key }, cancellationToken: TestContext.Current.CancellationToken);
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var subscriptionId = await response.DeserializeAsync<Guid>();
+        var subscriptionId = await response.DeserializeAsync<Guid>(ct: TestContext.Current.CancellationToken);
         subscriptionId.ShouldNotBe(Guid.Empty);
 
         var current = await GetSubscriptionAsync(client, TestConstants.RootTenantId);
@@ -178,7 +173,7 @@ public sealed class BillingEndpointTests
     [Fact]
     public async Task AssignSubscription_Should_Replace_Existing_Active_Subscription()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var firstKey = UniqueKey("first");
         var secondKey = UniqueKey("second");
         await CreatePlanAsync(client, firstKey, name: "First", monthlyBasePrice: 1m);
@@ -206,10 +201,9 @@ public sealed class BillingEndpointTests
     [Fact]
     public async Task AssignSubscription_Should_Return404_When_PlanKey_Unknown()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
-        using var response = await client.PostAsJsonAsync($"{BillingBasePath}/subscriptions",
-            new { tenantId = TestConstants.RootTenantId, planKey = "plan-does-not-exist-" + Guid.NewGuid().ToString("N")[..6] });
+        using var response = await client.PostAsJsonAsync($"{BillingBasePath}/subscriptions", new { tenantId = TestConstants.RootTenantId, planKey = "plan-does-not-exist-" + Guid.NewGuid().ToString("N")[..6] }, cancellationToken: TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
@@ -217,12 +211,12 @@ public sealed class BillingEndpointTests
     [Fact]
     public async Task GetMySubscription_Should_Return_Current_Tenant_Subscription()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var key = UniqueKey("mine");
         await CreatePlanAsync(client, key, name: "Plan-mine", monthlyBasePrice: 1m);
         var subId = await AssignSubscriptionAsync(client, TestConstants.RootTenantId, key);
 
-        using var response = await client.GetAsync($"{BillingBasePath}/subscriptions/me");
+        using var response = await client.GetAsync($"{BillingBasePath}/subscriptions/me", TestContext.Current.CancellationToken);
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
         var dto = await ParseAsync<SubscriptionDto?>(response);
         dto.ShouldNotBeNull();
@@ -236,8 +230,7 @@ public sealed class BillingEndpointTests
         using var client = _factory.CreateClient();
         client.DefaultRequestHeaders.Add("tenant", TestConstants.RootTenantId);
 
-        using var response = await client.PostAsJsonAsync($"{BillingBasePath}/subscriptions",
-            new { tenantId = TestConstants.RootTenantId, planKey = "free" });
+        using var response = await client.PostAsJsonAsync($"{BillingBasePath}/subscriptions", new { tenantId = TestConstants.RootTenantId, planKey = "free" }, cancellationToken: TestContext.Current.CancellationToken);
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
     }
 
@@ -248,9 +241,9 @@ public sealed class BillingEndpointTests
     {
         var (year, month) = NextPeriod();
         var invoiceId = await SeedDraftInvoiceAsync(TestConstants.RootTenantId, year, month, basePrice: 19.99m);
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
-        using var response = await client.GetAsync($"{BillingBasePath}/invoices/{invoiceId}");
+        using var response = await client.GetAsync($"{BillingBasePath}/invoices/{invoiceId}", TestContext.Current.CancellationToken);
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
         var dto = await ParseAsync<InvoiceDto>(response);
 
@@ -266,9 +259,9 @@ public sealed class BillingEndpointTests
     [Fact]
     public async Task GetInvoiceById_Should_Return404_For_UnknownId()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
-        using var response = await client.GetAsync($"{BillingBasePath}/invoices/{Guid.NewGuid()}");
+        using var response = await client.GetAsync($"{BillingBasePath}/invoices/{Guid.NewGuid()}", TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
@@ -278,10 +271,9 @@ public sealed class BillingEndpointTests
     {
         var (year, month) = NextPeriod();
         var invoiceId = await SeedDraftInvoiceAsync(TestConstants.RootTenantId, year, month);
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
-        using var response = await client.GetAsync(
-            $"{BillingBasePath}/invoices?periodYear={year}&periodMonth={month}&pageNumber=1&pageSize=50");
+        using var response = await client.GetAsync($"{BillingBasePath}/invoices?periodYear={year}&periodMonth={month}&pageNumber=1&pageSize=50", TestContext.Current.CancellationToken);
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
         var page = await ParseAsync<PagedResponse<InvoiceDto>>(response);
 
@@ -309,10 +301,9 @@ public sealed class BillingEndpointTests
             inv.MarkPaid();
             await db.SaveChangesAsync();
         });
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
-        using var paidResponse = await client.GetAsync(
-            $"{BillingBasePath}/invoices?status=Paid&pageNumber=1&pageSize=200");
+        using var paidResponse = await client.GetAsync($"{BillingBasePath}/invoices?status=Paid&pageNumber=1&pageSize=200", TestContext.Current.CancellationToken);
         var paidPage = await ParseAsync<PagedResponse<InvoiceDto>>(paidResponse);
 
         paidPage.Items.ShouldContain(i => i.Id == paidSourceId);
@@ -325,10 +316,9 @@ public sealed class BillingEndpointTests
     {
         var (year, month) = NextPeriod();
         var invoiceId = await SeedDraftInvoiceAsync(TestConstants.RootTenantId, year, month);
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
-        using var response = await client.GetAsync(
-            $"{BillingBasePath}/invoices/me?periodYear={year}&periodMonth={month}&pageNumber=1&pageSize=50");
+        using var response = await client.GetAsync($"{BillingBasePath}/invoices/me?periodYear={year}&periodMonth={month}&pageNumber=1&pageSize=50", TestContext.Current.CancellationToken);
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
         var page = await ParseAsync<PagedResponse<InvoiceDto>>(response);
 
@@ -343,11 +333,9 @@ public sealed class BillingEndpointTests
     {
         var (year, month) = NextPeriod();
         var invoiceId = await SeedDraftInvoiceAsync(TestConstants.RootTenantId, year, month);
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
-        using var issueResp = await client.PostAsJsonAsync(
-            $"{BillingBasePath}/invoices/{invoiceId}/issue",
-            new { dueAtUtc = (DateTime?)null });
+        using var issueResp = await client.PostAsJsonAsync($"{BillingBasePath}/invoices/{invoiceId}/issue", new { dueAtUtc = (DateTime?)null }, cancellationToken: TestContext.Current.CancellationToken);
         issueResp.StatusCode.ShouldBe(HttpStatusCode.OK);
 
         var dto = await GetInvoiceAsync(client, invoiceId);
@@ -363,12 +351,10 @@ public sealed class BillingEndpointTests
     {
         var (year, month) = NextPeriod();
         var invoiceId = await SeedDraftInvoiceAsync(TestConstants.RootTenantId, year, month);
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
         var customDue = new DateTime(2099, 12, 31, 0, 0, 0, DateTimeKind.Utc);
-        using var issueResp = await client.PostAsJsonAsync(
-            $"{BillingBasePath}/invoices/{invoiceId}/issue",
-            new { dueAtUtc = customDue });
+        using var issueResp = await client.PostAsJsonAsync($"{BillingBasePath}/invoices/{invoiceId}/issue", new { dueAtUtc = customDue }, cancellationToken: TestContext.Current.CancellationToken);
         issueResp.StatusCode.ShouldBe(HttpStatusCode.OK);
 
         var dto = await GetInvoiceAsync(client, invoiceId);
@@ -390,11 +376,9 @@ public sealed class BillingEndpointTests
             inv!.Issue(dueAtUtc: null);
             await db.SaveChangesAsync();
         });
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
-        using var response = await client.PostAsJsonAsync(
-            $"{BillingBasePath}/invoices/{invoiceId}/issue",
-            new { dueAtUtc = (DateTime?)null });
+        using var response = await client.PostAsJsonAsync($"{BillingBasePath}/invoices/{invoiceId}/issue", new { dueAtUtc = (DateTime?)null }, cancellationToken: TestContext.Current.CancellationToken);
 
         response.IsSuccessStatusCode.ShouldBeFalse(
             "Issuing an already-Issued invoice must fail at the domain guard");
@@ -408,9 +392,9 @@ public sealed class BillingEndpointTests
     {
         var (year, month) = NextPeriod();
         var invoiceId = await SeedIssuedInvoiceAsync(TestConstants.RootTenantId, year, month);
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
-        using var response = await client.PostAsync($"{BillingBasePath}/invoices/{invoiceId}/pay", content: null);
+        using var response = await client.PostAsync($"{BillingBasePath}/invoices/{invoiceId}/pay", content: null, cancellationToken: TestContext.Current.CancellationToken);
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
         var dto = await GetInvoiceAsync(client, invoiceId);
@@ -423,9 +407,9 @@ public sealed class BillingEndpointTests
     {
         var (year, month) = NextPeriod();
         var invoiceId = await SeedDraftInvoiceAsync(TestConstants.RootTenantId, year, month);
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
-        using var response = await client.PostAsync($"{BillingBasePath}/invoices/{invoiceId}/pay", content: null);
+        using var response = await client.PostAsync($"{BillingBasePath}/invoices/{invoiceId}/pay", content: null, cancellationToken: TestContext.Current.CancellationToken);
 
         response.IsSuccessStatusCode.ShouldBeFalse(
             "Paying a Draft invoice must fail — only Issued invoices can transition to Paid");
@@ -437,16 +421,16 @@ public sealed class BillingEndpointTests
     {
         var (year, month) = NextPeriod();
         var invoiceId = await SeedIssuedInvoiceAsync(TestConstants.RootTenantId, year, month);
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
-        using var first = await client.PostAsync($"{BillingBasePath}/invoices/{invoiceId}/pay", content: null);
+        using var first = await client.PostAsync($"{BillingBasePath}/invoices/{invoiceId}/pay", content: null, cancellationToken: TestContext.Current.CancellationToken);
         first.StatusCode.ShouldBe(HttpStatusCode.OK);
         var firstStamp = (await GetInvoiceAsync(client, invoiceId)).PaidAtUtc;
         firstStamp.ShouldNotBeNull();
 
         // Aggregate uses `if (Status is Paid) return;` — second call must succeed and not mutate.
-        await Task.Delay(20);
-        using var second = await client.PostAsync($"{BillingBasePath}/invoices/{invoiceId}/pay", content: null);
+        await Task.Delay(20, TestContext.Current.CancellationToken);
+        using var second = await client.PostAsync($"{BillingBasePath}/invoices/{invoiceId}/pay", content: null, cancellationToken: TestContext.Current.CancellationToken);
         second.StatusCode.ShouldBe(HttpStatusCode.OK);
 
         var dto = await GetInvoiceAsync(client, invoiceId);
@@ -459,11 +443,9 @@ public sealed class BillingEndpointTests
     {
         var (year, month) = NextPeriod();
         var invoiceId = await SeedDraftInvoiceAsync(TestConstants.RootTenantId, year, month);
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
-        using var response = await client.PostAsJsonAsync(
-            $"{BillingBasePath}/invoices/{invoiceId}/void",
-            new { reason = "duplicate" });
+        using var response = await client.PostAsJsonAsync($"{BillingBasePath}/invoices/{invoiceId}/void", new { reason = "duplicate" }, cancellationToken: TestContext.Current.CancellationToken);
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
         var dto = await GetInvoiceAsync(client, invoiceId);
@@ -478,10 +460,9 @@ public sealed class BillingEndpointTests
     {
         var (year, month) = NextPeriod();
         var invoiceId = await SeedIssuedInvoiceAsync(TestConstants.RootTenantId, year, month);
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
-        using var response = await client.PostAsJsonAsync(
-            $"{BillingBasePath}/invoices/{invoiceId}/void", new { reason = (string?)null });
+        using var response = await client.PostAsJsonAsync($"{BillingBasePath}/invoices/{invoiceId}/void", new { reason = (string?)null }, cancellationToken: TestContext.Current.CancellationToken);
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
         (await GetInvoiceAsync(client, invoiceId)).Status.ShouldBe(InvoiceStatus.Void);
@@ -494,12 +475,11 @@ public sealed class BillingEndpointTests
         // refusal so a future relaxation of that rule has to be explicit.
         var (year, month) = NextPeriod();
         var invoiceId = await SeedIssuedInvoiceAsync(TestConstants.RootTenantId, year, month);
-        using var payClient = await _auth.CreateRootAdminClientAsync();
-        using var pay = await payClient.PostAsync($"{BillingBasePath}/invoices/{invoiceId}/pay", content: null);
+        using var payClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
+        using var pay = await payClient.PostAsync($"{BillingBasePath}/invoices/{invoiceId}/pay", content: null, cancellationToken: TestContext.Current.CancellationToken);
         pay.StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        using var voidResp = await payClient.PostAsJsonAsync(
-            $"{BillingBasePath}/invoices/{invoiceId}/void", new { reason = "shouldn't work" });
+        using var voidResp = await payClient.PostAsJsonAsync($"{BillingBasePath}/invoices/{invoiceId}/void", new { reason = "shouldn't work" }, cancellationToken: TestContext.Current.CancellationToken);
 
         voidResp.IsSuccessStatusCode.ShouldBeFalse(
             "Paid invoices must not be voidable");
@@ -513,8 +493,7 @@ public sealed class BillingEndpointTests
         using var client = _factory.CreateClient();
         client.DefaultRequestHeaders.Add("tenant", TestConstants.RootTenantId);
 
-        using var response = await client.PostAsJsonAsync(
-            $"{BillingBasePath}/invoices/{Guid.NewGuid()}/issue", new { dueAtUtc = (DateTime?)null });
+        using var response = await client.PostAsJsonAsync($"{BillingBasePath}/invoices/{Guid.NewGuid()}/issue", new { dueAtUtc = (DateTime?)null }, cancellationToken: TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
     }
@@ -524,23 +503,21 @@ public sealed class BillingEndpointTests
     [Fact]
     public async Task GenerateInvoices_Should_Generate_For_Subscribed_Tenants_And_Be_Idempotent()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var key = UniqueKey("gen");
         await CreatePlanAsync(client, key, name: "Plan-gen", monthlyBasePrice: 7m);
         await AssignSubscriptionAsync(client, TestConstants.RootTenantId, key);
 
         var (year, month) = NextPeriod();
 
-        using var firstResp = await client.PostAsJsonAsync(
-            $"{BillingBasePath}/invoices/generate", new { periodYear = year, periodMonth = month });
+        using var firstResp = await client.PostAsJsonAsync($"{BillingBasePath}/invoices/generate", new { periodYear = year, periodMonth = month }, cancellationToken: TestContext.Current.CancellationToken);
         firstResp.StatusCode.ShouldBe(HttpStatusCode.OK);
         var firstPayload = await ParseAsync<GeneratedPayload>(firstResp);
         firstPayload.Generated.ShouldBeGreaterThanOrEqualTo(1,
             "Root tenant has an active subscription so at least one invoice should generate");
 
         // Verify the invoice exists for root in this period.
-        using var listResp = await client.GetAsync(
-            $"{BillingBasePath}/invoices?tenantId={TestConstants.RootTenantId}&periodYear={year}&periodMonth={month}&pageNumber=1&pageSize=10");
+        using var listResp = await client.GetAsync($"{BillingBasePath}/invoices?tenantId={TestConstants.RootTenantId}&periodYear={year}&periodMonth={month}&pageNumber=1&pageSize=10", TestContext.Current.CancellationToken);
         var page = await ParseAsync<PagedResponse<InvoiceDto>>(listResp);
         page.Items.Count.ShouldBe(1);
         var inv = page.Items.Single();
@@ -551,12 +528,10 @@ public sealed class BillingEndpointTests
 
         // Second call must be idempotent for root (no duplicate invoice for the same tenant+period);
         // asserting a global Generated count of 0 is unreliable since other tests leave subscribed tenants.
-        using var secondResp = await client.PostAsJsonAsync(
-            $"{BillingBasePath}/invoices/generate", new { periodYear = year, periodMonth = month });
+        using var secondResp = await client.PostAsJsonAsync($"{BillingBasePath}/invoices/generate", new { periodYear = year, periodMonth = month }, cancellationToken: TestContext.Current.CancellationToken);
         secondResp.StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        using var listAfter = await client.GetAsync(
-            $"{BillingBasePath}/invoices?tenantId={TestConstants.RootTenantId}&periodYear={year}&periodMonth={month}&pageNumber=1&pageSize=10");
+        using var listAfter = await client.GetAsync($"{BillingBasePath}/invoices?tenantId={TestConstants.RootTenantId}&periodYear={year}&periodMonth={month}&pageNumber=1&pageSize=10", TestContext.Current.CancellationToken);
         var pageAfter = await ParseAsync<PagedResponse<InvoiceDto>>(listAfter);
         pageAfter.Items.Count.ShouldBe(1, "re-running generate must not duplicate root's invoice for the period");
     }

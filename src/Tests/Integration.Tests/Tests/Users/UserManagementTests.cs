@@ -18,12 +18,12 @@ public sealed class UserManagementTests
     [Fact]
     public async Task GetProfile_Should_ReturnCurrentUser_When_Authenticated()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
-        var response = await client.GetAsync($"{TestConstants.IdentityBasePath}/profile");
+        var response = await client.GetAsync($"{TestConstants.IdentityBasePath}/profile", TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var user = await response.DeserializeAsync<UserDto>();
+        var user = await response.DeserializeAsync<UserDto>(ct: TestContext.Current.CancellationToken);
         user.Email.ShouldBe(TestConstants.RootAdminEmail, StringCompareShould.IgnoreCase);
     }
 
@@ -33,7 +33,7 @@ public sealed class UserManagementTests
         using var client = _factory.CreateClient();
         client.DefaultRequestHeaders.Add("tenant", TestConstants.RootTenantId);
 
-        var response = await client.GetAsync($"{TestConstants.IdentityBasePath}/profile");
+        var response = await client.GetAsync($"{TestConstants.IdentityBasePath}/profile", TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
     }
@@ -41,9 +41,9 @@ public sealed class UserManagementTests
     [Fact]
     public async Task GetUsers_Should_ReturnPagedList_When_Authenticated()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
-        var response = await client.GetAsync($"{TestConstants.IdentityBasePath}/users?pageNumber=1&pageSize=10");
+        var response = await client.GetAsync($"{TestConstants.IdentityBasePath}/users?pageNumber=1&pageSize=10", TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
@@ -51,7 +51,7 @@ public sealed class UserManagementTests
     [Fact]
     public async Task GetUserById_Should_ReturnMatchingUser_When_UserExists()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var uniqueId = Guid.NewGuid().ToString("N")[..8];
 
         // Create a user
@@ -63,15 +63,15 @@ public sealed class UserManagementTests
             userName = $"getbyid-{uniqueId}",
             password = "Test@1234!",
             confirmPassword = "Test@1234!"
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
         registerResponse.StatusCode.ShouldBe(HttpStatusCode.Created);
-        var registered = await registerResponse.DeserializeAsync<RegisterResult>();
+        var registered = await registerResponse.DeserializeAsync<RegisterResult>(ct: TestContext.Current.CancellationToken);
 
         // Retrieve the user by ID
-        var response = await client.GetAsync($"{TestConstants.IdentityBasePath}/users/{registered.UserId}");
+        var response = await client.GetAsync($"{TestConstants.IdentityBasePath}/users/{registered.UserId}", TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var user = await response.DeserializeAsync<UserDto>();
+        var user = await response.DeserializeAsync<UserDto>(ct: TestContext.Current.CancellationToken);
         user.FirstName.ShouldBe("GetById");
         user.LastName.ShouldBe("Test");
     }
@@ -79,7 +79,7 @@ public sealed class UserManagementTests
     [Fact]
     public async Task ToggleUserStatus_Should_ReturnNoContent_When_DeactivatingUser()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var uniqueId = Guid.NewGuid().ToString("N")[..8];
 
         var registerResponse = await client.PostAsJsonAsync($"{TestConstants.IdentityBasePath}/register", new
@@ -90,9 +90,9 @@ public sealed class UserManagementTests
             userName = $"toggle-{uniqueId}",
             password = "Test@1234!",
             confirmPassword = "Test@1234!"
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
         registerResponse.StatusCode.ShouldBe(HttpStatusCode.Created);
-        var registered = await registerResponse.DeserializeAsync<RegisterResult>();
+        var registered = await registerResponse.DeserializeAsync<RegisterResult>(ct: TestContext.Current.CancellationToken);
 
         // PATCH /users/{id} toggles status
         var request = new HttpRequestMessage(HttpMethod.Patch, $"{TestConstants.IdentityBasePath}/users/{registered.UserId}")
@@ -100,7 +100,7 @@ public sealed class UserManagementTests
             Content = JsonContent.Create(new { isActive = false })
         };
 
-        var response = await client.SendAsync(request);
+        var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.NoContent);
     }
@@ -108,7 +108,7 @@ public sealed class UserManagementTests
     [Fact]
     public async Task DeleteUser_Should_ReturnNoContent_When_UserExists()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var uniqueId = Guid.NewGuid().ToString("N")[..8];
 
         var registerResponse = await client.PostAsJsonAsync($"{TestConstants.IdentityBasePath}/register", new
@@ -119,11 +119,11 @@ public sealed class UserManagementTests
             userName = $"delete-{uniqueId}",
             password = "Test@1234!",
             confirmPassword = "Test@1234!"
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
         registerResponse.StatusCode.ShouldBe(HttpStatusCode.Created);
-        var registered = await registerResponse.DeserializeAsync<RegisterResult>();
+        var registered = await registerResponse.DeserializeAsync<RegisterResult>(ct: TestContext.Current.CancellationToken);
 
-        var response = await client.DeleteAsync($"{TestConstants.IdentityBasePath}/users/{registered.UserId}");
+        var response = await client.DeleteAsync($"{TestConstants.IdentityBasePath}/users/{registered.UserId}", TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.NoContent);
     }

@@ -132,12 +132,12 @@ public sealed class IdempotencyEndpointFilterReplayTests
         };
 
         var firstCall = filter.InvokeAsync(new TestFilterContext(NewContext(provider)), first).AsTask();
-        await started.Task.WaitAsync(TimeSpan.FromSeconds(5)); // first now holds the reservation
+        await started.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken); // first now holds the reservation
 
         var secondResult = await filter.InvokeAsync(new TestFilterContext(NewContext(provider)), second);
 
         release.SetResult();
-        await firstCall.WaitAsync(TimeSpan.FromSeconds(10));
+        await firstCall.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
 
         executions.ShouldBe(
             1,
@@ -432,7 +432,8 @@ public sealed class IdempotencyEndpointFilterReplayTests
             JsonSerializer.SerializeToUtf8Bytes(
                 new CachedIdempotentResponse { StatusCode = StatusCodes.Status200OK, Body = "{}"u8.ToArray() },
                 CacheJsonOpts),
-            new DistributedCacheEntryOptions());
+            new DistributedCacheEntryOptions(),
+            TestContext.Current.CancellationToken);
 
         var seeded = NewContext(provider, new MemoryStream());
         await filter.InvokeAsync(
@@ -441,7 +442,7 @@ public sealed class IdempotencyEndpointFilterReplayTests
         seeded.Response.Headers.ContainsKey("Idempotency-Replayed").ShouldBeTrue(
             "sanity: this is the key the filter probes");
 
-        await cache.SetAsync(storedKey, "{ this is not the cached shape"u8.ToArray(), new DistributedCacheEntryOptions());
+        await cache.SetAsync(storedKey, "{ this is not the cached shape"u8.ToArray(), new DistributedCacheEntryOptions(), TestContext.Current.CancellationToken);
 
         int executions = 0;
         var context = NewContext(provider, new MemoryStream());
@@ -544,10 +545,10 @@ public sealed class IdempotencyEndpointFilterReplayTests
             _ => ValueTask.FromResult<object?>(TypedResults.Ok(new SampleDto(Guid.NewGuid(), "widget"))));
 
         var cache = provider.GetRequiredService<IDistributedCache>();
-        (await cache.GetAsync(CacheKeys.IdempotencyEntry("global", $"anon:POST::{Key}"))).ShouldNotBeNull(
+        (await cache.GetAsync(CacheKeys.IdempotencyEntry("global", $"anon:POST::{Key}"), TestContext.Current.CancellationToken)).ShouldNotBeNull(
             "an unvalidated header must not choose the bucket: taking it would let any caller write into — " +
             "and replay out of — a real tenant's idempotency namespace.");
-        (await cache.GetAsync(CacheKeys.IdempotencyEntry("acme", $"anon:POST::{Key}"))).ShouldBeNull();
+        (await cache.GetAsync(CacheKeys.IdempotencyEntry("acme", $"anon:POST::{Key}"), TestContext.Current.CancellationToken)).ShouldBeNull();
     }
 
     // ─── the reservation must be re-probed: the original can settle between probe and reserve ───
@@ -687,7 +688,7 @@ public sealed class IdempotencyEndpointFilterReplayTests
                 await release.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
                 return TypedResults.Ok(new SampleDto(Guid.NewGuid(), "holder"));
             }).AsTask();
-        await started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await started.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
         int executions = 0;
         var result = await filter.InvokeAsync(
@@ -699,7 +700,7 @@ public sealed class IdempotencyEndpointFilterReplayTests
             });
 
         release.SetResult();
-        await holderCall.WaitAsync(TimeSpan.FromSeconds(10));
+        await holderCall.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
 
         executions.ShouldBe(
             1,
@@ -780,7 +781,7 @@ public sealed class IdempotencyEndpointFilterReplayTests
         result.ShouldNotBeNull("a null return would make the framework append a serialized \"null\" to the handler's own output");
 
         var cache = provider.GetRequiredService<IDistributedCache>();
-        (await cache.GetAsync(CacheKeys.IdempotencyEntry("global", $"anon:POST::{Key}"))).ShouldBeNull(
+        (await cache.GetAsync(CacheKeys.IdempotencyEntry("global", $"anon:POST::{Key}"), TestContext.Current.CancellationToken)).ShouldBeNull(
             "the buffer swap comes after the handler ran, so a handler that started the response leaves " +
             "an EMPTY capture — storing it would replay a blank 200 for the full TTL, and setting the " +
             "captured status on an already-started response throws.");
@@ -896,7 +897,7 @@ public sealed class IdempotencyEndpointFilterReplayTests
                 await release.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
                 return TypedResults.Ok(new SampleDto(Guid.NewGuid(), "holder"));
             }).AsTask();
-        await started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await started.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
         var duplicate = NewContext(provider, new MemoryStream());
         var result = await filter.InvokeAsync(
@@ -904,7 +905,7 @@ public sealed class IdempotencyEndpointFilterReplayTests
             _ => throw new InvalidOperationException("the duplicate's handler must not run"));
 
         release.SetResult();
-        await holderCall.WaitAsync(TimeSpan.FromSeconds(10));
+        await holderCall.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
 
         result.ShouldBeAssignableTo<IStatusCodeHttpResult>()!.StatusCode.ShouldBe(StatusCodes.Status409Conflict);
         duplicate.Response.Headers.RetryAfter.ToString().ShouldBe(
@@ -935,14 +936,14 @@ public sealed class IdempotencyEndpointFilterReplayTests
                     await release.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
                     return TypedResults.Ok(new SampleDto(Guid.NewGuid(), "holder"));
                 }).AsTask();
-            await started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            await started.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
             var result = await filter.InvokeAsync(
                 new TestFilterContext(NewContext(provider, new MemoryStream())),
                 _ => throw new InvalidOperationException("the duplicate's handler must not run"));
 
             release.SetResult();
-            await holderCall.WaitAsync(TimeSpan.FromSeconds(10));
+            await holderCall.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
 
             var problem = result.ShouldBeOfType<ProblemHttpResult>().ProblemDetails;
             problem.Status.ShouldBe(StatusCodes.Status409Conflict);
@@ -981,7 +982,7 @@ public sealed class IdempotencyEndpointFilterReplayTests
                 await release.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
                 return TypedResults.Ok(new SampleDto(Guid.NewGuid(), "holder"));
             }).AsTask();
-        await started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await started.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
         var duplicate = NewContext(provider, new MemoryStream());
         var result = await filter.InvokeAsync(
@@ -989,7 +990,7 @@ public sealed class IdempotencyEndpointFilterReplayTests
             _ => throw new InvalidOperationException("the duplicate's handler must not run"));
 
         release.SetResult();
-        await holderCall.WaitAsync(TimeSpan.FromSeconds(10));
+        await holderCall.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
 
         result.ShouldBeAssignableTo<IStatusCodeHttpResult>()!.StatusCode.ShouldBe(StatusCodes.Status409Conflict);
         executions.ShouldBe(1);
@@ -1086,7 +1087,7 @@ public sealed class IdempotencyEndpointFilterReplayTests
                 await release.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
                 return TypedResults.Ok(new SampleDto(id, "original"));
             }).AsTask();
-        await started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await started.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
         // The original stores its response between the duplicate's first probe and its refusal.
         cache.SeedOnNextProbe(key => SeedEntryAsync(inner, key, id));
@@ -1102,7 +1103,7 @@ public sealed class IdempotencyEndpointFilterReplayTests
             });
 
         release.SetResult();
-        await holderCall.WaitAsync(TimeSpan.FromSeconds(10));
+        await holderCall.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
 
         executions.ShouldBe(0);
         duplicate.Response.Headers.ContainsKey("Idempotency-Replayed").ShouldBeTrue(
@@ -1254,7 +1255,8 @@ public sealed class IdempotencyEndpointFilterReplayTests
         await cache.SetAsync(
             CacheKeys.IdempotencyEntry("global", $"anon:POST::{Key}"),
             """{"statusCode":200,"contentType":"application/json","body":"eyJvayI6dHJ1ZX0="}"""u8.ToArray(),
-            new DistributedCacheEntryOptions());
+            new DistributedCacheEntryOptions(),
+            TestContext.Current.CancellationToken);
 
         var replayBody = new MemoryStream();
         var context = NewContext(provider, replayBody);

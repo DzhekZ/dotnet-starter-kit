@@ -45,10 +45,10 @@ public sealed class PermissionRegistrationTests
     [Fact]
     public async Task RootAdmin_Should_Have_All_Catalog_Permissions_After_Seed()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
-        var response = await client.GetAsync($"{TestConstants.IdentityBasePath}/permissions");
-        var permissions = await response.DeserializeAsync<string[]>();
+        var response = await client.GetAsync($"{TestConstants.IdentityBasePath}/permissions", TestContext.Current.CancellationToken);
+        var permissions = await response.DeserializeAsync<string[]>(ct: TestContext.Current.CancellationToken);
 
         var expected = new[]
         {
@@ -87,10 +87,10 @@ public sealed class PermissionRegistrationTests
     [Fact]
     public async Task RootAdmin_Should_Have_Cross_Module_Permissions()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
-        var response = await client.GetAsync($"{TestConstants.IdentityBasePath}/permissions");
-        var permissions = await response.DeserializeAsync<string[]>();
+        var response = await client.GetAsync($"{TestConstants.IdentityBasePath}/permissions", TestContext.Current.CancellationToken);
+        var permissions = await response.DeserializeAsync<string[]>(ct: TestContext.Current.CancellationToken);
         var permSet = permissions.ToHashSet(StringComparer.Ordinal);
 
         // Spot-check one perm from each module — covers the "new module added but seeding not run" case.

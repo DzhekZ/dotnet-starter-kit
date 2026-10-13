@@ -29,7 +29,7 @@ public sealed class DeleteUserCommandHandlerTests
         var command = new DeleteUserCommand(userId);
 
         // Act
-        await _sut.Handle(command, CancellationToken.None);
+        await _sut.Handle(command, TestContext.Current.CancellationToken);
 
         // Assert
         await _userService.Received(1).DeleteAsync(userId, TestContext.Current.CancellationToken);
@@ -64,7 +64,7 @@ public sealed class DeleteUserCommandHandlerTests
         // Arrange
         var command = _fixture.Create<DeleteUserCommand>();
         var expectedExceptionMessage = "User not found";
-        _userService.DeleteAsync(Arg.Any<string>(), TestContext.Current.CancellationToken)
+        _userService.DeleteAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(x => throw new InvalidOperationException(expectedExceptionMessage));
 
         // Act & Assert

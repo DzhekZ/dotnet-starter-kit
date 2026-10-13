@@ -41,7 +41,7 @@ public sealed class BillingDomainEdgeTests
     public async Task CreatePlan_With_OverageRates_Should_Persist_And_Expose_Them()
     {
         // Arrange
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var key = UniqueKey("ovr-create");
 
         // Act — overage-rate dictionary keyed by QuotaResource (serialized as enum names).
@@ -56,11 +56,11 @@ public sealed class BillingDomainEdgeTests
                 [nameof(QuotaResource.ApiCalls)] = 0.01m,
                 [nameof(QuotaResource.StorageBytes)] = 0.50m,
             }
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var planId = await response.DeserializeAsync<Guid>();
+        var planId = await response.DeserializeAsync<Guid>(ct: TestContext.Current.CancellationToken);
 
         var plan = await GetPlanAsync(client, planId);
         plan.OverageRates[QuotaResource.ApiCalls].ShouldBe(0.01m);
@@ -82,7 +82,7 @@ public sealed class BillingDomainEdgeTests
     {
         // BillingPlan.Update clears the existing rate map then repopulates from the supplied dictionary.
         // Arrange — start with one rate set...
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var key = UniqueKey("ovr-update");
         using var createResp = await client.PostAsJsonAsync($"{BillingBasePath}/plans", new
         {
@@ -91,9 +91,9 @@ public sealed class BillingDomainEdgeTests
             currency = "USD",
             monthlyBasePrice = 5m,
             overageRates = new Dictionary<string, decimal> { [nameof(QuotaResource.ApiCalls)] = 0.05m },
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
         createResp.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var planId = await createResp.DeserializeAsync<Guid>();
+        var planId = await createResp.DeserializeAsync<Guid>(ct: TestContext.Current.CancellationToken);
 
         // Act — update with a completely different rate map.
         using var updateResp = await client.PutAsJsonAsync($"{BillingBasePath}/plans/{planId}", new
@@ -102,7 +102,7 @@ public sealed class BillingDomainEdgeTests
             name = "After",
             monthlyBasePrice = 9m,
             overageRates = new Dictionary<string, decimal> { [nameof(QuotaResource.Users)] = 2m },
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
         updateResp.StatusCode.ShouldBe(HttpStatusCode.OK);
 
         // Assert — old rate is gone, new rate is present (clear-then-repopulate, not merge).

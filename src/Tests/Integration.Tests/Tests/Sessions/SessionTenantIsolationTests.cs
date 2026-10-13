@@ -26,7 +26,7 @@ public sealed class SessionTenantIsolationTests
     {
         // Arrange — create a second tenant with its own admin, and a root-tenant user
         // who logs in (creating a root-scoped session).
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var uniqueId = Guid.NewGuid().ToString("N")[..8];
         var otherTenantId = $"sess-iso-{uniqueId}";
         var otherAdminEmail = $"sess-iso-admin-{uniqueId}@tenant.com";
@@ -35,20 +35,18 @@ public sealed class SessionTenantIsolationTests
         await TenantProvisioningWait.WaitForProvisioningAsync(rootClient, otherTenantId);
 
         var rootUser = await IdentityUserSeeder.CreateLoginableUserAsync(_factory, rootClient, "sess-iso-rootuser");
-        await _auth.GetTokenAsync(rootUser.Email, rootUser.Password);
+        await _auth.GetTokenAsync(rootUser.Email, rootUser.Password, ct: TestContext.Current.CancellationToken);
 
         using var otherClient = await CreateTenantAdminClientWithRetryAsync(
             otherAdminEmail, TestConstants.DefaultPassword, otherTenantId);
 
         // Act — the OTHER tenant's admin lists tenant sessions and searches for the root user.
-        var listResponse = await otherClient.GetAsync(
-            $"{TestConstants.IdentityBasePath}/sessions?pageSize=200&includeInactive=true");
+        var listResponse = await otherClient.GetAsync($"{TestConstants.IdentityBasePath}/sessions?pageSize=200&includeInactive=true", TestContext.Current.CancellationToken);
         listResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var body = await listResponse.Content.ReadAsStringAsync();
+        var body = await listResponse.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
 
-        var searchResponse = await otherClient.GetAsync(
-            $"{TestConstants.IdentityBasePath}/sessions?search={Uri.EscapeDataString(rootUser.Email)}");
-        var searchPage = await searchResponse.DeserializeAsync<PagedResponse<UserSessionDto>>();
+        var searchResponse = await otherClient.GetAsync($"{TestConstants.IdentityBasePath}/sessions?search={Uri.EscapeDataString(rootUser.Email)}", TestContext.Current.CancellationToken);
+        var searchPage = await searchResponse.DeserializeAsync<PagedResponse<UserSessionDto>>(ct: TestContext.Current.CancellationToken);
 
         // Assert — the root user's session/email must not leak into the other tenant's view.
         body.ShouldNotContain(rootUser.Email);
@@ -59,7 +57,7 @@ public sealed class SessionTenantIsolationTests
     public async Task GetUserSessions_Should_ReturnEmpty_When_UserBelongsToAnotherTenant()
     {
         // Arrange
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var uniqueId = Guid.NewGuid().ToString("N")[..8];
         var otherTenantId = $"sess-iso2-{uniqueId}";
         var otherAdminEmail = $"sess-iso2-admin-{uniqueId}@tenant.com";
@@ -68,18 +66,17 @@ public sealed class SessionTenantIsolationTests
         await TenantProvisioningWait.WaitForProvisioningAsync(rootClient, otherTenantId);
 
         var rootUser = await IdentityUserSeeder.CreateLoginableUserAsync(_factory, rootClient, "sess-iso2-rootuser");
-        await _auth.GetTokenAsync(rootUser.Email, rootUser.Password);
+        await _auth.GetTokenAsync(rootUser.Email, rootUser.Password, ct: TestContext.Current.CancellationToken);
 
         using var otherClient = await CreateTenantAdminClientWithRetryAsync(
             otherAdminEmail, TestConstants.DefaultPassword, otherTenantId);
 
         // Act — the other tenant's admin asks for the root user's sessions by id.
-        var response = await otherClient.GetAsync(
-            $"{TestConstants.IdentityBasePath}/users/{rootUser.UserId}/sessions");
+        var response = await otherClient.GetAsync($"{TestConstants.IdentityBasePath}/users/{rootUser.UserId}/sessions", TestContext.Current.CancellationToken);
 
         // Assert — the tenant filter scopes the query to the OTHER tenant, so nothing is returned.
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var sessions = await response.DeserializeAsync<List<UserSessionDto>>();
+        var sessions = await response.DeserializeAsync<List<UserSessionDto>>(ct: TestContext.Current.CancellationToken);
         sessions.ShouldBeEmpty();
     }
 

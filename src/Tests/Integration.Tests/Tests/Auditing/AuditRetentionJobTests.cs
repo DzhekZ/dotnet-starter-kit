@@ -37,7 +37,7 @@ public sealed class AuditRetentionJobTests
     public async Task RunAsync_Should_PurgeRecordsPastRetention_InEveryTenant_And_KeepTheRest()
     {
         // Arrange
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var uniqueId = Guid.NewGuid().ToString("N")[..8];
         var otherTenantId = $"audit-ret-{uniqueId}";
         var otherAdminEmail = $"audit-ret-admin-{uniqueId}@tenant.com";

@@ -31,7 +31,7 @@ public sealed class TenantProvisioningStatusTests
     [Fact]
     public async Task Provisioning_Should_TransitionAllStepsToCompleted_After_TenantCreation()
     {
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var uniqueId = Guid.NewGuid().ToString("N")[..8];
         var tenantId = $"prov-{uniqueId}";
         var adminEmail = $"prov-admin-{uniqueId}@tenant.com";
@@ -44,7 +44,7 @@ public sealed class TenantProvisioningStatusTests
             adminEmail,
             adminPassword = TestConstants.DefaultPassword,
             issuer = $"{tenantId}.issuer"
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
         createResponse.StatusCode.ShouldBe(HttpStatusCode.Created);
 
         var status = await PollUntilTerminalAsync(rootClient, tenantId);

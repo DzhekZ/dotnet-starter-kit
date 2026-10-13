@@ -29,18 +29,17 @@ public sealed class AdminSessionManagementTests
     public async Task GetUserSessions_Should_ReturnUsersSessions_When_AdminRequests()
     {
         // Arrange
-        using var adminClient = await _auth.CreateRootAdminClientAsync();
+        using var adminClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var user = await IdentityUserSeeder.CreateLoginableUserAsync(_factory, adminClient, "sess-getuser");
         // Logging in creates a session row for this user.
-        await _auth.GetTokenAsync(user.Email, user.Password);
+        await _auth.GetTokenAsync(user.Email, user.Password, ct: TestContext.Current.CancellationToken);
 
         // Act
-        var response = await adminClient.GetAsync(
-            $"{TestConstants.IdentityBasePath}/users/{user.UserId}/sessions");
+        var response = await adminClient.GetAsync($"{TestConstants.IdentityBasePath}/users/{user.UserId}/sessions", TestContext.Current.CancellationToken);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var sessions = await response.DeserializeAsync<List<UserSessionDto>>();
+        var sessions = await response.DeserializeAsync<List<UserSessionDto>>(ct: TestContext.Current.CancellationToken);
         sessions.ShouldNotBeNull();
         sessions.Count.ShouldBeGreaterThanOrEqualTo(1);
         sessions.ShouldAllBe(s => s.UserId == user.UserId);
@@ -50,14 +49,13 @@ public sealed class AdminSessionManagementTests
     public async Task GetUserSessions_Should_Return403_When_CallerLacksViewAllPermission()
     {
         // Arrange
-        using var adminClient = await _auth.CreateRootAdminClientAsync();
+        using var adminClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var target = await IdentityUserSeeder.CreateLoginableUserAsync(_factory, adminClient, "sess-getuser-tgt");
         var basicUser = await IdentityUserSeeder.CreateLoginableUserAsync(_factory, adminClient, "sess-getuser-basic");
-        using var basicClient = await _auth.CreateAuthenticatedClientAsync(basicUser.Email, basicUser.Password);
+        using var basicClient = await _auth.CreateAuthenticatedClientAsync(basicUser.Email, basicUser.Password, ct: TestContext.Current.CancellationToken);
 
         // Act — Basic role has Sessions.View but not Sessions.ViewAll.
-        var response = await basicClient.GetAsync(
-            $"{TestConstants.IdentityBasePath}/users/{target.UserId}/sessions");
+        var response = await basicClient.GetAsync($"{TestConstants.IdentityBasePath}/users/{target.UserId}/sessions", TestContext.Current.CancellationToken);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
@@ -71,8 +69,7 @@ public sealed class AdminSessionManagementTests
         client.DefaultRequestHeaders.Add("tenant", TestConstants.RootTenantId);
 
         // Act
-        var response = await client.GetAsync(
-            $"{TestConstants.IdentityBasePath}/users/{Guid.NewGuid()}/sessions");
+        var response = await client.GetAsync($"{TestConstants.IdentityBasePath}/users/{Guid.NewGuid()}/sessions", TestContext.Current.CancellationToken);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
@@ -86,17 +83,16 @@ public sealed class AdminSessionManagementTests
     public async Task GetTenantSessions_Should_ReturnPagedSessions_When_AdminRequests()
     {
         // Arrange
-        using var adminClient = await _auth.CreateRootAdminClientAsync();
+        using var adminClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var user = await IdentityUserSeeder.CreateLoginableUserAsync(_factory, adminClient, "sess-tenant");
-        await _auth.GetTokenAsync(user.Email, user.Password);
+        await _auth.GetTokenAsync(user.Email, user.Password, ct: TestContext.Current.CancellationToken);
 
         // Act
-        var response = await adminClient.GetAsync(
-            $"{TestConstants.IdentityBasePath}/sessions?pageNumber=1&pageSize=50");
+        var response = await adminClient.GetAsync($"{TestConstants.IdentityBasePath}/sessions?pageNumber=1&pageSize=50", TestContext.Current.CancellationToken);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var page = await response.DeserializeAsync<PagedResponse<UserSessionDto>>();
+        var page = await response.DeserializeAsync<PagedResponse<UserSessionDto>>(ct: TestContext.Current.CancellationToken);
         page.ShouldNotBeNull();
         page.PageNumber.ShouldBe(1);
         page.PageSize.ShouldBe(50);
@@ -107,17 +103,16 @@ public sealed class AdminSessionManagementTests
     public async Task GetTenantSessions_Should_FilterByActiveUser_When_SearchProvided()
     {
         // Arrange
-        using var adminClient = await _auth.CreateRootAdminClientAsync();
+        using var adminClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var user = await IdentityUserSeeder.CreateLoginableUserAsync(_factory, adminClient, "sess-search");
-        await _auth.GetTokenAsync(user.Email, user.Password);
+        await _auth.GetTokenAsync(user.Email, user.Password, ct: TestContext.Current.CancellationToken);
 
         // Act — search by the user's email (ILike on user email/name/ip).
-        var response = await adminClient.GetAsync(
-            $"{TestConstants.IdentityBasePath}/sessions?search={Uri.EscapeDataString(user.Email)}");
+        var response = await adminClient.GetAsync($"{TestConstants.IdentityBasePath}/sessions?search={Uri.EscapeDataString(user.Email)}", TestContext.Current.CancellationToken);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var page = await response.DeserializeAsync<PagedResponse<UserSessionDto>>();
+        var page = await response.DeserializeAsync<PagedResponse<UserSessionDto>>(ct: TestContext.Current.CancellationToken);
         page.ShouldNotBeNull();
         page.Items.Count.ShouldBeGreaterThanOrEqualTo(1);
         page.Items.ShouldAllBe(s => s.UserEmail == user.Email);
@@ -127,12 +122,12 @@ public sealed class AdminSessionManagementTests
     public async Task GetTenantSessions_Should_Return403_When_CallerLacksViewAllPermission()
     {
         // Arrange
-        using var adminClient = await _auth.CreateRootAdminClientAsync();
+        using var adminClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var basicUser = await IdentityUserSeeder.CreateLoginableUserAsync(_factory, adminClient, "sess-tenant-basic");
-        using var basicClient = await _auth.CreateAuthenticatedClientAsync(basicUser.Email, basicUser.Password);
+        using var basicClient = await _auth.CreateAuthenticatedClientAsync(basicUser.Email, basicUser.Password, ct: TestContext.Current.CancellationToken);
 
         // Act
-        var response = await basicClient.GetAsync($"{TestConstants.IdentityBasePath}/sessions");
+        var response = await basicClient.GetAsync($"{TestConstants.IdentityBasePath}/sessions", TestContext.Current.CancellationToken);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
@@ -146,7 +141,7 @@ public sealed class AdminSessionManagementTests
         client.DefaultRequestHeaders.Add("tenant", TestConstants.RootTenantId);
 
         // Act
-        var response = await client.GetAsync($"{TestConstants.IdentityBasePath}/sessions");
+        var response = await client.GetAsync($"{TestConstants.IdentityBasePath}/sessions", TestContext.Current.CancellationToken);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
@@ -160,25 +155,22 @@ public sealed class AdminSessionManagementTests
     public async Task AdminRevokeSession_Should_RevokeSession_When_SessionBelongsToUser()
     {
         // Arrange
-        using var adminClient = await _auth.CreateRootAdminClientAsync();
+        using var adminClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var user = await IdentityUserSeeder.CreateLoginableUserAsync(_factory, adminClient, "sess-revoke");
-        await _auth.GetTokenAsync(user.Email, user.Password);
+        await _auth.GetTokenAsync(user.Email, user.Password, ct: TestContext.Current.CancellationToken);
 
-        var listResponse = await adminClient.GetAsync(
-            $"{TestConstants.IdentityBasePath}/users/{user.UserId}/sessions");
-        var sessions = await listResponse.DeserializeAsync<List<UserSessionDto>>();
+        var listResponse = await adminClient.GetAsync($"{TestConstants.IdentityBasePath}/users/{user.UserId}/sessions", TestContext.Current.CancellationToken);
+        var sessions = await listResponse.DeserializeAsync<List<UserSessionDto>>(ct: TestContext.Current.CancellationToken);
         var sessionId = sessions.ShouldHaveSingleItem().Id;
 
         // Act
-        var revoke = await adminClient.DeleteAsync(
-            $"{TestConstants.IdentityBasePath}/users/{user.UserId}/sessions/{sessionId}");
+        var revoke = await adminClient.DeleteAsync($"{TestConstants.IdentityBasePath}/users/{user.UserId}/sessions/{sessionId}", TestContext.Current.CancellationToken);
 
         // Assert
         revoke.StatusCode.ShouldBe(HttpStatusCode.NoContent);
 
-        var afterList = await adminClient.GetAsync(
-            $"{TestConstants.IdentityBasePath}/users/{user.UserId}/sessions");
-        var afterSessions = await afterList.DeserializeAsync<List<UserSessionDto>>();
+        var afterList = await adminClient.GetAsync($"{TestConstants.IdentityBasePath}/users/{user.UserId}/sessions", TestContext.Current.CancellationToken);
+        var afterSessions = await afterList.DeserializeAsync<List<UserSessionDto>>(ct: TestContext.Current.CancellationToken);
         afterSessions.ShouldNotContain(s => s.Id == sessionId);
     }
 
@@ -186,18 +178,16 @@ public sealed class AdminSessionManagementTests
     public async Task AdminRevokeSession_Should_Return404_When_SessionDoesNotBelongToUser()
     {
         // Arrange
-        using var adminClient = await _auth.CreateRootAdminClientAsync();
+        using var adminClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var user = await IdentityUserSeeder.CreateLoginableUserAsync(_factory, adminClient, "sess-revoke-mismatch");
-        await _auth.GetTokenAsync(user.Email, user.Password);
+        await _auth.GetTokenAsync(user.Email, user.Password, ct: TestContext.Current.CancellationToken);
 
-        var listResponse = await adminClient.GetAsync(
-            $"{TestConstants.IdentityBasePath}/users/{user.UserId}/sessions");
-        var sessions = await listResponse.DeserializeAsync<List<UserSessionDto>>();
+        var listResponse = await adminClient.GetAsync($"{TestConstants.IdentityBasePath}/users/{user.UserId}/sessions", TestContext.Current.CancellationToken);
+        var sessions = await listResponse.DeserializeAsync<List<UserSessionDto>>(ct: TestContext.Current.CancellationToken);
         var sessionId = sessions.ShouldHaveSingleItem().Id;
 
         // Act — claim the real session belongs to a different (random) user id.
-        var revoke = await adminClient.DeleteAsync(
-            $"{TestConstants.IdentityBasePath}/users/{Guid.NewGuid()}/sessions/{sessionId}");
+        var revoke = await adminClient.DeleteAsync($"{TestConstants.IdentityBasePath}/users/{Guid.NewGuid()}/sessions/{sessionId}", TestContext.Current.CancellationToken);
 
         // Assert
         revoke.StatusCode.ShouldBe(HttpStatusCode.NotFound);
@@ -207,13 +197,12 @@ public sealed class AdminSessionManagementTests
     public async Task AdminRevokeSession_Should_Return403_When_CallerLacksRevokeAllPermission()
     {
         // Arrange
-        using var adminClient = await _auth.CreateRootAdminClientAsync();
+        using var adminClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var basicUser = await IdentityUserSeeder.CreateLoginableUserAsync(_factory, adminClient, "sess-revoke-basic");
-        using var basicClient = await _auth.CreateAuthenticatedClientAsync(basicUser.Email, basicUser.Password);
+        using var basicClient = await _auth.CreateAuthenticatedClientAsync(basicUser.Email, basicUser.Password, ct: TestContext.Current.CancellationToken);
 
         // Act
-        var revoke = await basicClient.DeleteAsync(
-            $"{TestConstants.IdentityBasePath}/users/{Guid.NewGuid()}/sessions/{Guid.NewGuid()}");
+        var revoke = await basicClient.DeleteAsync($"{TestConstants.IdentityBasePath}/users/{Guid.NewGuid()}/sessions/{Guid.NewGuid()}", TestContext.Current.CancellationToken);
 
         // Assert
         revoke.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
@@ -227,23 +216,21 @@ public sealed class AdminSessionManagementTests
     public async Task AdminRevokeAllSessions_Should_RevokeEverySession_When_AdminRequests()
     {
         // Arrange — issue two tokens so the user has two sessions.
-        using var adminClient = await _auth.CreateRootAdminClientAsync();
+        using var adminClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var user = await IdentityUserSeeder.CreateLoginableUserAsync(_factory, adminClient, "sess-revokeall");
-        await _auth.GetTokenAsync(user.Email, user.Password);
-        await _auth.GetTokenAsync(user.Email, user.Password);
+        await _auth.GetTokenAsync(user.Email, user.Password, ct: TestContext.Current.CancellationToken);
+        await _auth.GetTokenAsync(user.Email, user.Password, ct: TestContext.Current.CancellationToken);
 
         // Act
-        var revoke = await adminClient.PostAsync(
-            $"{TestConstants.IdentityBasePath}/users/{user.UserId}/sessions/revoke-all", content: null);
+        var revoke = await adminClient.PostAsync($"{TestConstants.IdentityBasePath}/users/{user.UserId}/sessions/revoke-all", content: null, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         revoke.StatusCode.ShouldBe(HttpStatusCode.OK);
         var revokedCount = await ReadRevokedCountAsync(revoke);
         revokedCount.ShouldBeGreaterThanOrEqualTo(2);
 
-        var afterList = await adminClient.GetAsync(
-            $"{TestConstants.IdentityBasePath}/users/{user.UserId}/sessions");
-        var afterSessions = await afterList.DeserializeAsync<List<UserSessionDto>>();
+        var afterList = await adminClient.GetAsync($"{TestConstants.IdentityBasePath}/users/{user.UserId}/sessions", TestContext.Current.CancellationToken);
+        var afterSessions = await afterList.DeserializeAsync<List<UserSessionDto>>(ct: TestContext.Current.CancellationToken);
         afterSessions.ShouldBeEmpty();
     }
 
@@ -251,13 +238,12 @@ public sealed class AdminSessionManagementTests
     public async Task AdminRevokeAllSessions_Should_Return403_When_CallerLacksRevokeAllPermission()
     {
         // Arrange
-        using var adminClient = await _auth.CreateRootAdminClientAsync();
+        using var adminClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var basicUser = await IdentityUserSeeder.CreateLoginableUserAsync(_factory, adminClient, "sess-revokeall-basic");
-        using var basicClient = await _auth.CreateAuthenticatedClientAsync(basicUser.Email, basicUser.Password);
+        using var basicClient = await _auth.CreateAuthenticatedClientAsync(basicUser.Email, basicUser.Password, ct: TestContext.Current.CancellationToken);
 
         // Act
-        var revoke = await basicClient.PostAsync(
-            $"{TestConstants.IdentityBasePath}/users/{Guid.NewGuid()}/sessions/revoke-all", content: null);
+        var revoke = await basicClient.PostAsync($"{TestConstants.IdentityBasePath}/users/{Guid.NewGuid()}/sessions/revoke-all", content: null, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         revoke.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
@@ -271,14 +257,13 @@ public sealed class AdminSessionManagementTests
     public async Task RevokeAllSessions_Should_RevokeOwnSessions_When_UserRequests()
     {
         // Arrange — give the user two sessions, then revoke all from a third client.
-        using var adminClient = await _auth.CreateRootAdminClientAsync();
+        using var adminClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var user = await IdentityUserSeeder.CreateLoginableUserAsync(_factory, adminClient, "sess-self-revokeall");
-        await _auth.GetTokenAsync(user.Email, user.Password);
-        using var userClient = await _auth.CreateAuthenticatedClientAsync(user.Email, user.Password);
+        await _auth.GetTokenAsync(user.Email, user.Password, ct: TestContext.Current.CancellationToken);
+        using var userClient = await _auth.CreateAuthenticatedClientAsync(user.Email, user.Password, ct: TestContext.Current.CancellationToken);
 
         // Act
-        var revoke = await userClient.PostAsync(
-            $"{TestConstants.IdentityBasePath}/sessions/revoke-all", content: null);
+        var revoke = await userClient.PostAsync($"{TestConstants.IdentityBasePath}/sessions/revoke-all", content: null, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         revoke.StatusCode.ShouldBe(HttpStatusCode.OK);
@@ -294,8 +279,7 @@ public sealed class AdminSessionManagementTests
         client.DefaultRequestHeaders.Add("tenant", TestConstants.RootTenantId);
 
         // Act
-        var response = await client.PostAsync(
-            $"{TestConstants.IdentityBasePath}/sessions/revoke-all", content: null);
+        var response = await client.PostAsync($"{TestConstants.IdentityBasePath}/sessions/revoke-all", content: null, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);

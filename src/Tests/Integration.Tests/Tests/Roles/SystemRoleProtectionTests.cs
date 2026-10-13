@@ -16,10 +16,10 @@ public sealed class SystemRoleProtectionTests
     [Fact]
     public async Task DeleteRole_Should_ReturnBadRequest_When_RoleIsAdmin()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var adminRole = await GetRoleAsync(client, "Admin");
 
-        var response = await client.DeleteAsync($"{TestConstants.IdentityBasePath}/roles/{adminRole.Id}");
+        var response = await client.DeleteAsync($"{TestConstants.IdentityBasePath}/roles/{adminRole.Id}", TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
@@ -27,10 +27,10 @@ public sealed class SystemRoleProtectionTests
     [Fact]
     public async Task DeleteRole_Should_ReturnBadRequest_When_RoleIsBasic()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var basicRole = await GetRoleAsync(client, "Basic");
 
-        var response = await client.DeleteAsync($"{TestConstants.IdentityBasePath}/roles/{basicRole.Id}");
+        var response = await client.DeleteAsync($"{TestConstants.IdentityBasePath}/roles/{basicRole.Id}", TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
@@ -38,7 +38,7 @@ public sealed class SystemRoleProtectionTests
     [Fact]
     public async Task UpsertRole_Should_ReturnBadRequest_When_RenamingSystemRole()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var adminRole = await GetRoleAsync(client, "Admin");
 
         var response = await client.PostAsJsonAsync($"{TestConstants.IdentityBasePath}/roles", new
@@ -46,7 +46,7 @@ public sealed class SystemRoleProtectionTests
             id = adminRole.Id,
             name = "RenamedAdmin",
             description = "Attempt to rename the Admin role"
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
@@ -54,14 +54,14 @@ public sealed class SystemRoleProtectionTests
     [Fact]
     public async Task UpsertRole_Should_ReturnBadRequest_When_CreatingWithSystemName()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
         var response = await client.PostAsJsonAsync($"{TestConstants.IdentityBasePath}/roles", new
         {
             id = string.Empty,
             name = "Admin",
             description = "Attempt to create a role using the system name"
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
@@ -69,7 +69,7 @@ public sealed class SystemRoleProtectionTests
     [Fact]
     public async Task UpsertRole_Should_ReturnBadRequest_When_RenamingCustomRoleToSystemName()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var uniqueId = Guid.NewGuid().ToString("N")[..8];
 
         var createResponse = await client.PostAsJsonAsync($"{TestConstants.IdentityBasePath}/roles", new
@@ -77,16 +77,16 @@ public sealed class SystemRoleProtectionTests
             id = string.Empty,
             name = $"Custom-{uniqueId}",
             description = "A custom role"
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
         createResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var custom = await createResponse.DeserializeAsync<RoleDto>();
+        var custom = await createResponse.DeserializeAsync<RoleDto>(ct: TestContext.Current.CancellationToken);
 
         var renameResponse = await client.PostAsJsonAsync($"{TestConstants.IdentityBasePath}/roles", new
         {
             id = custom.Id,
             name = "Basic",
             description = "Attempt to hijack the system role name"
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
 
         renameResponse.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
@@ -94,16 +94,14 @@ public sealed class SystemRoleProtectionTests
     [Fact]
     public async Task UpdateRolePermissions_Should_ReturnBadRequest_When_RoleIsBasic()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var basicRole = await GetRoleAsync(client, "Basic");
 
-        var response = await client.PutAsJsonAsync(
-            $"{TestConstants.IdentityBasePath}/{basicRole.Id}/permissions",
-            new
+        var response = await client.PutAsJsonAsync($"{TestConstants.IdentityBasePath}/{basicRole.Id}/permissions", new
             {
                 roleId = basicRole.Id,
                 permissions = new[] { "Permissions.Users.Create" }
-            });
+            }, cancellationToken: TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
@@ -111,16 +109,14 @@ public sealed class SystemRoleProtectionTests
     [Fact]
     public async Task UpdateRolePermissions_Should_ReturnBadRequest_When_RoleIsAdmin()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var adminRole = await GetRoleAsync(client, "Admin");
 
-        var response = await client.PutAsJsonAsync(
-            $"{TestConstants.IdentityBasePath}/{adminRole.Id}/permissions",
-            new
+        var response = await client.PutAsJsonAsync($"{TestConstants.IdentityBasePath}/{adminRole.Id}/permissions", new
             {
                 roleId = adminRole.Id,
                 permissions = new[] { "Permissions.Users.Create" }
-            });
+            }, cancellationToken: TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }

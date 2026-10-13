@@ -22,7 +22,7 @@ public sealed class TokenExpiryTests
     public async Task RefreshEndpoint_Should_AcceptExpiredAccessToken_When_RefreshTokenIsValid()
     {
         // Arrange — get a valid token pair, then use it to refresh
-        var token = await _auth.GetRootAdminTokenAsync();
+        var token = await _auth.GetRootAdminTokenAsync(TestContext.Current.CancellationToken);
 
         // The refresh endpoint accepts expired access tokens (it only cross-checks the subject)
         using var client = _factory.CreateClient();
@@ -35,11 +35,11 @@ public sealed class TokenExpiryTests
         });
 
         // Act
-        var response = await client.SendAsync(request);
+        var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var refreshed = await response.Content.ReadFromJsonAsync<TokenRefreshResult>();
+        var refreshed = await response.Content.ReadFromJsonAsync<TokenRefreshResult>(cancellationToken: TestContext.Current.CancellationToken);
         refreshed.ShouldNotBeNull();
         refreshed.Token.ShouldNotBeNullOrWhiteSpace();
         refreshed.RefreshToken.ShouldNotBeNullOrWhiteSpace();
@@ -52,7 +52,7 @@ public sealed class TokenExpiryTests
     public async Task RefreshEndpoint_Should_RotateRefreshToken_When_Refreshing()
     {
         // Arrange
-        var token = await _auth.GetRootAdminTokenAsync();
+        var token = await _auth.GetRootAdminTokenAsync(TestContext.Current.CancellationToken);
 
         using var client = _factory.CreateClient();
         var request = new HttpRequestMessage(HttpMethod.Post, $"{TestConstants.IdentityBasePath}/token/refresh");
@@ -64,11 +64,11 @@ public sealed class TokenExpiryTests
         });
 
         // Act
-        var response = await client.SendAsync(request);
+        var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
 
         // Assert — refresh token should be rotated (new value)
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var refreshed = await response.Content.ReadFromJsonAsync<TokenRefreshResult>();
+        var refreshed = await response.Content.ReadFromJsonAsync<TokenRefreshResult>(cancellationToken: TestContext.Current.CancellationToken);
         refreshed!.RefreshToken.ShouldNotBe(token.RefreshToken);
     }
 
@@ -76,7 +76,7 @@ public sealed class TokenExpiryTests
     public async Task RefreshEndpoint_Should_Reject_When_OldRefreshTokenReusedAfterRotation()
     {
         // Arrange — get token, refresh once (rotates refresh token), then reuse old refresh token
-        var token = await _auth.GetRootAdminTokenAsync();
+        var token = await _auth.GetRootAdminTokenAsync(TestContext.Current.CancellationToken);
 
         // First refresh — succeeds and rotates the refresh token
         using var client1 = _factory.CreateClient();
@@ -87,7 +87,7 @@ public sealed class TokenExpiryTests
             token = token.AccessToken,
             refreshToken = token.RefreshToken
         });
-        var response1 = await client1.SendAsync(request1);
+        var response1 = await client1.SendAsync(request1, TestContext.Current.CancellationToken);
         response1.StatusCode.ShouldBe(HttpStatusCode.OK);
 
         // Act — reuse the OLD refresh token (should be invalidated by rotation)
@@ -99,7 +99,7 @@ public sealed class TokenExpiryTests
             token = token.AccessToken,
             refreshToken = token.RefreshToken  // reusing old refresh token
         });
-        var response2 = await client2.SendAsync(request2);
+        var response2 = await client2.SendAsync(request2, TestContext.Current.CancellationToken);
 
         // Assert — old refresh token should be rejected
         response2.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
@@ -109,7 +109,7 @@ public sealed class TokenExpiryTests
     public async Task AccessToken_Should_HaveCorrectExpiry_When_Generated()
     {
         // Arrange & Act
-        var token = await _auth.GetRootAdminTokenAsync();
+        var token = await _auth.GetRootAdminTokenAsync(TestContext.Current.CancellationToken);
 
         // Assert — verify the token has a reasonable expiry (configured to 15 min in test config)
         var handler = new JwtSecurityTokenHandler();
@@ -124,7 +124,7 @@ public sealed class TokenExpiryTests
     public async Task RefreshedToken_Should_HaveExtendedExpiry_When_Refreshed()
     {
         // Arrange
-        var token = await _auth.GetRootAdminTokenAsync();
+        var token = await _auth.GetRootAdminTokenAsync(TestContext.Current.CancellationToken);
         var handler = new JwtSecurityTokenHandler();
         var originalJwt = handler.ReadJwtToken(token.AccessToken);
 
@@ -137,8 +137,8 @@ public sealed class TokenExpiryTests
             token = token.AccessToken,
             refreshToken = token.RefreshToken
         });
-        var response = await client.SendAsync(request);
-        var refreshed = await response.Content.ReadFromJsonAsync<TokenRefreshResult>();
+        var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
+        var refreshed = await response.Content.ReadFromJsonAsync<TokenRefreshResult>(cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert — the new token should have a fresh expiry
         var newJwt = handler.ReadJwtToken(refreshed!.Token);

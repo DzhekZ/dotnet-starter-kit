@@ -25,7 +25,7 @@ public sealed class IdempotencyFilterTests
     [Fact]
     public async Task CreateBillingPlan_Should_ExecuteNormally_When_NoIdempotencyKey()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var uniqueId = Guid.NewGuid().ToString("N")[..8];
         var payload = new
         {
@@ -39,7 +39,7 @@ public sealed class IdempotencyFilterTests
         {
             Content = JsonContent.Create(payload)
         };
-        var response = await client.SendAsync(request);
+        var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
         response.Headers.Contains(ReplayedHeader).ShouldBeFalse(
@@ -49,7 +49,7 @@ public sealed class IdempotencyFilterTests
     [Fact]
     public async Task CreateBillingPlan_Should_ExecuteSecondCall_When_DifferentIdempotencyKey()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var uniqueId = Guid.NewGuid().ToString("N")[..8];
         var firstKey = $"idem-a-{uniqueId}";
         var secondKey = $"idem-b-{uniqueId}";
@@ -62,12 +62,12 @@ public sealed class IdempotencyFilterTests
         };
 
         using var firstRequest = BuildRequest(basePayload, firstKey);
-        (await client.SendAsync(firstRequest)).StatusCode.ShouldBe(HttpStatusCode.OK);
+        (await client.SendAsync(firstRequest, TestContext.Current.CancellationToken)).StatusCode.ShouldBe(HttpStatusCode.OK);
 
         // Different key + different plan-key so it's a legitimately new resource.
         var secondPayload = basePayload with { key = $"diff-b-{uniqueId}" };
         using var secondRequest = BuildRequest(secondPayload, secondKey);
-        var secondResponse = await client.SendAsync(secondRequest);
+        var secondResponse = await client.SendAsync(secondRequest, TestContext.Current.CancellationToken);
 
         secondResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
         secondResponse.Headers.Contains(ReplayedHeader).ShouldBeFalse(

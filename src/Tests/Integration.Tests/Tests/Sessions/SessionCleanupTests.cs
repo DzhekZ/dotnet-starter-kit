@@ -37,7 +37,7 @@ public sealed class SessionCleanupTests
     public async Task Cleanup_Should_DeleteSessionsPastRetention_InEveryTenant_And_KeepTheRest()
     {
         // Arrange
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var uniqueId = Guid.NewGuid().ToString("N")[..8];
         var otherTenantId = $"sess-clean-{uniqueId}";
         var otherAdminEmail = $"sess-clean-admin-{uniqueId}@tenant.com";

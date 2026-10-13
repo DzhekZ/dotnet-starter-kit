@@ -16,18 +16,16 @@ public sealed class SystemGroupProtectionTests
     [Fact]
     public async Task UpdateGroup_Should_ReturnForbidden_When_GroupIsSystemGroup()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var systemGroup = await GetGroupByNameAsync(client, "All Users");
 
-        var response = await client.PutAsJsonAsync(
-            $"{TestConstants.IdentityBasePath}/groups/{systemGroup.Id}",
-            new
+        var response = await client.PutAsJsonAsync($"{TestConstants.IdentityBasePath}/groups/{systemGroup.Id}", new
             {
                 name = "Renamed All Users",
                 description = "Attempt to rename a seeded system group.",
                 isDefault = systemGroup.IsDefault,
                 roleIds = new List<string>()
-            });
+            }, cancellationToken: TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
     }
@@ -35,18 +33,16 @@ public sealed class SystemGroupProtectionTests
     [Fact]
     public async Task UpdateGroup_Should_ReturnForbidden_When_GroupIsAdministrators()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var administratorsGroup = await GetGroupByNameAsync(client, "Administrators");
 
-        var response = await client.PutAsJsonAsync(
-            $"{TestConstants.IdentityBasePath}/groups/{administratorsGroup.Id}",
-            new
+        var response = await client.PutAsJsonAsync($"{TestConstants.IdentityBasePath}/groups/{administratorsGroup.Id}", new
             {
                 name = "Renamed Administrators",
                 description = "Attempt to rename the Administrators group.",
                 isDefault = administratorsGroup.IsDefault,
                 roleIds = new List<string>()
-            });
+            }, cancellationToken: TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
     }
@@ -54,11 +50,10 @@ public sealed class SystemGroupProtectionTests
     [Fact]
     public async Task DeleteGroup_Should_ReturnForbidden_When_GroupIsSystemGroup()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var systemGroup = await GetGroupByNameAsync(client, "All Users");
 
-        var response = await client.DeleteAsync(
-            $"{TestConstants.IdentityBasePath}/groups/{systemGroup.Id}");
+        var response = await client.DeleteAsync($"{TestConstants.IdentityBasePath}/groups/{systemGroup.Id}", TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
     }
@@ -66,7 +61,7 @@ public sealed class SystemGroupProtectionTests
     [Fact]
     public async Task RemoveUserFromGroup_Should_ReturnForbidden_When_GroupIsDefault()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var allUsersGroup = await GetGroupByNameAsync(client, "All Users");
 
         // Register a fresh user — UserRegistrationService auto-assigns them to every default group.
@@ -79,12 +74,11 @@ public sealed class SystemGroupProtectionTests
             userName = $"defaultgroup-{uniqueId}",
             password = "Test@1234!",
             confirmPassword = "Test@1234!"
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
         registerResponse.StatusCode.ShouldBe(HttpStatusCode.Created);
-        var registered = await registerResponse.DeserializeAsync<RegisterResult>();
+        var registered = await registerResponse.DeserializeAsync<RegisterResult>(ct: TestContext.Current.CancellationToken);
 
-        var response = await client.DeleteAsync(
-            $"{TestConstants.IdentityBasePath}/groups/{allUsersGroup.Id}/members/{registered.UserId}");
+        var response = await client.DeleteAsync($"{TestConstants.IdentityBasePath}/groups/{allUsersGroup.Id}/members/{registered.UserId}", TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
     }

@@ -52,11 +52,10 @@ public sealed class AuditPayloadFilterTests
             SecurityAction.PasswordChanged, "subject-1", "client-1", "Password", null, null));
         await SeedAuditRecordAsync(AuditEventType.Security, AuditSeverity.Information, correlationId, payload);
 
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var response = await client.GetAsync(
-            $"{TestConstants.AuditsBasePath}/security?action={SecurityAction.PasswordChanged}");
+        var response = await client.GetAsync($"{TestConstants.AuditsBasePath}/security?action={SecurityAction.PasswordChanged}", TestContext.Current.CancellationToken);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
@@ -72,11 +71,10 @@ public sealed class AuditPayloadFilterTests
         var payload = SerializeException(ExceptionArea.Worker, "System.TimeoutException", "/jobs/run");
         await SeedAuditRecordAsync(AuditEventType.Exception, AuditSeverity.Error, correlationId, payload);
 
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var response = await client.GetAsync(
-            $"{TestConstants.AuditsBasePath}/exceptions?area={ExceptionArea.Worker}");
+        var response = await client.GetAsync($"{TestConstants.AuditsBasePath}/exceptions?area={ExceptionArea.Worker}", TestContext.Current.CancellationToken);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
@@ -93,11 +91,10 @@ public sealed class AuditPayloadFilterTests
         var payload = SerializeException(ExceptionArea.Api, exceptionType, "/api/v1/widgets");
         await SeedAuditRecordAsync(AuditEventType.Exception, AuditSeverity.Error, correlationId, payload);
 
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var response = await client.GetAsync(
-            $"{TestConstants.AuditsBasePath}/exceptions?exceptionType={Uri.EscapeDataString(exceptionType)}");
+        var response = await client.GetAsync($"{TestConstants.AuditsBasePath}/exceptions?exceptionType={Uri.EscapeDataString(exceptionType)}", TestContext.Current.CancellationToken);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
@@ -114,11 +111,10 @@ public sealed class AuditPayloadFilterTests
         var payload = SerializeException(ExceptionArea.Api, "System.InvalidOperationException", route);
         await SeedAuditRecordAsync(AuditEventType.Exception, AuditSeverity.Error, correlationId, payload);
 
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var response = await client.GetAsync(
-            $"{TestConstants.AuditsBasePath}/exceptions?routeOrLocation={Uri.EscapeDataString(route)}");
+        var response = await client.GetAsync($"{TestConstants.AuditsBasePath}/exceptions?routeOrLocation={Uri.EscapeDataString(route)}", TestContext.Current.CancellationToken);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
@@ -136,11 +132,10 @@ public sealed class AuditPayloadFilterTests
         var payload = SerializeException(ExceptionArea.Api, "System.Exception", $"/{marker}/endpoint");
         await SeedAuditRecordAsync(AuditEventType.Exception, AuditSeverity.Error, correlationId, payload);
 
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var response = await client.GetAsync(
-            $"{TestConstants.AuditsBasePath}?pageNumber=1&pageSize=50&search={Uri.EscapeDataString(marker)}");
+        var response = await client.GetAsync($"{TestConstants.AuditsBasePath}?pageNumber=1&pageSize=50&search={Uri.EscapeDataString(marker)}", TestContext.Current.CancellationToken);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
@@ -153,15 +148,14 @@ public sealed class AuditPayloadFilterTests
     {
         // Arrange — full async write path: a login produces a Security audit via the background
         // channel worker, then GetAudits?search= filters its jsonb payload (end-to-end fix proof).
-        await _auth.GetRootAdminTokenAsync();
-        using var client = await _auth.CreateRootAdminClientAsync();
+        await _auth.GetRootAdminTokenAsync(TestContext.Current.CancellationToken);
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
         // Act / Assert — poll until a Security event materializes under the search filter.
         PagedResult<AuditSummaryDto>? paged = null;
         for (int i = 0; i < 40; i++)
         {
-            var response = await client.GetAsync(
-                $"{TestConstants.AuditsBasePath}?pageNumber=1&pageSize=50&search={Uri.EscapeDataString("LoginSucceeded")}");
+            var response = await client.GetAsync($"{TestConstants.AuditsBasePath}?pageNumber=1&pageSize=50&search={Uri.EscapeDataString("LoginSucceeded")}", TestContext.Current.CancellationToken);
             response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
             paged = await ReadPagedAsync(response);
@@ -170,7 +164,7 @@ public sealed class AuditPayloadFilterTests
                 break;
             }
 
-            await Task.Delay(500);
+            await Task.Delay(500, TestContext.Current.CancellationToken);
         }
 
         paged.ShouldNotBeNull();
@@ -189,11 +183,10 @@ public sealed class AuditPayloadFilterTests
         var payload = SerializeException(ExceptionArea.Worker, "System.TimeoutException", "/jobs/x");
         await SeedAuditRecordAsync(AuditEventType.Exception, AuditSeverity.Error, correlationId, payload);
 
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var response = await client.GetAsync(
-            $"{TestConstants.AuditsBasePath}/exceptions?area={ExceptionArea.Ui}");
+        var response = await client.GetAsync($"{TestConstants.AuditsBasePath}/exceptions?area={ExceptionArea.Ui}", TestContext.Current.CancellationToken);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);

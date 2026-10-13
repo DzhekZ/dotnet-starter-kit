@@ -28,8 +28,8 @@ public sealed class GlobalExceptionHandlerTests
         using var client = _factory.CreateClient();
 
         // Act
-        using var response = await client.GetAsync("/__test/throw");
-        var body = await response.Content.ReadAsStringAsync();
+        using var response = await client.GetAsync("/__test/throw", TestContext.Current.CancellationToken);
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.InternalServerError);
@@ -55,7 +55,7 @@ public sealed class GlobalExceptionHandlerTests
         using var client = _factory.CreateClient();
 
         // Act
-        using var response = await client.GetAsync("/__test/throw");
+        using var response = await client.GetAsync("/__test/throw", TestContext.Current.CancellationToken);
 
         // Assert
         // GlobalExceptionHandler writes via WriteAsJsonAsync, which emits "application/json"

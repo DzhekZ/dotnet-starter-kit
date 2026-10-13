@@ -19,11 +19,11 @@ public sealed class FinalizeEdgeCasesTests
     [Fact]
     public async Task Finalize_Should_Return409_When_No_Object_Was_Uploaded()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var presigned = await RequestPresignedUploadAsync(client, "skip-put.pdf", "application/pdf", 256, "Document");
 
         // Skip the PUT — go straight to finalize.
-        using var response = await client.PostAsync($"{FilesBasePath}/{presigned.FileAssetId}/finalize", null);
+        using var response = await client.PostAsync($"{FilesBasePath}/{presigned.FileAssetId}/finalize", null, TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.Conflict);
     }
@@ -31,10 +31,10 @@ public sealed class FinalizeEdgeCasesTests
     [Fact]
     public async Task Finalize_Should_Return409_On_Double_Finalize()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var id = await UploadAndFinalizeAsync(client, "twice.pdf", "application/pdf", 256, "Document");
 
-        using var response = await client.PostAsync($"{FilesBasePath}/{id}/finalize", null);
+        using var response = await client.PostAsync($"{FilesBasePath}/{id}/finalize", null, TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.Conflict);
     }
@@ -42,9 +42,9 @@ public sealed class FinalizeEdgeCasesTests
     [Fact]
     public async Task Finalize_Should_Return404_When_FileAsset_Does_Not_Exist()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
-        using var response = await client.PostAsync($"{FilesBasePath}/{Guid.NewGuid()}/finalize", null);
+        using var response = await client.PostAsync($"{FilesBasePath}/{Guid.NewGuid()}/finalize", null, TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
@@ -52,7 +52,7 @@ public sealed class FinalizeEdgeCasesTests
     [Fact]
     public async Task Finalize_Should_Return400_And_Cleanup_When_Uploaded_Size_Exceeds_Declared()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
         // Declare 256 bytes, upload 32 KB. The handler allows declared+1% slack (min 1 KiB), so 32 KB busts it.
         var presigned = await RequestPresignedUploadAsync(client, "lying.pdf", "application/pdf", 256, "Document");
@@ -68,14 +68,14 @@ public sealed class FinalizeEdgeCasesTests
                 Headers = { ContentType = new MediaTypeHeaderValue("application/pdf") }
             }
         };
-        using var putResp = await raw.SendAsync(put);
+        using var putResp = await raw.SendAsync(put, TestContext.Current.CancellationToken);
         putResp.EnsureSuccessStatusCode();
 
-        using var finalize = await client.PostAsync($"{FilesBasePath}/{presigned.FileAssetId}/finalize", null);
+        using var finalize = await client.PostAsync($"{FilesBasePath}/{presigned.FileAssetId}/finalize", null, TestContext.Current.CancellationToken);
         finalize.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
 
         // Subsequent finalize attempts should also fail (record was deleted on cleanup).
-        using var second = await client.PostAsync($"{FilesBasePath}/{presigned.FileAssetId}/finalize", null);
+        using var second = await client.PostAsync($"{FilesBasePath}/{presigned.FileAssetId}/finalize", null, TestContext.Current.CancellationToken);
         second.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
 

@@ -189,7 +189,7 @@ public sealed class TokenServiceTests : IDisposable
         ];
 
         // Act
-        var response = await service.IssueAsync("user-123", claims);
+        var response = await service.IssueAsync("user-123", claims, ct: TestContext.Current.CancellationToken);
 
         // JwtBearer validates with JsonWebTokenHandler and passes its own MapInboundClaims through;
         // read that default off JwtBearerOptions instead of hardcoding it, and ConfigureJwtBearerOptions

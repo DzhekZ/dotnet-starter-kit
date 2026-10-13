@@ -52,8 +52,7 @@ public sealed class WebhookDeliveryTests
         var (subscriptionId, _) = await CreateSubscriptionAsync(client, secret: "deliveries-secret");
 
         // Act — fire the test-send; the handler delivers synchronously and persists a row.
-        var testResponse = await client.PostAsync(
-            $"{TestConstants.WebhooksBasePath}/subscriptions/{subscriptionId}/test", content: null);
+        var testResponse = await client.PostAsync($"{TestConstants.WebhooksBasePath}/subscriptions/{subscriptionId}/test", content: null, cancellationToken: TestContext.Current.CancellationToken);
         testResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
         transport.WasInvoked.ShouldBeTrue("Test-send must perform an outbound HTTP POST.");
 
@@ -80,8 +79,7 @@ public sealed class WebhookDeliveryTests
         var (subscriptionId, _) = await CreateSubscriptionAsync(client, secret: "fail-secret");
 
         // Act
-        var testResponse = await client.PostAsync(
-            $"{TestConstants.WebhooksBasePath}/subscriptions/{subscriptionId}/test", content: null);
+        var testResponse = await client.PostAsync($"{TestConstants.WebhooksBasePath}/subscriptions/{subscriptionId}/test", content: null, cancellationToken: TestContext.Current.CancellationToken);
         testResponse.StatusCode.ShouldBe(HttpStatusCode.OK); // test-send itself succeeds; delivery failed
 
         var deliveries = await GetDeliveriesAsync(client, subscriptionId);
@@ -104,8 +102,7 @@ public sealed class WebhookDeliveryTests
         var (subscriptionId, _) = await CreateSubscriptionAsync(client, secret);
 
         // Act
-        await client.PostAsync(
-            $"{TestConstants.WebhooksBasePath}/subscriptions/{subscriptionId}/test", content: null);
+        await client.PostAsync($"{TestConstants.WebhooksBasePath}/subscriptions/{subscriptionId}/test", content: null, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert — DeliverAsync set the HMAC + event headers on the request content.
         transport.CapturedHeaders.ShouldContainKey("X-Webhook-Signature");
@@ -127,8 +124,7 @@ public sealed class WebhookDeliveryTests
 
         for (int i = 0; i < 3; i++)
         {
-            var r = await client.PostAsync(
-                $"{TestConstants.WebhooksBasePath}/subscriptions/{subscriptionId}/test", content: null);
+            var r = await client.PostAsync($"{TestConstants.WebhooksBasePath}/subscriptions/{subscriptionId}/test", content: null, cancellationToken: TestContext.Current.CancellationToken);
             r.StatusCode.ShouldBe(HttpStatusCode.OK);
         }
 
@@ -153,7 +149,7 @@ public sealed class WebhookDeliveryTests
     public async Task GetDeliveries_Should_ReturnEmpty_When_NoDeliveriesYet()
     {
         // Arrange — a fresh subscription with no test-sends.
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var (subscriptionId, _) = await CreateSubscriptionAsync(client, secret: "empty-secret");
 
         // Act
@@ -173,11 +169,10 @@ public sealed class WebhookDeliveryTests
     public async Task TestSend_Should_Return404_When_SubscriptionDoesNotExist()
     {
         // Arrange
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
         // Act — the handler throws NotFoundException, mapped to 404.
-        var response = await client.PostAsync(
-            $"{TestConstants.WebhooksBasePath}/subscriptions/{Guid.NewGuid()}/test", content: null);
+        var response = await client.PostAsync($"{TestConstants.WebhooksBasePath}/subscriptions/{Guid.NewGuid()}/test", content: null, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
@@ -191,8 +186,7 @@ public sealed class WebhookDeliveryTests
         client.DefaultRequestHeaders.Add("tenant", TestConstants.RootTenantId);
 
         // Act
-        var response = await client.GetAsync(
-            $"{TestConstants.WebhooksBasePath}/subscriptions/{Guid.NewGuid()}/deliveries?pageNumber=1&pageSize=10");
+        var response = await client.GetAsync($"{TestConstants.WebhooksBasePath}/subscriptions/{Guid.NewGuid()}/deliveries?pageNumber=1&pageSize=10", TestContext.Current.CancellationToken);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
@@ -208,8 +202,7 @@ public sealed class WebhookDeliveryTests
 
         var uniqueId = Guid.NewGuid().ToString("N")[..8];
         var (rootSubId, _) = await CreateSubscriptionAsync(rootClient, secret: $"iso-secret-{uniqueId}");
-        var testResponse = await rootClient.PostAsync(
-            $"{TestConstants.WebhooksBasePath}/subscriptions/{rootSubId}/test", content: null);
+        var testResponse = await rootClient.PostAsync($"{TestConstants.WebhooksBasePath}/subscriptions/{rootSubId}/test", content: null, cancellationToken: TestContext.Current.CancellationToken);
         testResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
 
         // Confirm the row exists for root (sanity).

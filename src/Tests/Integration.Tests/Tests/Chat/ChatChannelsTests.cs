@@ -22,7 +22,7 @@ public sealed class ChatChannelsTests
     [Fact]
     public async Task CreateChannel_Should_Return200_And_Persist_Channel()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var name = UniqueName("Eng");
 
         using var response = await client.PostAsJsonAsync($"{ChatBasePath}/channels", new
@@ -30,14 +30,14 @@ public sealed class ChatChannelsTests
             name,
             description = "Engineering chatter",
             isPrivate = false,
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var channelId = await response.DeserializeAsync<Guid>();
+        var channelId = await response.DeserializeAsync<Guid>(ct: TestContext.Current.CancellationToken);
         channelId.ShouldNotBe(Guid.Empty);
 
-        using var get = await client.GetAsync($"{ChatBasePath}/channels/{channelId}");
-        var ch = await get.DeserializeAsync<ChannelDto>();
+        using var get = await client.GetAsync($"{ChatBasePath}/channels/{channelId}", TestContext.Current.CancellationToken);
+        var ch = await get.DeserializeAsync<ChannelDto>(ct: TestContext.Current.CancellationToken);
         ch.Name.ShouldBe(name);
         ch.Slug.ShouldNotBeNullOrWhiteSpace();
         ch.Type.ShouldBe(ChannelType.Channel);
@@ -48,12 +48,12 @@ public sealed class ChatChannelsTests
     [Fact]
     public async Task ListMyChannels_Should_Include_NewlyCreated()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var name = UniqueName("Mine");
         var channelId = await CreateChannelAsync(client, name);
 
-        using var listResponse = await client.GetAsync($"{ChatBasePath}/channels");
-        var channels = await listResponse.DeserializeAsync<IReadOnlyList<ChannelDto>>();
+        using var listResponse = await client.GetAsync($"{ChatBasePath}/channels", TestContext.Current.CancellationToken);
+        var channels = await listResponse.DeserializeAsync<IReadOnlyList<ChannelDto>>(ct: TestContext.Current.CancellationToken);
         channels.ShouldContain(c => c.Id == channelId);
     }
 
@@ -62,16 +62,16 @@ public sealed class ChatChannelsTests
     {
         // Discover excludes channels the caller is already in. The admin auto-joins on create,
         // so they must self-leave the public channel before it surfaces in Discover.
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var adminUserId = await GetCurrentUserIdAsync(client);
         var publicId = await CreateChannelAsync(client, UniqueName("Pub"), isPrivate: false);
         var privateId = await CreateChannelAsync(client, UniqueName("Priv"), isPrivate: true);
 
-        using var leavePublic = await client.DeleteAsync($"{ChatBasePath}/channels/{publicId}/members/{adminUserId}");
+        using var leavePublic = await client.DeleteAsync($"{ChatBasePath}/channels/{publicId}/members/{adminUserId}", TestContext.Current.CancellationToken);
         leavePublic.StatusCode.ShouldBe(HttpStatusCode.NoContent);
 
-        using var discover = await client.GetAsync($"{ChatBasePath}/channels/discover");
-        var channels = await discover.DeserializeAsync<IReadOnlyList<ChannelDto>>();
+        using var discover = await client.GetAsync($"{ChatBasePath}/channels/discover", TestContext.Current.CancellationToken);
+        var channels = await discover.DeserializeAsync<IReadOnlyList<ChannelDto>>(ct: TestContext.Current.CancellationToken);
         channels.ShouldContain(c => c.Id == publicId);
         channels.ShouldNotContain(c => c.Id == privateId);
     }
@@ -79,7 +79,7 @@ public sealed class ChatChannelsTests
     [Fact]
     public async Task UpdateChannel_Should_PersistChanges()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var channelId = await CreateChannelAsync(client, UniqueName("Editable"));
         var newName = UniqueName("Renamed");
 
@@ -89,11 +89,11 @@ public sealed class ChatChannelsTests
             name = newName,
             description = "Updated description",
             isPrivate = false,
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
         update.StatusCode.ShouldBe(HttpStatusCode.NoContent);
 
-        using var get = await client.GetAsync($"{ChatBasePath}/channels/{channelId}");
-        var ch = await get.DeserializeAsync<ChannelDto>();
+        using var get = await client.GetAsync($"{ChatBasePath}/channels/{channelId}", TestContext.Current.CancellationToken);
+        var ch = await get.DeserializeAsync<ChannelDto>(ct: TestContext.Current.CancellationToken);
         ch.Name.ShouldBe(newName);
         ch.Description.ShouldBe("Updated description");
     }
@@ -101,41 +101,41 @@ public sealed class ChatChannelsTests
     [Fact]
     public async Task ArchiveAndRestore_Channel_Should_Roundtrip()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var channelId = await CreateChannelAsync(client, UniqueName("Arch"));
 
-        using var archive = await client.DeleteAsync($"{ChatBasePath}/channels/{channelId}");
+        using var archive = await client.DeleteAsync($"{ChatBasePath}/channels/{channelId}", TestContext.Current.CancellationToken);
         archive.StatusCode.ShouldBe(HttpStatusCode.NoContent);
 
-        using var getAfterArchive = await client.GetAsync($"{ChatBasePath}/channels/{channelId}");
+        using var getAfterArchive = await client.GetAsync($"{ChatBasePath}/channels/{channelId}", TestContext.Current.CancellationToken);
         getAfterArchive.StatusCode.ShouldBe(HttpStatusCode.NotFound);
 
-        using var restore = await client.PostAsync($"{ChatBasePath}/channels/{channelId}/restore", content: null);
+        using var restore = await client.PostAsync($"{ChatBasePath}/channels/{channelId}/restore", content: null, cancellationToken: TestContext.Current.CancellationToken);
         restore.StatusCode.ShouldBe(HttpStatusCode.NoContent);
 
-        using var getAfterRestore = await client.GetAsync($"{ChatBasePath}/channels/{channelId}");
+        using var getAfterRestore = await client.GetAsync($"{ChatBasePath}/channels/{channelId}", TestContext.Current.CancellationToken);
         getAfterRestore.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
     [Fact]
     public async Task FindOrCreateDm_Should_BeIdempotent_For_Same_Peer()
     {
-        using var adminClient = await _auth.CreateRootAdminClientAsync();
+        using var adminClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var peerUserId = await RegisterUserAsync(adminClient, "dmpeer");
 
         using var first = await adminClient.PostAsJsonAsync($"{ChatBasePath}/dms", new
         {
             userIds = new[] { peerUserId },
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
         first.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var firstId = await first.DeserializeAsync<Guid>();
+        var firstId = await first.DeserializeAsync<Guid>(ct: TestContext.Current.CancellationToken);
 
         using var second = await adminClient.PostAsJsonAsync($"{ChatBasePath}/dms", new
         {
             userIds = new[] { peerUserId },
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
         second.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var secondId = await second.DeserializeAsync<Guid>();
+        var secondId = await second.DeserializeAsync<Guid>(ct: TestContext.Current.CancellationToken);
 
         secondId.ShouldBe(firstId, "Same DM lookup must return the existing channel id (DirectKey uniqueness).");
     }
@@ -143,7 +143,7 @@ public sealed class ChatChannelsTests
     [Fact]
     public async Task AddAndRemove_Channel_Member_Should_Update_Membership()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var channelId = await CreateChannelAsync(client, UniqueName("Members"));
         var newMemberId = await RegisterUserAsync(client, "newmember");
 
@@ -151,18 +151,18 @@ public sealed class ChatChannelsTests
         {
             channelId,
             userIds = new[] { newMemberId },
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
         add.StatusCode.ShouldBe(HttpStatusCode.NoContent);
 
-        using var afterAdd = await client.GetAsync($"{ChatBasePath}/channels/{channelId}");
-        var ch1 = await afterAdd.DeserializeAsync<ChannelDto>();
+        using var afterAdd = await client.GetAsync($"{ChatBasePath}/channels/{channelId}", TestContext.Current.CancellationToken);
+        var ch1 = await afterAdd.DeserializeAsync<ChannelDto>(ct: TestContext.Current.CancellationToken);
         ch1.Members.ShouldContain(m => m.UserId == newMemberId);
 
-        using var remove = await client.DeleteAsync($"{ChatBasePath}/channels/{channelId}/members/{newMemberId}");
+        using var remove = await client.DeleteAsync($"{ChatBasePath}/channels/{channelId}/members/{newMemberId}", TestContext.Current.CancellationToken);
         remove.StatusCode.ShouldBe(HttpStatusCode.NoContent);
 
-        using var afterRemove = await client.GetAsync($"{ChatBasePath}/channels/{channelId}");
-        var ch2 = await afterRemove.DeserializeAsync<ChannelDto>();
+        using var afterRemove = await client.GetAsync($"{ChatBasePath}/channels/{channelId}", TestContext.Current.CancellationToken);
+        var ch2 = await afterRemove.DeserializeAsync<ChannelDto>(ct: TestContext.Current.CancellationToken);
         ch2.Members.ShouldNotContain(m => m.UserId == newMemberId);
     }
 
@@ -179,7 +179,7 @@ public sealed class ChatChannelsTests
             name = UniqueName("Anon"),
             description = (string?)null,
             isPrivate = false,
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
     }
@@ -187,22 +187,22 @@ public sealed class ChatChannelsTests
     [Fact]
     public async Task GetChannelById_Should_Return404_When_Channel_Does_Not_Exist()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
-        using var response = await client.GetAsync($"{ChatBasePath}/channels/{Guid.NewGuid()}");
+        using var response = await client.GetAsync($"{ChatBasePath}/channels/{Guid.NewGuid()}", TestContext.Current.CancellationToken);
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
 
     [Fact]
     public async Task FindOrCreateDm_Should_Return400_When_DMing_Self()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var rootAdminUserId = await GetCurrentUserIdAsync(client);
 
         using var response = await client.PostAsJsonAsync($"{ChatBasePath}/dms", new
         {
             userIds = new[] { rootAdminUserId },
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
 

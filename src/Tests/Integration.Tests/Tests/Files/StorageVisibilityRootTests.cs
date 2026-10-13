@@ -49,7 +49,7 @@ public sealed class StorageVisibilityRootTests
     public async Task Upload_Should_StoreTheObjectUnderTheRootForItsVisibility(int visibility, string expectedRoot)
     {
         // Arrange + Act
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var bytes = RandomBytes(256);
         var id = await UploadAndFinalizeAsync(client, "rooted.pdf", bytes, visibility);
 
@@ -62,12 +62,12 @@ public sealed class StorageVisibilityRootTests
     [Fact]
     public async Task Upload_Should_HandOutAPublicUrlUnderThePublicRoot_When_FileIsPublic()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var id = await UploadAndFinalizeAsync(client, "public-url.pdf", RandomBytes(256), visibility: 0);
 
-        using var response = await client.GetAsync($"{FilesBasePath}/{id}");
+        using var response = await client.GetAsync($"{FilesBasePath}/{id}", TestContext.Current.CancellationToken);
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var dto = await response.DeserializeAsync<FileAssetDto>();
+        var dto = await response.DeserializeAsync<FileAssetDto>(ct: TestContext.Current.CancellationToken);
 
         dto.PublicUrl.ShouldNotBeNull();
         dto.PublicUrl.ShouldContain($"/{Bucket}/public/tenants/");
@@ -81,17 +81,17 @@ public sealed class StorageVisibilityRootTests
     public async Task ChangeVisibility_Should_MoveTheObjectBetweenRoots_And_KeepTheBytes()
     {
         // Arrange — a private upload.
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var bytes = RandomBytes(1024);
         var id = await UploadAndFinalizeAsync(client, "flip.pdf", bytes, visibility: 1);
         var privateKey = await ReadStorageKeyAsync(TestConstants.RootTenantId, id);
         privateKey.ShouldStartWith("private/");
 
         // Act — make it public.
-        using (var toPublic = await client.PatchAsJsonAsync($"{FilesBasePath}/{id}/visibility", new { visibility = 0 }))
+        using (var toPublic = await client.PatchAsJsonAsync($"{FilesBasePath}/{id}/visibility", new { visibility = 0 }, cancellationToken: TestContext.Current.CancellationToken))
         {
             toPublic.StatusCode.ShouldBe(HttpStatusCode.OK);
-            var dto = await toPublic.DeserializeAsync<FileAssetDto>();
+            var dto = await toPublic.DeserializeAsync<FileAssetDto>(ct: TestContext.Current.CancellationToken);
             dto.PublicUrl.ShouldNotBeNull();
             dto.PublicUrl.ShouldContain("/public/tenants/");
         }
@@ -104,7 +104,7 @@ public sealed class StorageVisibilityRootTests
         (await DownloadViaPresignedUrlAsync(client, id)).ShouldBe(bytes);
 
         // Act + Assert — and back again.
-        using (var toPrivate = await client.PatchAsJsonAsync($"{FilesBasePath}/{id}/visibility", new { visibility = 1 }))
+        using (var toPrivate = await client.PatchAsJsonAsync($"{FilesBasePath}/{id}/visibility", new { visibility = 1 }, cancellationToken: TestContext.Current.CancellationToken))
         {
             toPrivate.StatusCode.ShouldBe(HttpStatusCode.OK);
         }
@@ -124,7 +124,7 @@ public sealed class StorageVisibilityRootTests
     {
         // Arrange — the policy every stack now applies: anonymous s3:GetObject on public/* only.
         await ApplyPublicPrefixPolicyAsync();
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var publicId = await UploadAndFinalizeAsync(client, "anon-public.pdf", RandomBytes(128), visibility: 0);
         var privateId = await UploadAndFinalizeAsync(client, "anon-private.pdf", RandomBytes(128), visibility: 1);
         var publicKey = await ReadStorageKeyAsync(TestConstants.RootTenantId, publicId);
@@ -132,8 +132,8 @@ public sealed class StorageVisibilityRootTests
 
         // Act — plain unsigned GETs, as a browser following a public URL makes them.
         using var anonymous = new HttpClient();
-        using var publicResponse = await anonymous.GetAsync(new Uri($"{_factory.S3ServiceUrl}/{Bucket}/{publicKey}"));
-        using var privateResponse = await anonymous.GetAsync(new Uri($"{_factory.S3ServiceUrl}/{Bucket}/{privateKey}"));
+        using var publicResponse = await anonymous.GetAsync(new Uri($"{_factory.S3ServiceUrl}/{Bucket}/{publicKey}"), TestContext.Current.CancellationToken);
+        using var privateResponse = await anonymous.GetAsync(new Uri($"{_factory.S3ServiceUrl}/{Bucket}/{privateKey}"), TestContext.Current.CancellationToken);
 
         // Assert
         publicResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
@@ -148,7 +148,7 @@ public sealed class StorageVisibilityRootTests
     public async Task MigrationJob_Should_MoveLegacyPublicFiles_InEveryTenant_RewriteTheirUrls_And_BeIdempotent()
     {
         // Arrange — a second tenant, so the job has to walk tenants rather than use the ambient one.
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var otherTenantId = $"vis-root-{Guid.NewGuid():N}"[..20];
         await CreateTenantAsync(rootClient, otherTenantId, $"admin@{otherTenantId}.com");
         await WaitForProvisioningAsync(rootClient, otherTenantId);
@@ -256,26 +256,26 @@ public sealed class StorageVisibilityRootTests
         var connectionString = _factory.Services.GetRequiredService<Microsoft.Extensions.Configuration.IConfiguration>()["DatabaseOptions:ConnectionString"];
 
         await using var connection = new Npgsql.NpgsqlConnection(connectionString);
-        await connection.OpenAsync();
-        await using var transaction = await connection.BeginTransactionAsync();
+        await connection.OpenAsync(TestContext.Current.CancellationToken);
+        await using var transaction = await connection.BeginTransactionAsync(TestContext.Current.CancellationToken);
         await using (var lockRow = new Npgsql.NpgsqlCommand(
             """SELECT 1 FROM files."FileAssets" WHERE "Id" = @id FOR UPDATE""", connection, transaction))
         {
             lockRow.Parameters.AddWithValue("id", asset.Id);
-            await lockRow.ExecuteScalarAsync();
+            await lockRow.ExecuteScalarAsync(TestContext.Current.CancellationToken);
         }
 
         // Act — the job starts while the row is held; the other writer makes the file private and commits.
         var run = RunMigrationJobAsync();
-        await Task.Delay(TimeSpan.FromSeconds(2));
+        await Task.Delay(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
         await using (var makePrivate = new Npgsql.NpgsqlCommand(
             """UPDATE files."FileAssets" SET "Visibility" = 1 WHERE "Id" = @id""", connection, transaction))
         {
             makePrivate.Parameters.AddWithValue("id", asset.Id);
-            await makePrivate.ExecuteNonQueryAsync();
+            await makePrivate.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
         }
 
-        await transaction.CommitAsync();
+        await transaction.CommitAsync(TestContext.Current.CancellationToken);
         _ = await Record.ExceptionAsync(() => run);
 
         // Assert — the job re-read the row after the other writer and left the now-private file alone.
@@ -290,7 +290,7 @@ public sealed class StorageVisibilityRootTests
     {
         // Arrange — a public upload, readable anonymously through the public/* policy.
         await ApplyPublicPrefixPolicyAsync();
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var bytes = RandomBytes(256);
         var id = await UploadAndFinalizeAsync(client, "going-private.pdf", bytes, visibility: 0);
         var publicKey = await ReadStorageKeyAsync(TestConstants.RootTenantId, id);
@@ -306,7 +306,7 @@ public sealed class StorageVisibilityRootTests
             {
                 asset.ChangeVisibility(Visibility.Private);
                 return true;
-            });
+            }, TestContext.Current.CancellationToken);
             flaky.SwallowedDeletes.ShouldBe(1);
         }
 
@@ -317,7 +317,7 @@ public sealed class StorageVisibilityRootTests
         (await DownloadViaPresignedUrlAsync(client, id)).ShouldBe(bytes);
         (await ObjectExistsAsync(publicKey)).ShouldBeFalse("the retried delete must remove the old public object");
         using var anonymous = new HttpClient();
-        using var response = await anonymous.GetAsync(new Uri($"{_factory.S3ServiceUrl}/{Bucket}/{publicKey}"));
+        using var response = await anonymous.GetAsync(new Uri($"{_factory.S3ServiceUrl}/{Bucket}/{publicKey}"), TestContext.Current.CancellationToken);
         response.StatusCode.ShouldNotBe(HttpStatusCode.OK);
     }
 
@@ -326,7 +326,7 @@ public sealed class StorageVisibilityRootTests
     {
         // Arrange — a public upload whose presigned PUT (and so its key) predates visibility roots:
         // the row is still PendingUpload at a tenants/… key and the browser has already PUT the bytes.
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var adminId = await GetUserIdAsync(TestConstants.RootTenantId, TestConstants.RootAdminEmail);
         var id = Guid.CreateVersion7();
         var legacyKey = $"tenants/{TestConstants.RootTenantId}/myfiles/2025/01/{id:N}/in-flight.pdf";
@@ -341,7 +341,7 @@ public sealed class StorageVisibilityRootTests
                 Key = legacyKey,
                 InputStream = stream,
                 ContentType = "application/pdf",
-            });
+            }, TestContext.Current.CancellationToken);
         }
 
         using (var scope = _factory.Services.CreateScope())
@@ -351,11 +351,11 @@ public sealed class StorageVisibilityRootTests
             db.FileAssets.Add(FileAsset.CreatePending(
                 id, "MyFiles", null, "in-flight.pdf", "in-flight.pdf", "application/pdf", bytes.Length, legacyKey,
                 Visibility.Public, createdByUserId: adminId, uploadDeadline: DateTimeOffset.UtcNow.AddMinutes(15)));
-            await db.SaveChangesAsync();
+            await db.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
         // Act
-        using var finalize = await client.PostAsync($"{FilesBasePath}/{id}/finalize", null);
+        using var finalize = await client.PostAsync($"{FilesBasePath}/{id}/finalize", null, TestContext.Current.CancellationToken);
 
         // Assert — finalized straight onto the public root, not left for a later migration run.
         finalize.StatusCode.ShouldBe(HttpStatusCode.OK);

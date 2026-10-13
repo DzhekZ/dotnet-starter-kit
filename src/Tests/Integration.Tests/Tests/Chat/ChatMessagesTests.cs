@@ -20,15 +20,13 @@ public sealed class ChatMessagesTests
     [Fact]
     public async Task SendMessage_Should_Persist_And_Return_DTO()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var channelId = await CreateChannelAsync(client, UniqueName("Send"));
 
-        using var response = await client.PostAsJsonAsync(
-            $"{ChatBasePath}/channels/{channelId}/messages",
-            new { body = "first message", parentMessageId = (Guid?)null, attachments = Array.Empty<object>() });
+        using var response = await client.PostAsJsonAsync($"{ChatBasePath}/channels/{channelId}/messages", new { body = "first message", parentMessageId = (Guid?)null, attachments = Array.Empty<object>() }, cancellationToken: TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var message = await response.DeserializeAsync<MessageDto>();
+        var message = await response.DeserializeAsync<MessageDto>(ct: TestContext.Current.CancellationToken);
         message.Body.ShouldBe("first message");
         message.ChannelId.ShouldBe(channelId);
         message.ParentMessageId.ShouldBeNull();
@@ -38,15 +36,15 @@ public sealed class ChatMessagesTests
     [Fact]
     public async Task ListChannelMessages_Should_Return_Reverse_Chronological()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var channelId = await CreateChannelAsync(client, UniqueName("List"));
 
         var firstId = await SendMessageAsync(client, channelId, "first");
         var secondId = await SendMessageAsync(client, channelId, "second");
         var thirdId = await SendMessageAsync(client, channelId, "third");
 
-        using var listResponse = await client.GetAsync($"{ChatBasePath}/channels/{channelId}/messages");
-        var messages = await listResponse.DeserializeAsync<IReadOnlyList<MessageDto>>();
+        using var listResponse = await client.GetAsync($"{ChatBasePath}/channels/{channelId}/messages", TestContext.Current.CancellationToken);
+        var messages = await listResponse.DeserializeAsync<IReadOnlyList<MessageDto>>(ct: TestContext.Current.CancellationToken);
 
         // Guid v7 monotonic — newest first.
         messages.Count.ShouldBeGreaterThanOrEqualTo(3);
@@ -58,7 +56,7 @@ public sealed class ChatMessagesTests
     [Fact]
     public async Task ListChannelMessages_Should_Page_Backwards_With_Before_Cursor()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var channelId = await CreateChannelAsync(client, UniqueName("Page"));
 
         var ids = new List<Guid>();
@@ -67,15 +65,14 @@ public sealed class ChatMessagesTests
             ids.Add(await SendMessageAsync(client, channelId, $"msg {i}"));
         }
 
-        using var firstPage = await client.GetAsync($"{ChatBasePath}/channels/{channelId}/messages?pageSize=2");
-        var page1 = await firstPage.DeserializeAsync<IReadOnlyList<MessageDto>>();
+        using var firstPage = await client.GetAsync($"{ChatBasePath}/channels/{channelId}/messages?pageSize=2", TestContext.Current.CancellationToken);
+        var page1 = await firstPage.DeserializeAsync<IReadOnlyList<MessageDto>>(ct: TestContext.Current.CancellationToken);
         page1.Count.ShouldBe(2);
         page1[0].Id.ShouldBe(ids[4]);
         page1[1].Id.ShouldBe(ids[3]);
 
-        using var secondPage = await client.GetAsync(
-            $"{ChatBasePath}/channels/{channelId}/messages?pageSize=2&before={ids[3]}");
-        var page2 = await secondPage.DeserializeAsync<IReadOnlyList<MessageDto>>();
+        using var secondPage = await client.GetAsync($"{ChatBasePath}/channels/{channelId}/messages?pageSize=2&before={ids[3]}", TestContext.Current.CancellationToken);
+        var page2 = await secondPage.DeserializeAsync<IReadOnlyList<MessageDto>>(ct: TestContext.Current.CancellationToken);
         page2.Count.ShouldBe(2);
         page2[0].Id.ShouldBe(ids[2]);
         page2[1].Id.ShouldBe(ids[1]);
@@ -84,18 +81,18 @@ public sealed class ChatMessagesTests
     [Fact]
     public async Task EditMessage_Should_Update_Body_And_Stamp_EditedAt()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var channelId = await CreateChannelAsync(client, UniqueName("Edit"));
         var messageId = await SendMessageAsync(client, channelId, "before");
 
         using var edit = await client.PutAsJsonAsync($"{ChatBasePath}/messages/{messageId}", new
         {
             body = "after",
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
         edit.StatusCode.ShouldBe(HttpStatusCode.NoContent);
 
-        using var list = await client.GetAsync($"{ChatBasePath}/channels/{channelId}/messages");
-        var messages = await list.DeserializeAsync<IReadOnlyList<MessageDto>>();
+        using var list = await client.GetAsync($"{ChatBasePath}/channels/{channelId}/messages", TestContext.Current.CancellationToken);
+        var messages = await list.DeserializeAsync<IReadOnlyList<MessageDto>>(ct: TestContext.Current.CancellationToken);
         var updated = messages.Single(m => m.Id == messageId);
         updated.Body.ShouldBe("after");
         updated.EditedAtUtc.ShouldNotBeNull();
@@ -104,15 +101,15 @@ public sealed class ChatMessagesTests
     [Fact]
     public async Task DeleteMessage_Should_Tombstone_Body_When_Author()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var channelId = await CreateChannelAsync(client, UniqueName("Del"));
         var messageId = await SendMessageAsync(client, channelId, "secret");
 
-        using var del = await client.DeleteAsync($"{ChatBasePath}/messages/{messageId}");
+        using var del = await client.DeleteAsync($"{ChatBasePath}/messages/{messageId}", TestContext.Current.CancellationToken);
         del.StatusCode.ShouldBe(HttpStatusCode.NoContent);
 
-        using var list = await client.GetAsync($"{ChatBasePath}/channels/{channelId}/messages");
-        var messages = await list.DeserializeAsync<IReadOnlyList<MessageDto>>();
+        using var list = await client.GetAsync($"{ChatBasePath}/channels/{channelId}/messages", TestContext.Current.CancellationToken);
+        var messages = await list.DeserializeAsync<IReadOnlyList<MessageDto>>(ct: TestContext.Current.CancellationToken);
         var deleted = messages.Single(m => m.Id == messageId);
         deleted.Body.ShouldBeNull("Soft-deleted message must have body cleared (tombstone).");
         deleted.DeletedAtUtc.ShouldNotBeNull();
@@ -121,15 +118,15 @@ public sealed class ChatMessagesTests
     [Fact]
     public async Task SendMessage_Should_Create_Thread_Reply_And_Bump_Parent_ReplyCount()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var channelId = await CreateChannelAsync(client, UniqueName("Thread"));
         var parentId = await SendMessageAsync(client, channelId, "parent");
 
         var replyId = await SendMessageAsync(client, channelId, "reply", parentId);
         replyId.ShouldNotBe(Guid.Empty);
 
-        using var list = await client.GetAsync($"{ChatBasePath}/channels/{channelId}/messages");
-        var topLevel = await list.DeserializeAsync<IReadOnlyList<MessageDto>>();
+        using var list = await client.GetAsync($"{ChatBasePath}/channels/{channelId}/messages", TestContext.Current.CancellationToken);
+        var topLevel = await list.DeserializeAsync<IReadOnlyList<MessageDto>>(ct: TestContext.Current.CancellationToken);
         var parent = topLevel.Single(m => m.Id == parentId);
         parent.ReplyCount.ShouldBe(1, "ReplyCount must increment after a thread reply.");
         topLevel.ShouldNotContain(m => m.Id == replyId,
@@ -139,18 +136,18 @@ public sealed class ChatMessagesTests
     [Fact]
     public async Task MarkChannelRead_Should_Advance_Watermark_And_ZeroOut_UnreadCount()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var channelId = await CreateChannelAsync(client, UniqueName("Read"));
         var msgId = await SendMessageAsync(client, channelId, "ping");
 
         using var mark = await client.PostAsJsonAsync($"{ChatBasePath}/channels/{channelId}/read", new
         {
             messageId = msgId,
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
         mark.StatusCode.ShouldBe(HttpStatusCode.NoContent);
 
-        using var get = await client.GetAsync($"{ChatBasePath}/channels/{channelId}");
-        var ch = await get.DeserializeAsync<ChannelDto>();
+        using var get = await client.GetAsync($"{ChatBasePath}/channels/{channelId}", TestContext.Current.CancellationToken);
+        var ch = await get.DeserializeAsync<ChannelDto>(ct: TestContext.Current.CancellationToken);
         ch.UnreadCount.ShouldBe(0);
         ch.Members[0].LastReadMessageId.ShouldBe(msgId);
     }
@@ -160,12 +157,10 @@ public sealed class ChatMessagesTests
     [Fact]
     public async Task SendMessage_Should_Return400_When_Body_Empty()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var channelId = await CreateChannelAsync(client, UniqueName("Empty"));
 
-        using var response = await client.PostAsJsonAsync(
-            $"{ChatBasePath}/channels/{channelId}/messages",
-            new { body = "   ", parentMessageId = (Guid?)null, attachments = Array.Empty<object>() });
+        using var response = await client.PostAsJsonAsync($"{ChatBasePath}/channels/{channelId}/messages", new { body = "   ", parentMessageId = (Guid?)null, attachments = Array.Empty<object>() }, cancellationToken: TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
@@ -173,11 +168,9 @@ public sealed class ChatMessagesTests
     [Fact]
     public async Task SendMessage_Should_Return404_When_Channel_Missing()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
-        using var response = await client.PostAsJsonAsync(
-            $"{ChatBasePath}/channels/{Guid.NewGuid()}/messages",
-            new { body = "hi", parentMessageId = (Guid?)null, attachments = Array.Empty<object>() });
+        using var response = await client.PostAsJsonAsync($"{ChatBasePath}/channels/{Guid.NewGuid()}/messages", new { body = "hi", parentMessageId = (Guid?)null, attachments = Array.Empty<object>() }, cancellationToken: TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
@@ -185,14 +178,12 @@ public sealed class ChatMessagesTests
     [Fact]
     public async Task SendMessage_Should_Reject_Nested_Threads()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var channelId = await CreateChannelAsync(client, UniqueName("Nested"));
         var parentId = await SendMessageAsync(client, channelId, "parent");
         var firstReply = await SendMessageAsync(client, channelId, "reply-1", parentId);
 
-        using var nested = await client.PostAsJsonAsync(
-            $"{ChatBasePath}/channels/{channelId}/messages",
-            new { body = "nested reply", parentMessageId = (Guid?)firstReply, attachments = Array.Empty<object>() });
+        using var nested = await client.PostAsJsonAsync($"{ChatBasePath}/channels/{channelId}/messages", new { body = "nested reply", parentMessageId = (Guid?)firstReply, attachments = Array.Empty<object>() }, cancellationToken: TestContext.Current.CancellationToken);
 
         nested.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
@@ -200,34 +191,34 @@ public sealed class ChatMessagesTests
     [Fact]
     public async Task EditMessage_Should_Return404_When_Message_Missing()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
         using var response = await client.PutAsJsonAsync($"{ChatBasePath}/messages/{Guid.NewGuid()}", new
         {
             body = "ghost edit",
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
 
     [Fact]
     public async Task DeleteMessage_Should_Return404_When_Message_Missing()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
-        using var response = await client.DeleteAsync($"{ChatBasePath}/messages/{Guid.NewGuid()}");
+        using var response = await client.DeleteAsync($"{ChatBasePath}/messages/{Guid.NewGuid()}", TestContext.Current.CancellationToken);
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
 
     [Fact]
     public async Task MarkChannelRead_Should_Return404_When_Message_Not_In_Channel()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var channelId = await CreateChannelAsync(client, UniqueName("Mismatch"));
 
         using var response = await client.PostAsJsonAsync($"{ChatBasePath}/channels/{channelId}/read", new
         {
             messageId = Guid.NewGuid(),
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }

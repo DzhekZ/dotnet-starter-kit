@@ -34,11 +34,11 @@ public sealed class PinMessageTests
     [Fact]
     public async Task PinMessage_Should_Set_IsPinned_With_PinnedBy_And_Timestamp()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var channelId = await CreateChannelAsync(client, Unique("Pin"));
         var messageId = await SendMessageAsync(client, channelId, "pin me");
 
-        using var pin = await client.PostAsync($"{ChatBasePath}/messages/{messageId}/pin", null);
+        using var pin = await client.PostAsync($"{ChatBasePath}/messages/{messageId}/pin", null, TestContext.Current.CancellationToken);
         pin.StatusCode.ShouldBe(HttpStatusCode.NoContent);
 
         var message = await FindInChannelAsync(client, channelId, messageId);
@@ -51,13 +51,13 @@ public sealed class PinMessageTests
     [Fact]
     public async Task UnpinMessage_Should_Clear_IsPinned_And_Stamps()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var channelId = await CreateChannelAsync(client, Unique("Unpin"));
         var messageId = await SendMessageAsync(client, channelId, "pin, then unpin");
 
-        await client.PostAsync($"{ChatBasePath}/messages/{messageId}/pin", null);
+        await client.PostAsync($"{ChatBasePath}/messages/{messageId}/pin", null, TestContext.Current.CancellationToken);
 
-        using var unpin = await client.DeleteAsync($"{ChatBasePath}/messages/{messageId}/pin");
+        using var unpin = await client.DeleteAsync($"{ChatBasePath}/messages/{messageId}/pin", TestContext.Current.CancellationToken);
         unpin.StatusCode.ShouldBe(HttpStatusCode.NoContent);
 
         var after = await FindInChannelAsync(client, channelId, messageId);
@@ -69,14 +69,14 @@ public sealed class PinMessageTests
     [Fact]
     public async Task RePin_By_Same_User_Should_Be_Idempotent_NoChange_To_Stamp()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var channelId = await CreateChannelAsync(client, Unique("Idem"));
         var messageId = await SendMessageAsync(client, channelId, "idem pin");
 
-        await client.PostAsync($"{ChatBasePath}/messages/{messageId}/pin", null);
+        await client.PostAsync($"{ChatBasePath}/messages/{messageId}/pin", null, TestContext.Current.CancellationToken);
         var first = await FindInChannelAsync(client, channelId, messageId);
 
-        using var second = await client.PostAsync($"{ChatBasePath}/messages/{messageId}/pin", null);
+        using var second = await client.PostAsync($"{ChatBasePath}/messages/{messageId}/pin", null, TestContext.Current.CancellationToken);
         second.StatusCode.ShouldBe(HttpStatusCode.NoContent);
 
         var after = await FindInChannelAsync(client, channelId, messageId);
@@ -88,11 +88,11 @@ public sealed class PinMessageTests
     [Fact]
     public async Task Unpin_When_Not_Pinned_Should_Be_NoOp_NoContent()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var channelId = await CreateChannelAsync(client, Unique("UnpinNoOp"));
         var messageId = await SendMessageAsync(client, channelId, "never pinned");
 
-        using var unpin = await client.DeleteAsync($"{ChatBasePath}/messages/{messageId}/pin");
+        using var unpin = await client.DeleteAsync($"{ChatBasePath}/messages/{messageId}/pin", TestContext.Current.CancellationToken);
         unpin.StatusCode.ShouldBe(HttpStatusCode.NoContent);
 
         var after = await FindInChannelAsync(client, channelId, messageId);
@@ -104,19 +104,19 @@ public sealed class PinMessageTests
     [Fact]
     public async Task GetPinnedMessages_Should_Return_Pinned_MostRecentFirst()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var channelId = await CreateChannelAsync(client, Unique("List"));
 
         var m1 = await SendMessageAsync(client, channelId, "first");
         var m2 = await SendMessageAsync(client, channelId, "second");
         var m3 = await SendMessageAsync(client, channelId, "third");
 
-        await client.PostAsync($"{ChatBasePath}/messages/{m1}/pin", null);
-        await Task.Delay(15); // ensure PinnedAtUtc difference
-        await client.PostAsync($"{ChatBasePath}/messages/{m3}/pin", null);
+        await client.PostAsync($"{ChatBasePath}/messages/{m1}/pin", null, TestContext.Current.CancellationToken);
+        await Task.Delay(15, TestContext.Current.CancellationToken); // ensure PinnedAtUtc difference
+        await client.PostAsync($"{ChatBasePath}/messages/{m3}/pin", null, TestContext.Current.CancellationToken);
 
-        using var listResponse = await client.GetAsync($"{ChatBasePath}/channels/{channelId}/pinned");
-        var pinned = await listResponse.DeserializeAsync<IReadOnlyList<MessageDto>>();
+        using var listResponse = await client.GetAsync($"{ChatBasePath}/channels/{channelId}/pinned", TestContext.Current.CancellationToken);
+        var pinned = await listResponse.DeserializeAsync<IReadOnlyList<MessageDto>>(ct: TestContext.Current.CancellationToken);
 
         pinned.Count.ShouldBe(2);
         pinned[0].Id.ShouldBe(m3); // most recently pinned first
@@ -127,12 +127,12 @@ public sealed class PinMessageTests
     [Fact]
     public async Task GetPinnedMessages_Should_Be_Empty_For_Channel_Without_Pins()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var channelId = await CreateChannelAsync(client, Unique("Empty"));
         await SendMessageAsync(client, channelId, "nothing pinned");
 
-        using var listResponse = await client.GetAsync($"{ChatBasePath}/channels/{channelId}/pinned");
-        var pinned = await listResponse.DeserializeAsync<IReadOnlyList<MessageDto>>();
+        using var listResponse = await client.GetAsync($"{ChatBasePath}/channels/{channelId}/pinned", TestContext.Current.CancellationToken);
+        var pinned = await listResponse.DeserializeAsync<IReadOnlyList<MessageDto>>(ct: TestContext.Current.CancellationToken);
 
         pinned.ShouldBeEmpty();
     }
@@ -142,23 +142,23 @@ public sealed class PinMessageTests
     [Fact]
     public async Task Pin_Should_Return_404_For_Missing_Message()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
-        using var pin = await client.PostAsync($"{ChatBasePath}/messages/{Guid.NewGuid()}/pin", null);
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
+        using var pin = await client.PostAsync($"{ChatBasePath}/messages/{Guid.NewGuid()}/pin", null, TestContext.Current.CancellationToken);
         pin.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
 
     [Fact]
     public async Task Pin_Should_Return_404_For_Non_Member()
     {
-        using var adminClient = await _auth.CreateRootAdminClientAsync();
+        using var adminClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var (alice, _, _) = await RegisterUserAsync(adminClient, "alice");
 
         // Admin creates a channel + sends a message — Alice is NOT a member.
         var channelId = await CreateChannelAsync(adminClient, Unique("Private"));
         var messageId = await SendMessageAsync(adminClient, channelId, "members only");
 
-        using var aliceClient = await _auth.CreateAuthenticatedClientAsync(alice.Email, alice.Password);
-        using var pin = await aliceClient.PostAsync($"{ChatBasePath}/messages/{messageId}/pin", null);
+        using var aliceClient = await _auth.CreateAuthenticatedClientAsync(alice.Email, alice.Password, ct: TestContext.Current.CancellationToken);
+        using var pin = await aliceClient.PostAsync($"{ChatBasePath}/messages/{messageId}/pin", null, TestContext.Current.CancellationToken);
 
         // RequireMember surfaces 404 to avoid leaking channel existence.
         pin.StatusCode.ShouldBe(HttpStatusCode.NotFound);
@@ -167,13 +167,13 @@ public sealed class PinMessageTests
     [Fact]
     public async Task GetPinnedMessages_Should_Return_404_For_Non_Member()
     {
-        using var adminClient = await _auth.CreateRootAdminClientAsync();
+        using var adminClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var (alice, _, _) = await RegisterUserAsync(adminClient, "alice");
 
         var channelId = await CreateChannelAsync(adminClient, Unique("PrivateList"));
 
-        using var aliceClient = await _auth.CreateAuthenticatedClientAsync(alice.Email, alice.Password);
-        using var listResponse = await aliceClient.GetAsync($"{ChatBasePath}/channels/{channelId}/pinned");
+        using var aliceClient = await _auth.CreateAuthenticatedClientAsync(alice.Email, alice.Password, ct: TestContext.Current.CancellationToken);
+        using var listResponse = await aliceClient.GetAsync($"{ChatBasePath}/channels/{channelId}/pinned", TestContext.Current.CancellationToken);
         listResponse.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
 
@@ -182,7 +182,7 @@ public sealed class PinMessageTests
     [Fact]
     public async Task PinMessage_Should_Broadcast_ChatMessagePinned_On_Channel_Group()
     {
-        using var adminClient = await _auth.CreateRootAdminClientAsync();
+        using var adminClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var (bob, bobToken, _) = await RegisterUserAsync(adminClient, "bob");
 
         var channelId = await CreateChannelAsync(adminClient, Unique("PinHub"));
@@ -192,7 +192,7 @@ public sealed class PinMessageTests
         await using var bobHub = await ConnectHubAsync(bobToken);
         using var inbox = new EventInbox<MessageDto>(bobHub, "ChatMessagePinned");
 
-        using var pin = await adminClient.PostAsync($"{ChatBasePath}/messages/{messageId}/pin", null);
+        using var pin = await adminClient.PostAsync($"{ChatBasePath}/messages/{messageId}/pin", null, TestContext.Current.CancellationToken);
         pin.StatusCode.ShouldBe(HttpStatusCode.NoContent);
 
         var received = await inbox.WaitForFirstAsync(p => p.Id == messageId, EventTimeout);
@@ -204,18 +204,18 @@ public sealed class PinMessageTests
     [Fact]
     public async Task UnpinMessage_Should_Broadcast_ChatMessageUnpinned_On_Channel_Group()
     {
-        using var adminClient = await _auth.CreateRootAdminClientAsync();
+        using var adminClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var (carol, carolToken, _) = await RegisterUserAsync(adminClient, "carol");
 
         var channelId = await CreateChannelAsync(adminClient, Unique("UnpinHub"));
         await AddMemberAsync(adminClient, channelId, carol.Id);
         var messageId = await SendMessageAsync(adminClient, channelId, "broadcast on unpin");
-        await adminClient.PostAsync($"{ChatBasePath}/messages/{messageId}/pin", null);
+        await adminClient.PostAsync($"{ChatBasePath}/messages/{messageId}/pin", null, TestContext.Current.CancellationToken);
 
         await using var carolHub = await ConnectHubAsync(carolToken);
         using var inbox = new EventInbox<MessageDto>(carolHub, "ChatMessageUnpinned");
 
-        using var unpin = await adminClient.DeleteAsync($"{ChatBasePath}/messages/{messageId}/pin");
+        using var unpin = await adminClient.DeleteAsync($"{ChatBasePath}/messages/{messageId}/pin", TestContext.Current.CancellationToken);
         unpin.StatusCode.ShouldBe(HttpStatusCode.NoContent);
 
         var received = await inbox.WaitForFirstAsync(p => p.Id == messageId, EventTimeout);
