@@ -40,7 +40,7 @@ internal sealed class CurrentUserService : ICurrentUserService
 
     public void SetCurrentUser(ClaimsPrincipal user)
     {
-        if (_user != null)
+        if (_user is not null)
         {
             throw new CustomException("Method reserved for in-scope initialization");
         }

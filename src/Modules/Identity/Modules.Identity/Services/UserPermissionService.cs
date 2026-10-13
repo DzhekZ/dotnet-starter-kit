@@ -37,7 +37,7 @@ internal sealed class UserPermissionService(
 
     private static readonly string[] Tags = [CacheKeys.Tags.Permissions];
 
-    public async Task<List<string>?> GetPermissionsAsync(string userId, CancellationToken cancellationToken)
+    public async Task<List<string>?> GetPermissionsAsync(string userId, CancellationToken cancellationToken = default)
     {
         var set = await GetOrLoadAsync(userId, cancellationToken).ConfigureAwait(false);
 
@@ -54,7 +54,7 @@ internal sealed class UserPermissionService(
         return set.Contains(permission);
     }
 
-    public Task InvalidatePermissionCacheAsync(string userId, CancellationToken cancellationToken)
+    public Task InvalidatePermissionCacheAsync(string userId, CancellationToken cancellationToken = default)
         => cache.RemoveAsync(CacheKeys.UserPermissions(userId), cancellationToken).AsTask();
 
     private ValueTask<PermissionSet> GetOrLoadAsync(string userId, CancellationToken cancellationToken)

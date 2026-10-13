@@ -16,5 +16,5 @@ public interface IAuditDlqSink
     /// drop on the floor before raising, since the audit pipeline has
     /// nowhere left to escalate.
     /// </summary>
-    Task WriteAsync(IReadOnlyList<AuditEnvelope> batch, CancellationToken ct);
+    Task WriteAsync(IReadOnlyList<AuditEnvelope> batch, CancellationToken ct = default);
 }

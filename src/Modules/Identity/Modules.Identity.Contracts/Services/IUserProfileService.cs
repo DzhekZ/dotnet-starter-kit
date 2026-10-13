@@ -11,17 +11,17 @@ public interface IUserProfileService
     /// <summary>
     /// Gets a user by ID.
     /// </summary>
-    Task<UserDto> GetAsync(string userId, CancellationToken cancellationToken);
+    Task<UserDto> GetAsync(string userId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Gets all users.
     /// </summary>
-    Task<List<UserDto>> GetListAsync(CancellationToken cancellationToken);
+    Task<List<UserDto>> GetListAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Gets the total user count.
     /// </summary>
-    Task<int> GetCountAsync(CancellationToken cancellationToken);
+    Task<int> GetCountAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Updates a user's profile. When <paramref name="expectedConcurrencyStamps"/> is non-null the
@@ -35,7 +35,7 @@ public interface IUserProfileService
     /// the client uploads via the Files module, then calls this with the resulting durable
     /// <c>publicUrl</c>. Passing <c>null</c> clears the image.
     /// </summary>
-    Task SetImageUrlAsync(string userId, string? imageUrl, CancellationToken cancellationToken);
+    Task SetImageUrlAsync(string userId, string? imageUrl, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Checks if a user exists with the given email.

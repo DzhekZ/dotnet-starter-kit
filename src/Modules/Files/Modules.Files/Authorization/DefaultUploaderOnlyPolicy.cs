@@ -22,10 +22,10 @@ internal sealed class DefaultUploaderOnlyPolicy : IFileAccessPolicy
 
     public string OwnerType { get; }
 
-    public Task<bool> CanAttachAsync(Guid? ownerId, string currentUserId, CancellationToken cancellationToken)
+    public Task<bool> CanAttachAsync(Guid? ownerId, string currentUserId, CancellationToken cancellationToken = default)
         => Task.FromResult(!string.IsNullOrEmpty(currentUserId));
 
-    public Task<bool> CanReadAsync(FileAccessContext context, string currentUserId, CancellationToken cancellationToken)
+    public Task<bool> CanReadAsync(FileAccessContext context, string currentUserId, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(context);
         if (string.IsNullOrEmpty(currentUserId)) return Task.FromResult(false);
@@ -35,7 +35,7 @@ internal sealed class DefaultUploaderOnlyPolicy : IFileAccessPolicy
         return Task.FromResult(IsUploader(context, currentUserId));
     }
 
-    public Task<bool> CanDeleteAsync(FileAccessContext context, string currentUserId, CancellationToken cancellationToken)
+    public Task<bool> CanDeleteAsync(FileAccessContext context, string currentUserId, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(context);
         if (string.IsNullOrEmpty(currentUserId)) return Task.FromResult(false);

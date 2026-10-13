@@ -19,7 +19,7 @@ public sealed class SqlAuditSink : IAuditSink
     public SqlAuditSink(IServiceScopeFactory scopeFactory, IAuditSerializer serializer, ILogger<SqlAuditSink> log)
         => (_scopeFactory, _serializer, _log) = (scopeFactory, serializer, log);
 
-    public async Task WriteAsync(IReadOnlyList<AuditEnvelope> batch, CancellationToken ct)
+    public async Task WriteAsync(IReadOnlyList<AuditEnvelope> batch, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(batch);
         if (batch.Count == 0) return;

@@ -8,7 +8,7 @@ public interface IUserPermissionService
     /// <summary>
     /// Gets all permissions for a user.
     /// </summary>
-    Task<List<string>?> GetPermissionsAsync(string userId, CancellationToken cancellationToken);
+    Task<List<string>?> GetPermissionsAsync(string userId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Checks if a user has a specific permission.
@@ -18,5 +18,5 @@ public interface IUserPermissionService
     /// <summary>
     /// Invalidates the permission cache for a user.
     /// </summary>
-    Task InvalidatePermissionCacheAsync(string userId, CancellationToken cancellationToken);
+    Task InvalidatePermissionCacheAsync(string userId, CancellationToken cancellationToken = default);
 }

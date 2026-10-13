@@ -19,7 +19,7 @@ public interface IUserRegistrationService
         string confirmPassword,
         string phoneNumber,
         string origin,
-        CancellationToken cancellationToken);
+        CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Gets or creates a user from an external authentication principal.
@@ -29,7 +29,7 @@ public interface IUserRegistrationService
     /// <summary>
     /// Confirms a user's email address.
     /// </summary>
-    Task<string> ConfirmEmailAsync(string userId, string code, string tenant, CancellationToken cancellationToken);
+    Task<string> ConfirmEmailAsync(string userId, string code, string tenant, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Administratively marks a user's email as confirmed without a confirmation token. Gated by the

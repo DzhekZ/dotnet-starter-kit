@@ -59,7 +59,7 @@ internal sealed class UserRegistrationService(
         string confirmPassword,
         string phoneNumber,
         string origin,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken = default)
     {
         ValidatePasswordMatch(password, confirmPassword);
 
@@ -71,7 +71,7 @@ internal sealed class UserRegistrationService(
         return user.Id;
     }
 
-    public async Task<string> ConfirmEmailAsync(string userId, string code, string tenant, CancellationToken cancellationToken)
+    public async Task<string> ConfirmEmailAsync(string userId, string code, string tenant, CancellationToken cancellationToken = default)
     {
         EnsureValidTenant();
 

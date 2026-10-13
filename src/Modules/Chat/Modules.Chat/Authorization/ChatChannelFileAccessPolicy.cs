@@ -22,7 +22,7 @@ public sealed class ChatChannelFileAccessPolicy(ChatDbContext db) : IFileAccessP
 
     public string OwnerType => OwnerTypeName;
 
-    public async Task<bool> CanAttachAsync(Guid? ownerId, string currentUserId, CancellationToken cancellationToken)
+    public async Task<bool> CanAttachAsync(Guid? ownerId, string currentUserId, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrEmpty(currentUserId)) return false;
         if (ownerId is not { } channelId) return false;
@@ -31,7 +31,7 @@ public sealed class ChatChannelFileAccessPolicy(ChatDbContext db) : IFileAccessP
             .ConfigureAwait(false);
     }
 
-    public async Task<bool> CanReadAsync(FileAccessContext context, string currentUserId, CancellationToken cancellationToken)
+    public async Task<bool> CanReadAsync(FileAccessContext context, string currentUserId, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(context);
         if (string.IsNullOrEmpty(currentUserId)) return false;
@@ -41,7 +41,7 @@ public sealed class ChatChannelFileAccessPolicy(ChatDbContext db) : IFileAccessP
             .ConfigureAwait(false);
     }
 
-    public Task<bool> CanDeleteAsync(FileAccessContext context, string currentUserId, CancellationToken cancellationToken)
+    public Task<bool> CanDeleteAsync(FileAccessContext context, string currentUserId, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(context);
         return Task.FromResult(

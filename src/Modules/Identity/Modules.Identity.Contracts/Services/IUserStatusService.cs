@@ -8,7 +8,7 @@ public interface IUserStatusService
     /// <summary>
     /// Toggles a user's active status.
     /// </summary>
-    Task ToggleStatusAsync(bool activateUser, string userId, CancellationToken cancellationToken);
+    Task ToggleStatusAsync(bool activateUser, string userId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Soft-deletes a user by deactivating them.

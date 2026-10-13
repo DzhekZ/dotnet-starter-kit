@@ -23,7 +23,7 @@ internal sealed class UserStatusService(
     public Task DeleteAsync(string userId, CancellationToken cancellationToken = default)
         => ToggleStatusAsync(activateUser: false, userId, cancellationToken);
 
-    public async Task ToggleStatusAsync(bool activateUser, string userId, CancellationToken cancellationToken)
+    public async Task ToggleStatusAsync(bool activateUser, string userId, CancellationToken cancellationToken = default)
     {
         EnsureValidTenant();
 

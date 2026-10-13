@@ -50,7 +50,7 @@ public sealed class TenantService : ITenantService
         _logger = logger;
     }
 
-    public async Task<string> ActivateAsync(string id, CancellationToken cancellationToken)
+    public async Task<string> ActivateAsync(string id, CancellationToken cancellationToken = default)
     {
         var tenant = await GetTenantInfoAsync(id, cancellationToken).ConfigureAwait(false);
 
@@ -72,7 +72,7 @@ public sealed class TenantService : ITenantService
     public async Task<string> CreateAsync(string id,
         string name,
         string? connectionString,
-        string adminEmail, string? issuer, string planKey, DateTime validUpto, CancellationToken cancellationToken)
+        string adminEmail, string? issuer, string planKey, DateTime validUpto, CancellationToken cancellationToken = default)
     {
         if (connectionString?.Trim() == _config.ConnectionString.Trim())
         {
@@ -92,7 +92,7 @@ public sealed class TenantService : ITenantService
         return tenant.Id;
     }
 
-    public async Task MigrateTenantAsync(AppTenantInfo tenant, CancellationToken cancellationToken)
+    public async Task MigrateTenantAsync(AppTenantInfo tenant, CancellationToken cancellationToken = default)
     {
         using var scope = _serviceProvider.CreateScope();
 
@@ -105,7 +105,7 @@ public sealed class TenantService : ITenantService
         }
     }
 
-    public async Task SeedTenantAsync(AppTenantInfo tenant, CancellationToken cancellationToken)
+    public async Task SeedTenantAsync(AppTenantInfo tenant, CancellationToken cancellationToken = default)
     {
         using var scope = _serviceProvider.CreateScope();
 
@@ -149,7 +149,7 @@ public sealed class TenantService : ITenantService
     public async Task<bool> ExistsWithNameAsync(string name, CancellationToken cancellationToken = default) =>
         (await _tenantStore.GetAllAsync().ConfigureAwait(false)).Any(t => t.Name == name);
 
-    public async Task<PagedResponse<TenantDto>> GetAllAsync(GetTenantsQuery query, CancellationToken cancellationToken)
+    public async Task<PagedResponse<TenantDto>> GetAllAsync(GetTenantsQuery query, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(query);
 
