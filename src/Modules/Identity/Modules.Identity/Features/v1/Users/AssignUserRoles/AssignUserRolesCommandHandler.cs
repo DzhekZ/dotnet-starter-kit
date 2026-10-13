@@ -11,7 +11,7 @@ public sealed class AssignUserRolesCommandHandler(IUserService userService)
     {
         ArgumentNullException.ThrowIfNull(command);
 
-        return await userService.AssignRolesAsync(command.UserId, command.UserRoles, cancellationToken);
+        return await userService.AssignRolesAsync(command.UserId, command.UserRoles, cancellationToken).ConfigureAwait(false);
     }
 
 }

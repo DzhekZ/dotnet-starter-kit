@@ -16,6 +16,6 @@ public sealed class GetUserSessionsQueryHandler : IQueryHandler<GetUserSessionsQ
 
     public async ValueTask<List<UserSessionDto>> Handle(GetUserSessionsQuery query, CancellationToken cancellationToken)
     {
-        return await _sessionService.GetUserSessionsForAdminAsync(query.UserId.ToString(), cancellationToken);
+        return await _sessionService.GetUserSessionsForAdminAsync(query.UserId.ToString(), cancellationToken).ConfigureAwait(false);
     }
 }

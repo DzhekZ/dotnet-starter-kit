@@ -21,7 +21,8 @@ public sealed class GetGroupMembersQueryHandler : IQueryHandler<GetGroupMembersQ
         // Validate group exists
         var groupExists = await _dbContext.Groups
             .AsNoTracking()
-            .AnyAsync(g => g.Id == query.GroupId, cancellationToken);
+            .AnyAsync(g => g.Id == query.GroupId, cancellationToken)
+            .ConfigureAwait(false);
 
         if (!groupExists)
         {
@@ -47,7 +48,8 @@ public sealed class GetGroupMembersQueryHandler : IQueryHandler<GetGroupMembersQ
                     AddedBy = ug.AddedBy
                 })
             .OrderBy(m => m.UserName)
-            .ToListAsync(cancellationToken);
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
 
         return memberships;
     }

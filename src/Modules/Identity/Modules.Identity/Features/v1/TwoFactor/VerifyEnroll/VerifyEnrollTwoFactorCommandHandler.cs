@@ -30,14 +30,14 @@ public sealed class VerifyEnrollTwoFactorCommandHandler
         }
 
         var userId = _currentUser.GetUserId().ToString();
-        var user = await _userManager.FindByIdAsync(userId)
+        var user = await _userManager.FindByIdAsync(userId).ConfigureAwait(false)
             ?? throw new NotFoundException($"User {userId} not found.");
 
         var sanitized = command.Code.Replace(" ", string.Empty, StringComparison.Ordinal);
         var valid = await _userManager.VerifyTwoFactorTokenAsync(
             user,
             _userManager.Options.Tokens.AuthenticatorTokenProvider,
-            sanitized);
+            sanitized).ConfigureAwait(false);
 
         if (!valid)
         {
@@ -47,7 +47,7 @@ public sealed class VerifyEnrollTwoFactorCommandHandler
                 System.Net.HttpStatusCode.BadRequest);
         }
 
-        await _userManager.SetTwoFactorEnabledAsync(user, true);
+        await _userManager.SetTwoFactorEnabledAsync(user, true).ConfigureAwait(false);
         return true;
     }
 }

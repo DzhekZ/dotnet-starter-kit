@@ -46,11 +46,12 @@ public sealed class RefreshTokenCommandHandler
 
         // Validate refresh token and rebuild subject + claims
         var validated = await _identityService
-            .ValidateRefreshTokenAsync(request.RefreshToken, cancellationToken);
+            .ValidateRefreshTokenAsync(request.RefreshToken, cancellationToken)
+            .ConfigureAwait(false);
 
         if (validated is null)
         {
-            await _securityAudit.TokenRevokedAsync("unknown", clientId, "InvalidRefreshToken", cancellationToken);
+            await _securityAudit.TokenRevokedAsync("unknown", clientId, "InvalidRefreshToken", cancellationToken).ConfigureAwait(false);
             throw new UnauthorizedException("Invalid refresh token.");
         }
 
@@ -58,10 +59,10 @@ public sealed class RefreshTokenCommandHandler
 
         // Check if the session associated with this refresh token is still valid
         var refreshTokenHash = Sha256Short(request.RefreshToken);
-        var isSessionValid = await _sessionService.ValidateSessionAsync(refreshTokenHash, cancellationToken);
+        var isSessionValid = await _sessionService.ValidateSessionAsync(refreshTokenHash, cancellationToken).ConfigureAwait(false);
         if (!isSessionValid)
         {
-            await _securityAudit.TokenRevokedAsync(subject, clientId, "SessionRevoked", cancellationToken);
+            await _securityAudit.TokenRevokedAsync(subject, clientId, "SessionRevoked", cancellationToken).ConfigureAwait(false);
             throw new UnauthorizedException("Session has been revoked.");
         }
 
@@ -86,19 +87,19 @@ public sealed class RefreshTokenCommandHandler
             if (!string.IsNullOrEmpty(accessTokenSubject) &&
                 !string.Equals(accessTokenSubject, subject, StringComparison.Ordinal))
             {
-                await _securityAudit.TokenRevokedAsync(subject, clientId, "RefreshTokenSubjectMismatch", cancellationToken);
+                await _securityAudit.TokenRevokedAsync(subject, clientId, "RefreshTokenSubjectMismatch", cancellationToken).ConfigureAwait(false);
                 throw new UnauthorizedException("Access token subject mismatch.");
             }
         }
 
         // Audit previous token revocation by rotation (no raw tokens)
-        await _securityAudit.TokenRevokedAsync(subject, clientId, "RefreshTokenRotated", cancellationToken);
+        await _securityAudit.TokenRevokedAsync(subject, clientId, "RefreshTokenRotated", cancellationToken).ConfigureAwait(false);
 
         // Issue new tokens
-        var newToken = await _tokenService.IssueAsync(subject, claims, null, cancellationToken);
+        var newToken = await _tokenService.IssueAsync(subject, claims, null, cancellationToken).ConfigureAwait(false);
 
         // Persist rotated refresh token for this user
-        await _identityService.StoreRefreshTokenAsync(subject, newToken.RefreshToken, newToken.RefreshTokenExpiresAt, cancellationToken);
+        await _identityService.StoreRefreshTokenAsync(subject, newToken.RefreshToken, newToken.RefreshTokenExpiresAt, cancellationToken).ConfigureAwait(false);
 
         // Update the session with the new refresh token hash
         var newRefreshTokenHash = Sha256Short(newToken.RefreshToken);
@@ -106,7 +107,7 @@ public sealed class RefreshTokenCommandHandler
             refreshTokenHash,
             newRefreshTokenHash,
             newToken.RefreshTokenExpiresAt,
-            cancellationToken);
+            cancellationToken).ConfigureAwait(false);
 
         // Audit the newly issued token with a fingerprint
         var fingerprint = Sha256Short(newToken.AccessToken);
@@ -116,7 +117,7 @@ public sealed class RefreshTokenCommandHandler
             clientId: clientId,
             tokenFingerprint: fingerprint,
             expiresUtc: newToken.AccessTokenExpiresAt,
-            ct: cancellationToken);
+            ct: cancellationToken).ConfigureAwait(false);
 
         return new RefreshTokenCommandResponse(
             Token: newToken.AccessToken,

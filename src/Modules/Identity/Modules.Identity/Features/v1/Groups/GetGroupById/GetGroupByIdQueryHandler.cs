@@ -22,11 +22,13 @@ public sealed class GetGroupByIdQueryHandler : IQueryHandler<GetGroupByIdQuery, 
             .AsNoTracking()
             .Include(g => g.GroupRoles)
             .FirstOrDefaultAsync(g => g.Id == query.Id, cancellationToken)
+            .ConfigureAwait(false)
             ?? throw new NotFoundException($"Group with ID '{query.Id}' not found.");
 
         var memberCount = await _dbContext.UserGroups
             .AsNoTracking()
-            .CountAsync(ug => ug.GroupId == group.Id, cancellationToken);
+            .CountAsync(ug => ug.GroupId == group.Id, cancellationToken)
+            .ConfigureAwait(false);
 
         var roleIds = group.GroupRoles.Select(gr => gr.RoleId).ToList();
         var roleNames = roleIds.Count > 0
@@ -35,6 +37,7 @@ public sealed class GetGroupByIdQueryHandler : IQueryHandler<GetGroupByIdQuery, 
                 .Where(r => roleIds.Contains(r.Id))
                 .Select(r => r.Name!)
                 .ToListAsync(cancellationToken)
+                .ConfigureAwait(false)
             : [];
 
         return new GroupDto

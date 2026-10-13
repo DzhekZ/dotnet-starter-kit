@@ -27,7 +27,7 @@ public sealed class UpdateGroupCommandHandler : ICommandHandler<UpdateGroupComma
     {
         ArgumentNullException.ThrowIfNull(command);
 
-        var group = await GetGroupAsync(command.Id, cancellationToken);
+        var group = await GetGroupAsync(command.Id, cancellationToken).ConfigureAwait(false);
 
         // System groups are framework-managed — name, description, default flag, and role
         // assignments are all part of the seed contract that the startup syncer relies on.
@@ -36,8 +36,8 @@ public sealed class UpdateGroupCommandHandler : ICommandHandler<UpdateGroupComma
             throw new ForbiddenException("System groups cannot be modified.");
         }
 
-        await ValidateUniqueNameAsync(command.Id, command.Name, cancellationToken);
-        await ValidateRoleIdsAsync(command.RoleIds, cancellationToken);
+        await ValidateUniqueNameAsync(command.Id, command.Name, cancellationToken).ConfigureAwait(false);
+        await ValidateRoleIdsAsync(command.RoleIds, cancellationToken).ConfigureAwait(false);
 
         var userId = _currentUser.GetUserId().ToString();
         group.Update(command.Name, command.Description, userId);
@@ -45,7 +45,7 @@ public sealed class UpdateGroupCommandHandler : ICommandHandler<UpdateGroupComma
 
         var currentRoleIdsBefore = group.GroupRoles.Select(gr => gr.RoleId).ToHashSet();
         var newRoleIds = UpdateRoleAssignments(group, command.RoleIds);
-        await _dbContext.SaveChangesAsync(cancellationToken);
+        await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
         // If the set of group→role assignments actually changed, every member's
         // effective permission set may have shifted — invalidate each.
@@ -54,14 +54,15 @@ public sealed class UpdateGroupCommandHandler : ICommandHandler<UpdateGroupComma
             var memberIds = await _dbContext.UserGroups
                 .Where(ug => ug.GroupId == command.Id)
                 .Select(ug => ug.UserId)
-                .ToListAsync(cancellationToken);
+                .ToListAsync(cancellationToken)
+                .ConfigureAwait(false);
             foreach (var memberId in memberIds)
             {
                 await _userPermissionService.InvalidatePermissionCacheAsync(memberId, cancellationToken).ConfigureAwait(false);
             }
         }
 
-        return await BuildResponseAsync(group, newRoleIds, cancellationToken);
+        return await BuildResponseAsync(group, newRoleIds, cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<Group> GetGroupAsync(Guid id, CancellationToken cancellationToken)
@@ -69,13 +70,15 @@ public sealed class UpdateGroupCommandHandler : ICommandHandler<UpdateGroupComma
         return await _dbContext.Groups
             .Include(g => g.GroupRoles)
             .FirstOrDefaultAsync(g => g.Id == id, cancellationToken)
+            .ConfigureAwait(false)
             ?? throw new NotFoundException($"Group with ID '{id}' not found.");
     }
 
     private async Task ValidateUniqueNameAsync(Guid excludeId, string name, CancellationToken cancellationToken)
     {
         var nameExists = await _dbContext.Groups
-            .AnyAsync(g => g.Name == name && g.Id != excludeId, cancellationToken);
+            .AnyAsync(g => g.Name == name && g.Id != excludeId, cancellationToken)
+            .ConfigureAwait(false);
 
         if (nameExists)
         {
@@ -93,7 +96,8 @@ public sealed class UpdateGroupCommandHandler : ICommandHandler<UpdateGroupComma
         var existingRoleIds = await _dbContext.Roles
             .Where(r => roleIds.Contains(r.Id))
             .Select(r => r.Id)
-            .ToListAsync(cancellationToken);
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
 
         var invalidRoleIds = roleIds.Except(existingRoleIds).ToList();
         if (invalidRoleIds.Count > 0)
@@ -125,13 +129,15 @@ public sealed class UpdateGroupCommandHandler : ICommandHandler<UpdateGroupComma
     {
         var memberCount = await _dbContext.UserGroups
             .AsNoTracking()
-            .CountAsync(ug => ug.GroupId == group.Id, cancellationToken);
+            .CountAsync(ug => ug.GroupId == group.Id, cancellationToken)
+            .ConfigureAwait(false);
 
         var roleNames = roleIds.Count > 0
             ? await _dbContext.Roles
                 .Where(r => roleIds.Contains(r.Id))
                 .Select(r => r.Name!)
                 .ToListAsync(cancellationToken)
+                .ConfigureAwait(false)
             : [];
 
         return new GroupDto

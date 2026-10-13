@@ -23,6 +23,6 @@ public sealed class RevokeSessionCommandHandler : ICommandHandler<RevokeSessionC
             command.SessionId,
             userId,
             "User requested",
-            cancellationToken);
+            cancellationToken).ConfigureAwait(false);
     }
 }

@@ -28,7 +28,8 @@ public sealed class AddUsersToGroupCommandHandler : ICommandHandler<AddUsersToGr
 
         // Validate group exists
         var groupExists = await _dbContext.Groups
-            .AnyAsync(g => g.Id == command.GroupId, cancellationToken);
+            .AnyAsync(g => g.Id == command.GroupId, cancellationToken)
+            .ConfigureAwait(false);
 
         if (!groupExists)
         {
@@ -39,7 +40,8 @@ public sealed class AddUsersToGroupCommandHandler : ICommandHandler<AddUsersToGr
         var existingUserIds = await _dbContext.Users
             .Where(u => command.UserIds.Contains(u.Id))
             .Select(u => u.Id)
-            .ToListAsync(cancellationToken);
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
 
         var invalidUserIds = command.UserIds.Except(existingUserIds).ToList();
         if (invalidUserIds.Count > 0)
@@ -51,7 +53,8 @@ public sealed class AddUsersToGroupCommandHandler : ICommandHandler<AddUsersToGr
         var existingMemberships = await _dbContext.UserGroups
             .Where(ug => ug.GroupId == command.GroupId && command.UserIds.Contains(ug.UserId))
             .Select(ug => ug.UserId)
-            .ToListAsync(cancellationToken);
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
 
         var alreadyMemberUserIds = existingMemberships.ToList();
         var usersToAdd = command.UserIds.Except(existingMemberships).ToList();
@@ -63,7 +66,7 @@ public sealed class AddUsersToGroupCommandHandler : ICommandHandler<AddUsersToGr
             _dbContext.UserGroups.Add(UserGroup.Create(userId, command.GroupId, currentUserId));
         }
 
-        await _dbContext.SaveChangesAsync(cancellationToken);
+        await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
         // Joining a group can grant new roles (via GroupRoles) feeding JWT claims; invalidate
         // each newly-added user's cached permission set so their next request reflects it.

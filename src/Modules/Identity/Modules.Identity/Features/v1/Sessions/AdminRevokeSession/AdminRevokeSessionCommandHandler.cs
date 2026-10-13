@@ -21,7 +21,7 @@ public sealed class AdminRevokeSessionCommandHandler : ICommandHandler<AdminRevo
         var adminId = _currentUser.GetUserId().ToString();
 
         // Get the session to verify it belongs to the specified user
-        var session = await _sessionService.GetSessionAsync(command.SessionId, cancellationToken);
+        var session = await _sessionService.GetSessionAsync(command.SessionId, cancellationToken).ConfigureAwait(false);
         if (session is null || session.UserId != command.UserId.ToString())
         {
             return false;
@@ -32,6 +32,6 @@ public sealed class AdminRevokeSessionCommandHandler : ICommandHandler<AdminRevo
             command.SessionId,
             adminId,
             command.Reason ?? "Revoked by administrator",
-            cancellationToken);
+            cancellationToken).ConfigureAwait(false);
     }
 }

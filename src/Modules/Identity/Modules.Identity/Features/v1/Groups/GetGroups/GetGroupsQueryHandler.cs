@@ -33,7 +33,8 @@ public sealed class GetGroupsQueryHandler : IQueryHandler<GetGroupsQuery, IEnume
 
         var groups = await groupsQuery
             .OrderBy(g => g.Name)
-            .ToListAsync(cancellationToken);
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
 
         // Get member counts in one query
         var groupIds = groups.Select(g => g.Id).ToList();
@@ -42,7 +43,8 @@ public sealed class GetGroupsQueryHandler : IQueryHandler<GetGroupsQuery, IEnume
             .Where(ug => groupIds.Contains(ug.GroupId))
             .GroupBy(ug => ug.GroupId)
             .Select(g => new { GroupId = g.Key, Count = g.Count() })
-            .ToDictionaryAsync(x => x.GroupId, x => x.Count, cancellationToken);
+            .ToDictionaryAsync(x => x.GroupId, x => x.Count, cancellationToken)
+            .ConfigureAwait(false);
 
         // Get all role IDs from groups
         var allRoleIds = groups
@@ -53,7 +55,8 @@ public sealed class GetGroupsQueryHandler : IQueryHandler<GetGroupsQuery, IEnume
         var roleNames = await _dbContext.Roles
             .AsNoTracking()
             .Where(r => allRoleIds.Contains(r.Id))
-            .ToDictionaryAsync(r => r.Id, r => r.Name!, cancellationToken);
+            .ToDictionaryAsync(r => r.Id, r => r.Name!, cancellationToken)
+            .ConfigureAwait(false);
 
         return groups.Select(g => new GroupDto
         {
