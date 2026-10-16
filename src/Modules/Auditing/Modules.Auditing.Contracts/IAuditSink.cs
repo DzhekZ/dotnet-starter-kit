@@ -5,5 +5,10 @@
 /// </summary>
 public interface IAuditSink
 {
+    /// <summary>
+    /// Persists <paramref name="batch"/>. A thrown exception means the batch failed and the caller retries it whole;
+    /// a sink that already persisted part of it must throw <see cref="AuditSinkPartialFailureException"/> naming the
+    /// envelopes that were NOT written, so only those are retried and nothing is inserted twice.
+    /// </summary>
     Task WriteAsync(IReadOnlyList<AuditEnvelope> batch, CancellationToken ct = default);
 }
