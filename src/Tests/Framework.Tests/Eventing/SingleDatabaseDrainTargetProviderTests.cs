@@ -7,7 +7,7 @@ namespace Framework.Tests.Eventing;
 public class SingleDatabaseDrainTargetProviderTests
 {
     [Fact]
-    public async Task Returns_One_Default_Target()
+    public async Task GetTargetsAsync_Should_ReturnOneDefaultTarget()
     {
         var provider = new SingleDatabaseDrainTargetProvider();
 

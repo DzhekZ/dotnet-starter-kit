@@ -47,7 +47,7 @@ public sealed class UserLocaleTests
             Substitute.For<IRequestContextService>(), new IdentityErrorDescriber());
 
     [Fact]
-    public async Task UpdateAsync_persists_the_supplied_locale_onto_the_user()
+    public async Task UpdateAsync_Should_PersistSuppliedLocale_OntoUser()
     {
         // Arrange
         var user = new FshUser { Id = "u1", Email = "u@codefi.com.br", UserName = "u" };
@@ -63,7 +63,7 @@ public sealed class UserLocaleTests
     }
 
     [Fact]
-    public async Task UpdateAsync_with_null_locale_preserves_the_existing_value()
+    public async Task UpdateAsync_Should_PreserveExistingLocale_When_LocaleIsNull()
     {
         // Arrange — a text-only edit forwards a null locale; the user already chose en-US.
         var user = new FshUser { Id = "u1", Email = "u@codefi.com.br", UserName = "u", Locale = "en-US" };
@@ -79,7 +79,7 @@ public sealed class UserLocaleTests
     }
 
     [Fact]
-    public async Task GetAsync_projects_the_persisted_locale_onto_the_dto()
+    public async Task GetAsync_Should_ProjectPersistedLocale_OntoDto()
     {
         // Arrange
         var user = new FshUser { Id = "u1", Email = "u@codefi.com.br", UserName = "u", Locale = "pt-BR" };

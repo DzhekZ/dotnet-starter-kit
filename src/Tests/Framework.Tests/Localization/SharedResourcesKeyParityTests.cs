@@ -43,7 +43,7 @@ public sealed class SharedResourcesKeyParityTests
                 .OrderBy(i => int.Parse(i, CultureInfo.InvariantCulture)));
 
     [Fact]
-    public void Every_ptBR_key_exists_in_the_neutral_catalog()
+    public void Catalogs_Should_DefineEveryPtBRKey_InTheNeutralCatalog()
     {
         var neutral = KeysFor(string.Empty);   // SharedResources.resx (English / fallback)
         var pt = KeysFor("pt-BR");                 // SharedResources.pt-BR.resx
@@ -58,7 +58,7 @@ public sealed class SharedResourcesKeyParityTests
     // swallows the argument or throws FormatException at the point the message is built —
     // and neither shows up as a missing key.
     [Fact]
-    public void Neutral_and_ptBR_messages_take_the_same_arguments()
+    public void Catalogs_Should_TakeTheSameArguments_InNeutralAndPtBRMessages()
     {
         var neutral = EntriesFor(string.Empty);
         var pt = EntriesFor("pt-BR");

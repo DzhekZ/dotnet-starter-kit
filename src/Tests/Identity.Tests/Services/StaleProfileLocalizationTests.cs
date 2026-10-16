@@ -26,7 +26,7 @@ namespace Identity.Tests.Services;
 public sealed class StaleProfileLocalizationTests
 {
     [Fact]
-    public async Task UpdateAsync_with_a_stale_stamp_throws_a_localizable_412()
+    public async Task UpdateAsync_Should_ThrowLocalizable412_When_StampIsStale()
     {
         // Arrange
         var userManager = Substitute.For<UserManager<FshUser>>(
@@ -62,7 +62,7 @@ public sealed class StaleProfileLocalizationTests
     [Theory]
     [InlineData("en-US", "The profile changed since you loaded it. Reload it and apply your changes again.")]
     [InlineData("pt-BR", "O perfil mudou desde que você o carregou. Recarregue e aplique suas alterações de novo.")]
-    public void The_stale_profile_key_resolves_in_every_catalog(string culture, string expected)
+    public void StaleProfileKey_Should_ResolveInEveryCatalog(string culture, string expected)
     {
         var services = new ServiceCollection();
         services.AddLogging();

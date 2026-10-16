@@ -7,7 +7,7 @@ namespace Framework.Tests.Eventing;
 public class EfCoreInboxStoreTests
 {
     [Fact]
-    public async Task MarkProcessedAsync_Then_HasProcessedAsync_Returns_True()
+    public async Task HasProcessedAsync_Should_ReturnTrue_When_MessageWasMarkedProcessed()
     {
         await using var context = EventingTestContext.CreateSqlite();
         var store = new EfCoreInboxStore(context, TimeProvider.System);
@@ -23,7 +23,7 @@ public class EfCoreInboxStoreTests
     }
 
     [Fact]
-    public async Task Dedup_Key_Is_Per_Handler()
+    public async Task HasProcessedAsync_Should_DeduplicatePerHandler()
     {
         await using var context = EventingTestContext.CreateSqlite();
         var store = new EfCoreInboxStore(context, TimeProvider.System);
@@ -36,7 +36,7 @@ public class EfCoreInboxStoreTests
     }
 
     [Fact]
-    public async Task MarkProcessedAsync_Is_Idempotent()
+    public async Task MarkProcessedAsync_Should_BeIdempotent()
     {
         await using var context = EventingTestContext.CreateSqlite();
         var store = new EfCoreInboxStore(context, TimeProvider.System);

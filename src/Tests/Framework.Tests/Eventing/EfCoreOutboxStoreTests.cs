@@ -20,7 +20,7 @@ public class EfCoreOutboxStoreTests
         string Source) : IIntegrationEvent;
 
     [Fact]
-    public async Task AddAsync_Persists_Message_With_Event_Identity()
+    public async Task AddAsync_Should_PersistMessage_With_EventIdentity()
     {
         await using var context = EventingTestContext.CreateSqlite();
         var store = new EfCoreOutboxStore(

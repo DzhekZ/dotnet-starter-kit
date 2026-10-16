@@ -9,7 +9,7 @@ namespace Billing.Tests.Domain;
 public sealed class WalletTests
 {
     [Fact]
-    public void Create_starts_active_with_zero_balance()
+    public void Create_Should_StartActive_With_ZeroBalance()
     {
         var w = Wallet.Create("tenant-a", "USD");
         w.TenantId.ShouldBe("tenant-a");
@@ -20,7 +20,7 @@ public sealed class WalletTests
     }
 
     [Fact]
-    public void Credit_increases_balance_and_returns_ledger_row()
+    public void Credit_Should_IncreaseBalance_And_ReturnLedgerRow()
     {
         var w = Wallet.Create("tenant-a", "USD");
         var tx = w.Credit(new Money(50m, "USD"), WalletTransactionKind.Topup, "Top-up", "req-1");
@@ -32,12 +32,12 @@ public sealed class WalletTests
     }
 
     [Fact]
-    public void Credit_rejects_non_positive_amount()
+    public void Credit_Should_Reject_When_AmountIsNotPositive()
         => Should.Throw<ArgumentOutOfRangeException>(
             () => Wallet.Create("t", "USD").Credit(new Money(0m, "USD"), WalletTransactionKind.Topup, "x", null));
 
     [Fact]
-    public void Credit_rejects_currency_mismatch()
+    public void Credit_Should_Reject_When_CurrencyDiffers()
     {
         var w = Wallet.Create("tenant-a", "USD");
         Should.Throw<InvalidOperationException>(
@@ -49,7 +49,7 @@ public sealed class WalletTests
     }
 
     [Fact]
-    public void Debit_rejects_currency_mismatch()
+    public void Debit_Should_Reject_When_CurrencyDiffers()
     {
         var w = Wallet.Create("tenant-a", "USD");
         w.Credit(new Money(50m, "USD"), WalletTransactionKind.Topup, "Top-up", null);
@@ -61,7 +61,7 @@ public sealed class WalletTests
     }
 
     [Fact]
-    public void Debit_beyond_balance_throws()
+    public void Debit_Should_Throw_When_AmountExceedsBalance()
     {
         var w = Wallet.Create("tenant-a", "USD");
         w.Credit(new Money(10m, "USD"), WalletTransactionKind.Topup, "Top-up", null);

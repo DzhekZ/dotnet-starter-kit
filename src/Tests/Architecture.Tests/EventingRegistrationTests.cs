@@ -35,7 +35,7 @@ public class EventingRegistrationTests
     }
 
     [Fact]
-    public void AddEventingCore_Registers_Exactly_One_OutboxStore()
+    public void AddEventingCore_Should_RegisterExactlyOneOutboxStore()
     {
         BuildServices()
             .Count(d => d.ServiceType == typeof(IOutboxStore))
@@ -43,7 +43,7 @@ public class EventingRegistrationTests
     }
 
     [Fact]
-    public void AddEventingCore_Registers_Exactly_One_InboxStore()
+    public void AddEventingCore_Should_RegisterExactlyOneInboxStore()
     {
         BuildServices()
             .Count(d => d.ServiceType == typeof(IInboxStore))
@@ -51,7 +51,7 @@ public class EventingRegistrationTests
     }
 
     [Fact]
-    public void AddEventingCore_Is_Idempotent()
+    public void AddEventingCore_Should_BeIdempotent()
     {
         IConfiguration configuration = BuildConfiguration();
         IServiceCollection services = new ServiceCollection();
@@ -65,7 +65,7 @@ public class EventingRegistrationTests
     }
 
     [Fact]
-    public void AddEventingForDbContext_No_Longer_Exists()
+    public void AddEventingForDbContext_Should_NotExist()
     {
         typeof(ServiceCollectionExtensions)
             .GetMethods()

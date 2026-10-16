@@ -33,7 +33,7 @@ public sealed class StartImpersonationCommandHandlerTests
             _grantService, TimeProvider.System, Substitute.For<ILogger<StartImpersonationCommandHandler>>());
 
     [Fact]
-    public async Task Handle_strips_locale_but_preserves_identity_claims_and_injects_actor()
+    public async Task Handle_Should_StripLocale_PreserveIdentityClaims_And_InjectActor()
     {
         // Arrange — an authenticated operator in the same tenant as the target.
         var actorUserId = Guid.NewGuid();

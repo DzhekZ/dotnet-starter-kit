@@ -7,18 +7,18 @@ namespace Billing.Tests.Domain;
 public sealed class EnumOrderingTests
 {
     [Fact]
-    public void InvoicePurpose_Topup_is_two()
+    public void InvoicePurpose_Should_HaveTopupAsTwo()
         => ((int)InvoicePurpose.Topup).ShouldBe(2);
 
     [Fact]
-    public void TopupRequestStatus_Pending_is_default_zero()
+    public void TopupRequestStatus_Should_HavePendingAsDefaultZero()
         => ((int)TopupRequestStatus.Pending).ShouldBe(0);
 
     [Fact]
-    public void WalletStatus_Active_is_default_zero()
+    public void WalletStatus_Should_HaveActiveAsDefaultZero()
         => ((int)WalletStatus.Active).ShouldBe(0);
 
     [Fact]
-    public void WalletTransactionKind_Topup_is_default_zero()
+    public void WalletTransactionKind_Should_HaveTopupAsDefaultZero()
         => ((int)WalletTransactionKind.Topup).ShouldBe(0);
 }

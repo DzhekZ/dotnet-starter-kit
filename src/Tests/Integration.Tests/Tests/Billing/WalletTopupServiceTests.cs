@@ -33,7 +33,7 @@ public sealed class WalletTopupServiceTests
     // ── Happy-path ─────────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task Topup_credits_wallet_when_invoice_marked_paid()
+    public async Task Topup_Should_CreditWallet_When_InvoiceIsMarkedPaid()
     {
         var tenantId = UniqueTestTenantId();
 
@@ -75,7 +75,7 @@ public sealed class WalletTopupServiceTests
     // ── Invoice-number uniqueness ────────────────────────────────────────────
 
     [Fact]
-    public async Task Two_topups_in_same_month_both_succeed_with_unique_invoice_numbers()
+    public async Task Topup_Should_SucceedWithUniqueInvoiceNumbers_When_TwoTopupsFallInTheSameMonth()
     {
         var tenantId = UniqueTestTenantId();
 
@@ -112,7 +112,7 @@ public sealed class WalletTopupServiceTests
     // ── Fix 1 guard ──────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task CreateTopupInvoice_throws_NotFoundException_when_request_already_invoiced()
+    public async Task CreateTopupInvoice_Should_ThrowNotFoundException_When_RequestIsAlreadyInvoiced()
     {
         var tenantId = UniqueTestTenantId();
 

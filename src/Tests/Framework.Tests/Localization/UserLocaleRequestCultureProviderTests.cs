@@ -52,7 +52,7 @@ public sealed class UserLocaleRequestCultureProviderTests
     [InlineData(null, "pt-BR", "en-US", "en-US")]    // explicit query override wins over everything
     [InlineData(null, "pt", null, "en-US")]          // bare pt is not a supported tag -> default
     [InlineData(null, "pt-PT", null, "en-US")]       // unsupported variant -> default, never pt-BR
-    public async Task Resolves_expected_culture_through_chain(string? claim, string? header, string? query, string expected)
+    public async Task Provider_Should_ResolveExpectedCulture_ThroughChain(string? claim, string? header, string? query, string expected)
     {
         var options = BuildOptions();
         var context = BuildContext(claim, header, query);
@@ -86,7 +86,7 @@ public sealed class UserLocaleRequestCultureProviderTests
     [InlineData(null, "pt-BR", null, "pt-BR")]       // header
     [InlineData(null, null, "pt-BR", "pt-BR")]       // query override
     [InlineData(null, null, null, "en-US")]          // nothing set
-    public async Task Formatting_culture_stays_invariant_while_ui_culture_negotiates(
+    public async Task Provider_Should_KeepFormattingCultureInvariant_While_UiCultureNegotiates(
         string? claim, string? header, string? query, string expectedUiCulture)
     {
         var options = BuildOptions();
@@ -129,7 +129,7 @@ public sealed class UserLocaleRequestCultureProviderTests
     [InlineData("en-US", "en-US")]
     [InlineData("xx-YY", null)]
     [InlineData(null, null)]
-    public async Task Provider_returns_claim_only_when_supported(string? claim, string? expected)
+    public async Task Provider_Should_ReturnClaim_OnlyWhenSupported(string? claim, string? expected)
     {
         var context = BuildContext(claim, header: null, query: null);
         var result = await new UserLocaleRequestCultureProvider().DetermineProviderCultureResult(context);

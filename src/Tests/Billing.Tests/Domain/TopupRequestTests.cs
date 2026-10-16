@@ -8,7 +8,7 @@ namespace Billing.Tests.Domain;
 public sealed class TopupRequestTests
 {
     [Fact]
-    public void Create_starts_pending()
+    public void Create_Should_StartPending()
     {
         var r = TopupRequest.Create("tenant-a", 50m, "USD", "need credit", "user-1");
         r.Status.ShouldBe(TopupRequestStatus.Pending);
@@ -18,7 +18,7 @@ public sealed class TopupRequestTests
     }
 
     [Fact]
-    public void MarkInvoiced_from_pending_links_invoice()
+    public void MarkInvoiced_Should_LinkInvoice_When_RequestIsPending()
     {
         var r = TopupRequest.Create("tenant-a", 50m, "USD", null, null);
         var inv = Guid.CreateVersion7();
@@ -29,14 +29,14 @@ public sealed class TopupRequestTests
     }
 
     [Fact]
-    public void MarkCompleted_requires_invoiced()
+    public void MarkCompleted_Should_Throw_When_RequestIsNotInvoiced()
     {
         var r = TopupRequest.Create("tenant-a", 50m, "USD", null, null);
         Should.Throw<InvalidOperationException>(() => r.MarkCompleted());
     }
 
     [Fact]
-    public void Reject_from_invoiced_throws()
+    public void Reject_Should_Throw_When_RequestIsInvoiced()
     {
         var r = TopupRequest.Create("tenant-a", 50m, "USD", null, null);
         r.MarkInvoiced(Guid.CreateVersion7(), null);

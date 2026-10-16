@@ -28,7 +28,7 @@ public sealed class MultiModuleOutboxTests
     }
 
     [Fact]
-    public async Task Events_From_Multiple_Modules_Land_In_One_Framework_Outbox()
+    public async Task Publish_Should_LandEventsFromMultipleModules_InOneFrameworkOutbox()
     {
         using var scope = await CreateTenantScopeAsync();
         var store = scope.ServiceProvider.GetRequiredService<IOutboxStore>();
@@ -54,7 +54,7 @@ public sealed class MultiModuleOutboxTests
     }
 
     [Fact]
-    public async Task Application_Registers_Exactly_One_Outbox_And_Inbox_Store()
+    public async Task Application_Should_RegisterExactlyOneOutboxAndInboxStore()
     {
         using var scope = await CreateTenantScopeAsync();
 
@@ -67,7 +67,7 @@ public sealed class MultiModuleOutboxTests
     }
 
     [Fact]
-    public async Task Inbox_Idempotency_Writes_Land_In_The_Framework_Schema()
+    public async Task Inbox_Should_WriteIdempotencyRecords_InTheFrameworkSchema()
     {
         using var scope = await CreateTenantScopeAsync();
         var inbox = scope.ServiceProvider.GetRequiredService<IInboxStore>();
@@ -83,7 +83,7 @@ public sealed class MultiModuleOutboxTests
     }
 
     [Fact]
-    public async Task Identity_No_Longer_Owns_The_Outbox_Tables()
+    public async Task Identity_Should_NotOwnTheOutboxTables()
     {
         using var scope = await CreateTenantScopeAsync();
         var identity = scope.ServiceProvider.GetRequiredService<FSH.Modules.Identity.Data.IdentityDbContext>();
