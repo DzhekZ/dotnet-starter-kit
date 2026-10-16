@@ -91,6 +91,14 @@ In `src/BuildingBlocks/Web/Extensions.cs` (`UseHeroPlatform`):
 
 No global mutable static collections enumerated under concurrency. `Audit` (Auditing module) swaps an immutable `IAuditEnricher[]` atomically; `ModuleLoader` guards with a lock. Follow that pattern if you must hold process-global state.
 
+## Dependencies (`src/Directory.Packages.props`)
+
+Versions live only in the central file (`ManagePackageVersionsCentrally`, transitive pinning on). `NuGetAudit` runs on every restore and warnings are errors, so **a newly published advisory breaks the build for every project overnight** (NU1902/NU1903) — nothing in the repo changed, the vulnerability feed did.
+
+- The `10.0.x` ASP.NET Core / EF Core / `Microsoft.Extensions.*` packages move **together**. Bumping one (say `SignalR.Client`) to a patch whose dependencies need the next `Microsoft.Extensions.*` fails with NU1109 against the pins, so bump the whole family.
+- A vulnerable *transitive* package (`System.Security.Cryptography.Xml`/`.Pkcs`, `MessagePack`, `SQLitePCLRaw.lib.e_sqlite3`, …) gets its own `<PackageVersion>` pin plus a comment naming the advisory; drop the pin once the parent package depends on the fixed version itself.
+- Check with `dotnet list src/FSH.Starter.slnx package --vulnerable --include-transitive` (CI runs the non-transitive form and fails on any hit). Only keep an entry if a project references it or it pins a transitive — an unreferenced `<PackageVersion>` is dead weight.
+
 ## Configuration & options
 
 - `appsettings.json` (+ `.Development`/`.Production`) live in `src/Host/FSH.Starter.Api/`. DbMigrator links the same files.
