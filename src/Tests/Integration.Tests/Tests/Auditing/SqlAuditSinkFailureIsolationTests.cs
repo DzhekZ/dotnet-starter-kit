@@ -18,15 +18,26 @@ namespace Integration.Tests.Tests.Auditing;
 /// committed collided on their primary keys (<c>23505</c>) and were dead-lettered together with the broken one.
 /// </summary>
 [Collection(FshCollectionDefinition.Name)]
-public sealed class SqlAuditSinkFailureIsolationTests
+public sealed class SqlAuditSinkFailureIsolationTests : IAsyncDisposable
 {
     private readonly FshWebApplicationFactory _factory;
     private readonly AuthHelper _auth;
+    private readonly List<string> _tenants = [];
 
     public SqlAuditSinkFailureIsolationTests(FshWebApplicationFactory factory)
     {
         _factory = factory;
         _auth = new AuthHelper(factory);
+    }
+
+    // One tenant is left with a database that has no audit schema; it must not outlive the test in the shared
+    // store (see TenantCleanup).
+    public async ValueTask DisposeAsync()
+    {
+        foreach (var tenantId in _tenants)
+        {
+            await TenantCleanup.RemoveAsync(_factory.Services, tenantId);
+        }
     }
 
     [Fact]
@@ -38,6 +49,8 @@ public sealed class SqlAuditSinkFailureIsolationTests
         var uniqueId = Guid.NewGuid().ToString("N")[..8];
         var healthyTenantId = $"audit-ok-{uniqueId}";
         var brokenTenantId = $"audit-bad-{uniqueId}";
+        _tenants.Add(healthyTenantId);
+        _tenants.Add(brokenTenantId);
 
         var defaultConnection = _factory.Services.GetRequiredService<IConfiguration>()["DatabaseOptions:ConnectionString"];
         defaultConnection.ShouldNotBeNullOrWhiteSpace();
