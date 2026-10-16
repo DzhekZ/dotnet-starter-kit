@@ -73,11 +73,13 @@ public sealed class TypingIndicatorTests
             await adminHub.InvokeAsync("Typing", channelId, cancellationToken: TestContext.Current.CancellationToken);
         }
 
-        await Task.Delay(TimeSpan.FromMilliseconds(500), TestContext.Current.CancellationToken);
+        // The one allowed event travels over long-polling and lags on a loaded runner (a fixed 0.5s + 1s window saw
+        // none at all): wait for it, then keep listening to prove the throttle swallowed the other four.
+        var first = await peerInbox.WaitForFirstAsync(p => p.ChannelId == channelId, EventTimeout);
+        first.ShouldNotBeNull("the first typing call must still reach the other member");
 
-        var received = await peerInbox.DrainAsync(TimeSpan.FromSeconds(1));
-        var matchingHits = received.Count(p => p.ChannelId == channelId);
-        matchingHits.ShouldBe(1,
+        var extras = await peerInbox.DrainAsync(TimeSpan.FromSeconds(1));
+        extras.Count(p => p.ChannelId == channelId).ShouldBe(0,
             "typing throttle should collapse rapid calls into a single ChatTypingStarted within the 3s window");
     }
 
