@@ -1,6 +1,6 @@
 namespace FSH.Modules.Multitenancy.Contracts.Dtos;
 
-public sealed class TenantLifecycleResultDto
+public sealed record TenantLifecycleResultDto
 {
     public string TenantId { get; set; } = default!;
 

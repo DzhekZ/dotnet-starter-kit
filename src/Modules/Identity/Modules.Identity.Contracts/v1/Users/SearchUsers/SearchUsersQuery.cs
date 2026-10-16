@@ -4,7 +4,7 @@ using Mediator;
 
 namespace FSH.Modules.Identity.Contracts.v1.Users.SearchUsers;
 
-public sealed class SearchUsersQuery : IPagedQuery, IQuery<PagedResponse<UserDto>>
+public sealed record SearchUsersQuery : IPagedQuery, IQuery<PagedResponse<UserDto>>
 {
     public int? PageNumber { get; set; }
 

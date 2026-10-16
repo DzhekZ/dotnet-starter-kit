@@ -1,6 +1,6 @@
 ﻿namespace FSH.Modules.Identity.Contracts.DTOs;
 
-public class RoleDto
+public sealed record RoleDto
 {
     public string Id { get; set; } = default!;
     public string Name { get; set; } = default!;

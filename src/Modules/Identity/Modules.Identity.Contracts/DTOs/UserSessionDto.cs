@@ -1,6 +1,6 @@
 namespace FSH.Modules.Identity.Contracts.DTOs;
 
-public class UserSessionDto
+public sealed record UserSessionDto
 {
     public Guid Id { get; set; }
     public string? UserId { get; set; }

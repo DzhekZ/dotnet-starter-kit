@@ -1,6 +1,6 @@
 namespace FSH.Modules.Identity.Contracts.DTOs;
 
-public class GroupDto
+public sealed record GroupDto
 {
     public Guid Id { get; set; }
     public string Name { get; set; } = default!;

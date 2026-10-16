@@ -2,7 +2,7 @@ using FSH.Modules.Auditing.Contracts;
 
 namespace FSH.Modules.Auditing.Contracts.Dtos;
 
-public sealed class AuditSummaryDto
+public sealed record AuditSummaryDto
 {
     public Guid Id { get; set; }
 

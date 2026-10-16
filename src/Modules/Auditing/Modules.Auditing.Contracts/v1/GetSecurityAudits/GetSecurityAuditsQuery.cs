@@ -4,7 +4,7 @@ using Mediator;
 
 namespace FSH.Modules.Auditing.Contracts.v1.GetSecurityAudits;
 
-public sealed class GetSecurityAuditsQuery : IQuery<IReadOnlyList<AuditSummaryDto>>
+public sealed record GetSecurityAuditsQuery : IQuery<IReadOnlyList<AuditSummaryDto>>
 {
     public SecurityAction? Action { get; init; }
 
