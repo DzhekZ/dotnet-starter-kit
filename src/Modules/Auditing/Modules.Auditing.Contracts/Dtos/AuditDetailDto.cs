@@ -3,7 +3,7 @@ using System.Text.Json;
 
 namespace FSH.Modules.Auditing.Contracts.Dtos;
 
-public sealed class AuditDetailDto
+public sealed record AuditDetailDto
 {
     public Guid Id { get; set; }
 

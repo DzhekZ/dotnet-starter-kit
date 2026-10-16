@@ -2,7 +2,7 @@ using FSH.Modules.Auditing.Contracts;
 
 namespace FSH.Modules.Auditing.Contracts.Dtos;
 
-public sealed class AuditSummaryAggregateDto
+public sealed record AuditSummaryAggregateDto
 {
     public IDictionary<AuditEventType, long> EventsByType { get; init; } =
         new Dictionary<AuditEventType, long>();

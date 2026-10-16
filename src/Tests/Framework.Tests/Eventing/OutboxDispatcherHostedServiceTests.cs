@@ -17,7 +17,7 @@ public class OutboxDispatcherHostedServiceTests
     private static readonly EventingDrainTarget Acme = new("acme", "Host=acme;Database=acme;Username=u;Password=p");
 
     [Fact]
-    public async Task Drains_Once_Per_Target()
+    public async Task Cycle_Should_DrainOncePerTarget()
     {
         var targets = new List<EventingDrainTarget> { Default, Acme };
         var recording = new RecordingDrainScope();
@@ -30,7 +30,7 @@ public class OutboxDispatcherHostedServiceTests
     }
 
     [Fact]
-    public async Task Single_Target_Behaves_As_Before()
+    public async Task Cycle_Should_DrainOnce_When_ThereIsASingleTarget()
     {
         var recording = new RecordingDrainScope();
         var store = EmptyStore();
@@ -42,7 +42,7 @@ public class OutboxDispatcherHostedServiceTests
     }
 
     [Fact]
-    public async Task One_Unreachable_Database_Does_Not_Stop_The_Others()
+    public async Task Cycle_Should_DrainRemainingTargets_When_OneDatabaseIsUnreachable()
     {
         var recording = new RecordingDrainScope();
         var store = Substitute.For<IOutboxStore>();

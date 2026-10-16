@@ -26,7 +26,7 @@ public sealed class TenantExpiryNotice
 
         return new TenantExpiryNotice
         {
-            Id = Guid.NewGuid(),
+            Id = Guid.CreateVersion7(),
             TenantId = tenantId,
             NoticeType = noticeType,
             ValidUptoUtc = DateTime.SpecifyKind(validUptoUtc, DateTimeKind.Utc),

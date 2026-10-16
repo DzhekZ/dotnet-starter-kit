@@ -2,7 +2,7 @@
 
 namespace FSH.Modules.Identity.Contracts.DTOs;
 
-public class UserDto
+public sealed record UserDto
 {
     public string? Id { get; set; }
 

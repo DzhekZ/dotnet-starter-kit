@@ -1,6 +1,6 @@
 namespace FSH.Modules.Multitenancy.Contracts.Dtos;
 
-public sealed class TenantMigrationStatusDto
+public sealed record TenantMigrationStatusDto
 {
     public string TenantId { get; set; } = default!;
 

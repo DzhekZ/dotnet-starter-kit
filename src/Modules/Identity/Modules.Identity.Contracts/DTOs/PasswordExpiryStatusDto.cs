@@ -1,6 +1,6 @@
 namespace FSH.Modules.Identity.Contracts.DTOs;
 
-public sealed class PasswordExpiryStatusDto
+public sealed record PasswordExpiryStatusDto
 {
     public bool IsExpired { get; set; }
     public bool IsExpiringWithinWarningPeriod { get; set; }

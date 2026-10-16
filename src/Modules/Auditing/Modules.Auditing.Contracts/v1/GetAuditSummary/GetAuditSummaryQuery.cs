@@ -3,7 +3,7 @@ using Mediator;
 
 namespace FSH.Modules.Auditing.Contracts.v1.GetAuditSummary;
 
-public sealed class GetAuditSummaryQuery : IQuery<AuditSummaryAggregateDto>
+public sealed record GetAuditSummaryQuery : IQuery<AuditSummaryAggregateDto>
 {
     public DateTime? FromUtc { get; init; }
 

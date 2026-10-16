@@ -3,7 +3,7 @@ using Mediator;
 
 namespace FSH.Modules.Auditing.Contracts.v1.GetAuditsByTrace;
 
-public sealed class GetAuditsByTraceQuery : IQuery<IReadOnlyList<AuditSummaryDto>>
+public sealed record GetAuditsByTraceQuery : IQuery<IReadOnlyList<AuditSummaryDto>>
 {
     public string TraceId { get; init; } = default!;
 

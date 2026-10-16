@@ -2,7 +2,7 @@ using Mediator;
 
 namespace FSH.Modules.Identity.Contracts.v1.Roles.UpdatePermissions;
 
-public class UpdatePermissionsCommand : ICommand<string>
+public sealed record UpdatePermissionsCommand : ICommand<string>
 {
     /// <summary>
     /// The ID of the role to update.

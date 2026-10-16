@@ -4,7 +4,7 @@ using Mediator;
 
 namespace FSH.Modules.Identity.Contracts.v1.Roles.GetRoles;
 
-public sealed class GetRolesQuery : IPagedQuery, IQuery<PagedResponse<RoleDto>>
+public sealed record GetRolesQuery : IPagedQuery, IQuery<PagedResponse<RoleDto>>
 {
     public int? PageNumber { get; set; }
 

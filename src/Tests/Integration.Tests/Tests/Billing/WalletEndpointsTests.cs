@@ -134,7 +134,7 @@ public sealed class WalletEndpointsTests
     // ─── Cross-tenant isolation ────────────────────────────────────────
 
     [Fact]
-    public async Task GetMyTopupRequests_Must_NotLeak_Requests_From_Other_Tenant()
+    public async Task GetMyTopupRequests_Should_NotLeakRequests_FromOtherTenant()
     {
         // Arrange — root (Tenant A) creates a topup request.
         using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);

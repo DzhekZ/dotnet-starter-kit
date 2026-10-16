@@ -1,6 +1,6 @@
 ﻿namespace FSH.Modules.Identity.Contracts.DTOs;
 
-public class UserRoleDto
+public sealed record UserRoleDto
 {
     public string? RoleId { get; set; }
     public string? RoleName { get; set; }

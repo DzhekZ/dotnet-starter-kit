@@ -31,7 +31,7 @@ public sealed class OutboxAtomicityTests
     }
 
     [Fact]
-    public async Task Module_Context_And_Eventing_Context_Share_One_Connection()
+    public async Task ModuleContextAndEventingContext_Should_ShareOneConnection()
     {
         var (scope, tenant) = await NewScopeAsync();
         using var scopeHandle = scope;
@@ -47,7 +47,7 @@ public sealed class OutboxAtomicityTests
     }
 
     [Fact]
-    public async Task Outbox_Write_Rolls_Back_With_The_Business_Transaction()
+    public async Task OutboxWrite_Should_RollBack_With_TheBusinessTransaction()
     {
         var (scope, tenant) = await NewScopeAsync();
         using var scopeHandle = scope;
@@ -76,7 +76,7 @@ public sealed class OutboxAtomicityTests
     }
 
     [Fact]
-    public async Task Outbox_Write_Commits_With_The_Business_Transaction()
+    public async Task OutboxWrite_Should_Commit_With_TheBusinessTransaction()
     {
         var (scope, tenant) = await NewScopeAsync();
         using var scopeHandle = scope;
@@ -105,7 +105,7 @@ public sealed class OutboxAtomicityTests
     }
 
     [Fact]
-    public async Task Write_Outside_A_Transaction_Still_Commits_On_Its_Own()
+    public async Task OutboxWrite_Should_CommitOnItsOwn_When_OutsideATransaction()
     {
         var (scope, tenant) = await NewScopeAsync();
         using var scopeHandle = scope;
@@ -122,7 +122,7 @@ public sealed class OutboxAtomicityTests
     }
 
     [Fact]
-    public async Task A_Second_Write_After_The_Transaction_Completes_Is_Not_Blocked_By_The_Stale_Handle()
+    public async Task OutboxWrite_Should_NotBeBlockedByTheStaleHandle_When_ASecondWriteFollowsACompletedTransaction()
     {
         var (scope, tenant) = await NewScopeAsync();
         using var scopeHandle = scope;

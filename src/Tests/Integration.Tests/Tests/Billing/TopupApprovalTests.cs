@@ -43,7 +43,7 @@ public sealed class TopupApprovalTests
     // ─── Approve: happy path ──────────────────────────────────────────
 
     [Fact]
-    public async Task Approve_generates_topup_invoice_and_marks_request_invoiced()
+    public async Task Approve_Should_GenerateTopupInvoice_And_MarkRequestInvoiced()
     {
         // Arrange: seed a Pending TopupRequest for root tenant (inline tenant context per pattern).
         var requestId = await SeedPendingTopupRequestAsync(TestConstants.RootTenantId, 250m);
@@ -80,7 +80,7 @@ public sealed class TopupApprovalTests
     // ─── Reject: happy path ───────────────────────────────────────────
 
     [Fact]
-    public async Task Reject_marks_request_rejected_and_returns_request_id()
+    public async Task Reject_Should_MarkRequestRejected_And_ReturnRequestId()
     {
         // Arrange: seed a Pending request.
         var requestId = await SeedPendingTopupRequestAsync(TestConstants.RootTenantId, 100m);
@@ -106,7 +106,7 @@ public sealed class TopupApprovalTests
     // ─── Reject: double-reject on non-Pending returns 409 ────────────
 
     [Fact]
-    public async Task Reject_of_already_rejected_request_returns_409_Conflict()
+    public async Task Reject_Should_Return409Conflict_When_RequestIsAlreadyRejected()
     {
         // Arrange: seed a Pending request and perform a successful first rejection.
         var requestId = await SeedPendingTopupRequestAsync(TestConstants.RootTenantId, 120m);
@@ -128,7 +128,7 @@ public sealed class TopupApprovalTests
     // ─── Cross-tenant: non-root cannot see other tenants' requests ────
 
     [Fact]
-    public async Task NonRoot_cannot_see_other_tenants_requests()
+    public async Task GetTopupRequests_Should_HideOtherTenantsRequests_When_CallerIsNotRoot()
     {
         // Arrange: seed a Pending request for root tenant (TenantA).
         var rootRequestId = await SeedPendingTopupRequestAsync(TestConstants.RootTenantId, 150m);
@@ -164,7 +164,7 @@ public sealed class TopupApprovalTests
     // ─── List: root cross-tenant filter by tenantId ───────────────────
 
     [Fact]
-    public async Task Root_can_filter_topup_requests_by_tenantId()
+    public async Task GetTopupRequests_Should_FilterByTenantId_When_CallerIsRoot()
     {
         // Arrange: seed a request for root.
         var requestId = await SeedPendingTopupRequestAsync(TestConstants.RootTenantId, 75m);

@@ -199,7 +199,7 @@ public sealed class UsageSnapshotQueryTests
     #region Cross-tenant (documented admin posture)
 
     [Fact]
-    public async Task GetUsageSnapshots_Is_PlatformWide_And_Surfaces_OtherTenant_Rows_To_Admin()
+    public async Task GetUsageSnapshots_Should_BePlatformWide_And_SurfaceOtherTenantRows_ToAdmin()
     {
         // GetUsageSnapshots mirrors GetInvoices: a platform-wide admin list NOT auto-scoped to the caller's
         // tenant. Pins that another tenant's snapshot shows unfiltered and the tenantId filter isolates one.

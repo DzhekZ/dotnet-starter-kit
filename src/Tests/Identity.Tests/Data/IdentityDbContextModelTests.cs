@@ -42,7 +42,7 @@ public class IdentityDbContextModelTests
     // already restricts to SupportedCultures.Tags. 10 covers the longest form the
     // platform could offer (language-script-region, e.g. zh-Hant-TW).
     [Fact]
-    public void User_Locale_Is_Bounded_To_A_Bcp47_Tag_Length()
+    public void Model_Should_BoundUserLocale_ToBcp47TagLength()
     {
         using var context = CreateContext();
 

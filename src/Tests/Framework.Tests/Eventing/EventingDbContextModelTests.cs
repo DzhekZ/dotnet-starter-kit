@@ -40,7 +40,7 @@ public class EventingDbContextModelTests
     }
 
     [Fact]
-    public void Maps_OutboxMessages_To_Framework_Schema()
+    public void Model_Should_MapOutboxMessages_ToFrameworkSchema()
     {
         using var context = CreateContext();
         var entity = context.Model.FindEntityType(typeof(OutboxMessage));
@@ -51,7 +51,7 @@ public class EventingDbContextModelTests
     }
 
     [Fact]
-    public void Outbox_Has_Claim_Index_For_Pending_Scan()
+    public void Model_Should_IndexOutboxClaims_ForPendingScan()
     {
         using var context = CreateContext();
         var entity = context.Model.FindEntityType(typeof(OutboxMessage));
@@ -63,7 +63,7 @@ public class EventingDbContextModelTests
     }
 
     [Fact]
-    public void Maps_InboxMessages_To_Framework_Schema()
+    public void Model_Should_MapInboxMessages_ToFrameworkSchema()
     {
         using var context = CreateContext();
         var entity = context.Model.FindEntityType(typeof(InboxMessage));
@@ -74,7 +74,7 @@ public class EventingDbContextModelTests
     }
 
     [Fact]
-    public void Outbox_And_Inbox_Are_Not_Tenant_Filtered()
+    public void Model_Should_NotTenantFilter_OutboxAndInbox()
     {
         using var context = CreateContext();
 

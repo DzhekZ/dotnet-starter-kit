@@ -5,7 +5,7 @@ using Mediator;
 
 namespace FSH.Modules.Auditing.Contracts.v1.GetAudits;
 
-public sealed class GetAuditsQuery : IPagedQuery, IQuery<PagedResponse<AuditSummaryDto>>
+public sealed record GetAuditsQuery : IPagedQuery, IQuery<PagedResponse<AuditSummaryDto>>
 {
     public int? PageNumber { get; set; }
 

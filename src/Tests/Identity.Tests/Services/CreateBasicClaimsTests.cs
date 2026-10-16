@@ -13,7 +13,7 @@ public sealed class CreateBasicClaimsTests
         new() { Id = "u1", Email = "u@codefi.com.br", UserName = "u", FirstName = "First", LastName = "Last", Locale = locale };
 
     [Fact]
-    public void Emits_locale_claim_when_user_locale_is_set()
+    public void CreateBasicClaims_Should_EmitLocaleClaim_When_UserLocaleIsSet()
     {
         var claims = IdentityService.CreateBasicClaims(User("pt-BR"), "codefi");
 
@@ -21,7 +21,7 @@ public sealed class CreateBasicClaimsTests
     }
 
     [Fact]
-    public void Omits_locale_claim_when_user_locale_is_null()
+    public void CreateBasicClaims_Should_OmitLocaleClaim_When_UserLocaleIsNull()
     {
         var claims = IdentityService.CreateBasicClaims(User(null), "codefi");
 
@@ -29,7 +29,7 @@ public sealed class CreateBasicClaimsTests
     }
 
     [Fact]
-    public void Omits_locale_claim_when_user_locale_is_whitespace()
+    public void CreateBasicClaims_Should_OmitLocaleClaim_When_UserLocaleIsWhitespace()
     {
         var claims = IdentityService.CreateBasicClaims(User("   "), "codefi");
 

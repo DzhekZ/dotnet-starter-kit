@@ -12,7 +12,7 @@ public class TenantStoreDrainTargetProviderTests
     private const string AcmeConnection = "Host=acme;Database=acme;Username=u;Password=p";
 
     [Fact]
-    public async Task Returns_Default_Plus_One_Target_Per_Distinct_Connection_String()
+    public async Task GetTargetsAsync_Should_ReturnDefaultPlusOneTargetPerDistinctConnectionString()
     {
         var provider = new TenantStoreDrainTargetProvider(StoreWith(
             Tenant("shared-a", connectionString: null),
@@ -31,7 +31,7 @@ public class TenantStoreDrainTargetProviderTests
     }
 
     [Fact]
-    public async Task Returns_Only_The_Default_When_No_Tenant_Has_A_Dedicated_Database()
+    public async Task GetTargetsAsync_Should_ReturnOnlyTheDefault_When_NoTenantHasADedicatedDatabase()
     {
         var provider = new TenantStoreDrainTargetProvider(StoreWith(
             Tenant("shared-a", connectionString: null),

@@ -95,7 +95,7 @@ public sealed class ExceptionLocalizationPipelineTests
     [Theory]
     [InlineData("pt-BR")]
     [InlineData("en-US")]
-    public async Task Request_culture_is_negotiated_from_the_accept_language_header(string acceptLanguage)
+    public async Task Pipeline_Should_NegotiateRequestCulture_FromAcceptLanguageHeader(string acceptLanguage)
     {
         var exception = new NotFoundException("English fallback") { MessageKey = "Error.NotFound" };
 
@@ -108,7 +108,7 @@ public sealed class ExceptionLocalizationPipelineTests
     [Theory]
     [InlineData("pt-BR", "Não encontrado")]
     [InlineData("en-US", "Not Found")]
-    public async Task Detail_is_localized_from_the_negotiated_request_culture(string acceptLanguage, string expected)
+    public async Task Pipeline_Should_LocalizeDetail_FromNegotiatedRequestCulture(string acceptLanguage, string expected)
     {
         var exception = new NotFoundException("English fallback") { MessageKey = "Error.NotFound" };
 
@@ -123,7 +123,7 @@ public sealed class ExceptionLocalizationPipelineTests
     [Theory]
     [InlineData("pt-BR", "Não encontrado")]
     [InlineData("en-US", "Not Found")]
-    public async Task Title_is_localized_from_the_negotiated_request_culture(string acceptLanguage, string expected)
+    public async Task Pipeline_Should_LocalizeTitle_FromNegotiatedRequestCulture(string acceptLanguage, string expected)
     {
         var outcome = await InvokeAsync(acceptLanguage, new NotFoundException("English fallback"));
 
@@ -135,7 +135,7 @@ public sealed class ExceptionLocalizationPipelineTests
     [Theory]
     [InlineData("pt-BR", "Ocorreu um erro inesperado")]
     [InlineData("en-US", "An unexpected error occurred")]
-    public async Task Unexpected_error_is_localized_from_the_negotiated_request_culture(string acceptLanguage, string expected)
+    public async Task Pipeline_Should_LocalizeUnexpectedError_FromNegotiatedRequestCulture(string acceptLanguage, string expected)
     {
         var outcome = await InvokeAsync(acceptLanguage, new InvalidOperationException("boom"));
 
@@ -147,7 +147,7 @@ public sealed class ExceptionLocalizationPipelineTests
     [Theory]
     [InlineData("pt-BR")]
     [InlineData("en-US")]
-    public async Task Content_language_declares_the_culture_the_body_was_written_in(string acceptLanguage)
+    public async Task Pipeline_Should_DeclareContentLanguage_OfTheBodyCulture(string acceptLanguage)
     {
         var exception = new NotFoundException("English fallback") { MessageKey = "Error.NotFound" };
 
@@ -159,7 +159,7 @@ public sealed class ExceptionLocalizationPipelineTests
     // No localization in the pipeline: the handler must still answer, from the ambient culture, and
     // must not claim a Content-Language it never negotiated.
     [Fact]
-    public async Task Handler_still_answers_when_no_culture_was_negotiated()
+    public async Task Pipeline_Should_StillAnswer_When_NoCultureWasNegotiated()
     {
         var exception = new NotFoundException("English fallback") { MessageKey = "Error.NotFound" };
 
@@ -175,7 +175,7 @@ public sealed class ExceptionLocalizationPipelineTests
     // The ambient culture is restored on the way out, so the handler cannot leak the request culture
     // onto whatever else runs on this thread afterwards.
     [Fact]
-    public async Task Ambient_culture_is_restored_after_handling()
+    public async Task Pipeline_Should_RestoreAmbientCulture_AfterHandling()
     {
         var exception = new NotFoundException("English fallback") { MessageKey = "Error.NotFound" };
         var before = CultureInfo.CurrentUICulture;

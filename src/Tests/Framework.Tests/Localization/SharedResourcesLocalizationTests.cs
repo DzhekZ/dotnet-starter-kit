@@ -30,7 +30,7 @@ public sealed class SharedResourcesLocalizationTests
     [InlineData("pt", "Not Found")]           // bare pt has no catalog -> neutral English
     [InlineData("pt-PT", "Not Found")]         // unsupported variant -> neutral English, NOT pt-BR
     [InlineData("en-US", "Not Found")]        // en-US falls back to the neutral (default) catalog
-    public void Localizer_resolves_error_key_per_culture(string culture, string expected)
+    public void Localizer_Should_ResolveErrorKey_PerCulture(string culture, string expected)
     {
         var localizer = BuildLocalizer();
         var previous = CultureInfo.CurrentUICulture;
@@ -52,7 +52,7 @@ public sealed class SharedResourcesLocalizationTests
     // A pt-BR translation is optional for contributors, which only holds if a key the .pt-BR resx
     // lacks still resolves (to English) under the production wiring instead of leaking the raw key.
     [Fact]
-    public void Key_missing_from_the_ptBR_catalog_falls_back_to_English()
+    public void Localizer_Should_FallBackToEnglish_When_KeyIsMissingFromPtBRCatalog()
     {
         var configuration = new ConfigurationBuilder().AddInMemoryCollection().Build();
         var services = new ServiceCollection();

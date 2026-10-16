@@ -58,7 +58,7 @@ public sealed class GlobalExceptionHandlerLocalizationTests
     [Theory]
     [InlineData("pt-BR", "Não encontrado")]
     [InlineData("en-US", "Not Found")]
-    public async Task NotFound_title_is_localized(string culture, string expected)
+    public async Task TryHandleAsync_Should_LocalizeNotFoundTitle(string culture, string expected)
     {
         var (title, _) = await HandleAsync(new KeyNotFoundException("missing"), culture);
         title.ShouldBe(expected);
@@ -67,7 +67,7 @@ public sealed class GlobalExceptionHandlerLocalizationTests
     [Theory]
     [InlineData("pt-BR", "Ocorreu um erro inesperado")]
     [InlineData("en-US", "An unexpected error occurred")]
-    public async Task Unexpected_title_is_localized(string culture, string expected)
+    public async Task TryHandleAsync_Should_LocalizeUnexpectedTitle(string culture, string expected)
     {
         var (title, _) = await HandleAsync(new InvalidOperationException("boom"), culture);
         title.ShouldBe(expected);
@@ -77,7 +77,7 @@ public sealed class GlobalExceptionHandlerLocalizationTests
     [Theory]
     [InlineData("pt-BR", "Não encontrado")]
     [InlineData("en-US", "Not Found")]
-    public async Task CustomException_title_is_localized_by_status(string culture, string expected)
+    public async Task TryHandleAsync_Should_LocalizeCustomExceptionTitle_ByStatus(string culture, string expected)
     {
         var (title, _) = await HandleAsync(new NotFoundException("some entity was not found"), culture);
         title.ShouldBe(expected);
@@ -87,7 +87,7 @@ public sealed class GlobalExceptionHandlerLocalizationTests
     [Theory]
     [InlineData("pt-BR", "Não autorizado")]
     [InlineData("en-US", "Unauthorized")]
-    public async Task CustomException_detail_is_localized_from_key(string culture, string expected)
+    public async Task TryHandleAsync_Should_LocalizeCustomExceptionDetail_FromMessageKey(string culture, string expected)
     {
         var exception = new UnauthorizedException("english fallback") { MessageKey = "Error.Unauthorized" };
         var (_, detail) = await HandleAsync(exception, culture);
@@ -98,7 +98,7 @@ public sealed class GlobalExceptionHandlerLocalizationTests
     [Theory]
     [InlineData("pt-BR")]
     [InlineData("en-US")]
-    public async Task CustomException_detail_falls_back_to_message_without_key(string culture)
+    public async Task TryHandleAsync_Should_FallBackToMessage_When_CustomExceptionHasNoKey(string culture)
     {
         var (_, detail) = await HandleAsync(new NotFoundException("Plain English detail."), culture);
         detail.ShouldBe("Plain English detail.");
@@ -109,7 +109,7 @@ public sealed class GlobalExceptionHandlerLocalizationTests
     [Theory]
     [InlineData("pt-BR", "Falha na autenticação.")]
     [InlineData("en-US", "Authentication failed.")]
-    public async Task Parameterless_unauthorized_detail_is_localized(string culture, string expected)
+    public async Task TryHandleAsync_Should_LocalizeDetail_ForParameterlessUnauthorizedException(string culture, string expected)
     {
         var (_, detail) = await HandleAsync(new UnauthorizedException(), culture);
         detail.ShouldBe(expected);
@@ -117,7 +117,7 @@ public sealed class GlobalExceptionHandlerLocalizationTests
 
     // Unknown MessageKey: ResourceNotFound path falls back to the English Message, never leaks the raw key.
     [Fact]
-    public async Task CustomException_detail_falls_back_when_key_missing()
+    public async Task TryHandleAsync_Should_FallBackToMessage_When_MessageKeyDoesNotExist()
     {
         var exception = new NotFoundException("English fallback detail.") { MessageKey = "Does.Not.Exist" };
         var (_, detail) = await HandleAsync(exception, "pt-BR");
@@ -129,7 +129,7 @@ public sealed class GlobalExceptionHandlerLocalizationTests
     [Theory]
     [InlineData("pt-BR", "Falha na autenticação.")]
     [InlineData("en-US", "Authentication failed.")]
-    public async Task LocalizedUnauthorizedAccess_detail_is_localized(string culture, string expected)
+    public async Task TryHandleAsync_Should_LocalizeDetail_ForLocalizedUnauthorizedAccess(string culture, string expected)
     {
         var exception = new LocalizedUnauthorizedAccessException("english fallback")
         {
@@ -142,7 +142,7 @@ public sealed class GlobalExceptionHandlerLocalizationTests
     [Theory]
     [InlineData("pt-BR", "Não encontrado")]
     [InlineData("en-US", "Not Found")]
-    public async Task LocalizedKeyNotFound_detail_is_localized(string culture, string expected)
+    public async Task TryHandleAsync_Should_LocalizeDetail_ForLocalizedKeyNotFound(string culture, string expected)
     {
         var exception = new LocalizedKeyNotFoundException("english fallback")
         {
@@ -154,7 +154,7 @@ public sealed class GlobalExceptionHandlerLocalizationTests
 
     // No MessageKey on a localized subclass → Detail falls back to the literal (English) message.
     [Fact]
-    public async Task LocalizedUnauthorizedAccess_without_key_falls_back_to_message()
+    public async Task TryHandleAsync_Should_FallBackToMessage_When_LocalizedUnauthorizedAccessHasNoKey()
     {
         var (_, detail) = await HandleAsync(new LocalizedUnauthorizedAccessException("Plain English."), "pt-BR");
         detail.ShouldBe("Plain English.");
@@ -165,7 +165,7 @@ public sealed class GlobalExceptionHandlerLocalizationTests
     [Theory]
     [InlineData("pt-BR")]
     [InlineData("en-US")]
-    public async Task CustomException_surfaces_the_message_key_as_code(string culture)
+    public async Task TryHandleAsync_Should_SurfaceMessageKeyAsCode_ForCustomException(string culture)
     {
         var exception = new UnauthorizedException("english fallback") { MessageKey = "Error.Unauthorized" };
         var (_, _, code) = await HandleWithCodeAsync(exception, culture);
@@ -174,7 +174,7 @@ public sealed class GlobalExceptionHandlerLocalizationTests
 
     // A localized BCL subclass carries its key through the same path.
     [Fact]
-    public async Task LocalizedKeyNotFound_surfaces_the_message_key_as_code()
+    public async Task TryHandleAsync_Should_SurfaceMessageKeyAsCode_ForLocalizedKeyNotFound()
     {
         var exception = new LocalizedKeyNotFoundException("english fallback") { MessageKey = "Error.NotFound" };
         var (_, _, code) = await HandleWithCodeAsync(exception, "pt-BR");
@@ -183,7 +183,7 @@ public sealed class GlobalExceptionHandlerLocalizationTests
 
     // No key → no code property at all, rather than a null or an invented one.
     [Fact]
-    public async Task Exception_without_key_omits_the_code()
+    public async Task TryHandleAsync_Should_OmitCode_When_ExceptionHasNoKey()
     {
         var (_, _, code) = await HandleWithCodeAsync(new NotFoundException("Plain English detail."), "pt-BR");
         code.ShouldBeNull();
@@ -192,7 +192,7 @@ public sealed class GlobalExceptionHandlerLocalizationTests
     // An unknown key still travels as the code even though Detail fell back to English: the code is the
     // contract, the resx lookup is presentation.
     [Fact]
-    public async Task Unknown_key_still_surfaces_as_code()
+    public async Task TryHandleAsync_Should_SurfaceUnknownKeyAsCode()
     {
         var exception = new NotFoundException("English fallback detail.") { MessageKey = "Does.Not.Exist" };
         var (_, detail, code) = await HandleWithCodeAsync(exception, "pt-BR");
@@ -202,7 +202,7 @@ public sealed class GlobalExceptionHandlerLocalizationTests
 
     // A raw BCL exception (no ILocalizableMessage) keeps its message and gets no code.
     [Fact]
-    public async Task Raw_key_not_found_has_no_code()
+    public async Task TryHandleAsync_Should_OmitCode_ForRawKeyNotFound()
     {
         var (_, detail, code) = await HandleWithCodeAsync(new KeyNotFoundException("missing"), "pt-BR");
         detail.ShouldBe("missing");
@@ -216,7 +216,7 @@ public sealed class GlobalExceptionHandlerLocalizationTests
     [Theory]
     [InlineData("en-US", "Conflict")]
     [InlineData("pt-BR", "Conflito")]
-    public async Task Conflict_is_titled_as_a_conflict_not_as_unexpected(string culture, string expected)
+    public async Task TryHandleAsync_Should_TitleConflictAsConflict_NotAsUnexpected(string culture, string expected)
     {
         var exception = new CustomException("Brand name already taken.", [], HttpStatusCode.Conflict);
 
@@ -230,7 +230,7 @@ public sealed class GlobalExceptionHandlerLocalizationTests
     [Theory]
     [InlineData("en-US", "Precondition Failed")]
     [InlineData("pt-BR", "Pré-condição não atendida")]
-    public async Task PreconditionFailed_has_its_own_title(string culture, string expected)
+    public async Task TryHandleAsync_Should_UseItsOwnTitle_ForPreconditionFailed(string culture, string expected)
     {
         var exception = new CustomException("The profile changed.", [], HttpStatusCode.PreconditionFailed);
 
@@ -244,7 +244,7 @@ public sealed class GlobalExceptionHandlerLocalizationTests
     [Theory]
     [InlineData("en-US")]
     [InlineData("pt-BR")]
-    public async Task Untranslated_status_falls_back_to_the_exception_type_name(string culture)
+    public async Task TryHandleAsync_Should_FallBackToExceptionTypeName_When_StatusHasNoTranslation(string culture)
     {
         var exception = new CustomException("Mailbox is locked.", [], HttpStatusCode.Locked);
 

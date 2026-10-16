@@ -4,7 +4,7 @@ using Mediator;
 
 namespace FSH.Modules.Auditing.Contracts.v1.GetExceptionAudits;
 
-public sealed class GetExceptionAuditsQuery : IQuery<IReadOnlyList<AuditSummaryDto>>
+public sealed record GetExceptionAuditsQuery : IQuery<IReadOnlyList<AuditSummaryDto>>
 {
     public ExceptionArea? Area { get; init; }
 

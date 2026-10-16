@@ -14,7 +14,7 @@ namespace Integration.Tests.Tests.Multitenancy;
 /// correlation id. Also covers authentication and the not-found path.
 /// </summary>
 [Collection(FshCollectionDefinition.Name)]
-public sealed class RetryTenantProvisioningTests
+public sealed class RetryTenantProvisioningTests : IAsyncDisposable
 {
     private static readonly JsonSerializerOptions Json = new()
     {
@@ -29,11 +29,22 @@ public sealed class RetryTenantProvisioningTests
 
     private readonly FshWebApplicationFactory _factory;
     private readonly AuthHelper _auth;
+    private readonly List<string> _failedTenants = [];
 
     public RetryTenantProvisioningTests(FshWebApplicationFactory factory)
     {
         _factory = factory;
         _auth = new AuthHelper(factory);
+    }
+
+    // These tenants can never provision. Left in the shared store they fail every job that walks all tenants
+    // (see TenantCleanup), for whichever test happens to run after this one.
+    public async ValueTask DisposeAsync()
+    {
+        foreach (var tenantId in _failedTenants)
+        {
+            await TenantCleanup.RemoveAsync(_factory.Services, tenantId);
+        }
     }
 
     #region Happy Path (retry of a failed tenant)
@@ -45,6 +56,7 @@ public sealed class RetryTenantProvisioningTests
         using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var unique = Guid.NewGuid().ToString("N")[..8];
         var tenantId = $"retry-{unique}";
+        _failedTenants.Add(tenantId);
 
         var createResponse = await rootClient.PostAsJsonAsync(TestConstants.TenantsBasePath, new
         {
@@ -73,6 +85,9 @@ public sealed class RetryTenantProvisioningTests
         retryStatus.TenantId.ShouldBe(tenantId);
         retryStatus.CorrelationId.ShouldNotBe(firstCorrelation, "retry must create a new provisioning attempt");
         retryStatus.Steps.Count.ShouldBe(4);
+
+        // The retried attempt is still running (and fails the same way); let it finish before the tenant is removed.
+        await PollUntilStatusAsync(rootClient, tenantId, "Failed");
     }
 
     [Fact]

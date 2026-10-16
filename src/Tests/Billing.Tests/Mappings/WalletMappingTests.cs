@@ -10,7 +10,7 @@ namespace Billing.Tests.Mappings;
 public sealed class WalletMappingTests
 {
     [Fact]
-    public void Wallet_ToDto_emits_string_status_and_balance()
+    public void ToDto_Should_EmitStringStatusAndBalance_ForWallet()
     {
         var w = Wallet.Create("tenant-a", "USD");
         w.Credit(new Money(50m, "USD"), WalletTransactionKind.Topup, "Top-up", "req-1");
@@ -22,7 +22,7 @@ public sealed class WalletMappingTests
     }
 
     [Fact]
-    public void TopupRequest_ToDto_emits_string_status()
+    public void ToDto_Should_EmitStringStatus_ForTopupRequest()
     {
         var r = TopupRequest.Create("tenant-a", 25m, "USD", "note", "u1");
         r.ToDto().Status.ShouldBe("Pending");

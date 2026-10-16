@@ -4,7 +4,7 @@ using System.Text.Json.Serialization;
 
 namespace FSH.Modules.Identity.Contracts.v1.Users.UpdateUser;
 
-public class UpdateUserCommand : ICommand<Unit>
+public sealed record UpdateUserCommand : ICommand<Unit>
 {
     public string Id { get; set; } = default!;
     public string? FirstName { get; set; }

@@ -1,6 +1,6 @@
 namespace FSH.Modules.Webhooks.Contracts.Dtos;
 
-public sealed class WebhookDeliveryDto
+public sealed record WebhookDeliveryDto
 {
     public Guid Id { get; init; }
     public Guid SubscriptionId { get; init; }

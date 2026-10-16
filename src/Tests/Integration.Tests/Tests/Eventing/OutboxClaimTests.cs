@@ -25,7 +25,7 @@ public sealed class OutboxClaimTests
     }
 
     [Fact]
-    public async Task Concurrent_Claims_Never_Return_The_Same_Row()
+    public async Task ClaimBatchAsync_Should_NeverReturnTheSameRow_When_ClaimsAreConcurrent()
     {
         var marker = $"claim-{Guid.CreateVersion7():N}";
         await SeedAsync(marker, count: 50);
@@ -53,7 +53,7 @@ public sealed class OutboxClaimTests
     }
 
     [Fact]
-    public async Task Claimed_Rows_Are_Invisible_To_A_Second_Claimant()
+    public async Task ClaimBatchAsync_Should_HideClaimedRows_FromASecondClaimant()
     {
         var marker = $"claim-{Guid.CreateVersion7():N}";
         await SeedAsync(marker, count: 5);
@@ -73,7 +73,7 @@ public sealed class OutboxClaimTests
     }
 
     [Fact]
-    public async Task Expired_Lease_Is_Reclaimable()
+    public async Task ClaimBatchAsync_Should_ReturnRow_When_ItsLeaseHasExpired()
     {
         var marker = $"claim-{Guid.CreateVersion7():N}";
         // Lease already in the past: this is the crashed-dispatcher case.
@@ -89,7 +89,7 @@ public sealed class OutboxClaimTests
     }
 
     [Fact]
-    public async Task Completing_A_Message_Releases_Its_Lease()
+    public async Task MarkAsFailedAsync_Should_ReleaseTheLease_When_FailureIsRetryable()
     {
         var marker = $"claim-{Guid.CreateVersion7():N}";
         await SeedAsync(marker, count: 1);

@@ -3,7 +3,7 @@ using Mediator;
 
 namespace FSH.Modules.Auditing.Contracts.v1.GetAuditsByCorrelation;
 
-public sealed class GetAuditsByCorrelationQuery : IQuery<IReadOnlyList<AuditSummaryDto>>
+public sealed record GetAuditsByCorrelationQuery : IQuery<IReadOnlyList<AuditSummaryDto>>
 {
     public string CorrelationId { get; init; } = default!;
 

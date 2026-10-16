@@ -4,7 +4,7 @@ using Mediator;
 
 namespace FSH.Modules.Multitenancy.Contracts.v1.GetTenants;
 
-public sealed class GetTenantsQuery : IPagedQuery, IQuery<PagedResponse<TenantDto>>
+public sealed record GetTenantsQuery : IPagedQuery, IQuery<PagedResponse<TenantDto>>
 {
     public int? PageNumber { get; set; }
 

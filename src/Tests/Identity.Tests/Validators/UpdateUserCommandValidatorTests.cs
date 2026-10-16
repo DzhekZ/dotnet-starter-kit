@@ -121,7 +121,7 @@ public sealed class UpdateUserCommandValidatorTests
     [InlineData("PT-BR", false)]
     [InlineData("xx-YY", false)]
     [InlineData("notaculture", false)]
-    public void Locale_Must_Be_Supported_Or_Null(string? locale, bool expectedValid)
+    public void Validate_Should_RequireLocaleToBeSupportedOrNull(string? locale, bool expectedValid)
     {
         // Arrange
         var command = new UpdateUserCommand { Id = "user-123", Locale = locale };
@@ -134,7 +134,7 @@ public sealed class UpdateUserCommandValidatorTests
     }
 
     [Fact]
-    public void UserId_required_message_is_localized_under_ptBR()
+    public void Validate_Should_LocalizeUserIdRequiredMessage_UnderPtBR()
     {
         // Act
         var result = WithCulture("pt-BR", () => _sut.Validate(new UpdateUserCommand { Id = "" }));
@@ -145,7 +145,7 @@ public sealed class UpdateUserCommandValidatorTests
     }
 
     [Fact]
-    public void Builtin_validation_message_is_localized_under_ptBR()
+    public void Validate_Should_LocalizeBuiltinMessage_UnderPtBR()
     {
         // Act — FluentValidation resolves built-in messages via CurrentUICulture (ships a pt catalog).
         var result = WithCulture("pt-BR", () =>

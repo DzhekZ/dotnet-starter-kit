@@ -19,7 +19,7 @@ internal sealed class ImpersonationGrantService(
         ArgumentNullException.ThrowIfNull(input);
 
         var grant = ImpersonationGrant.Create(
-            id: Guid.NewGuid(),
+            id: Guid.CreateVersion7(),
             jti: input.Jti,
             actorUserId: input.ActorUserId,
             actorUserName: input.ActorUserName,

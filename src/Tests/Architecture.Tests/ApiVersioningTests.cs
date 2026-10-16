@@ -109,7 +109,7 @@ public partial class ApiVersioningTests
     }
 
     [Fact]
-    public void Higher_Versions_Can_Depend_On_Lower_Versions()
+    public void HigherVersions_Should_BeAllowedToDependOn_LowerVersions()
     {
         // This is a permissive test - v2 can depend on v1 for backward compatibility
         // Just verify the pattern exists

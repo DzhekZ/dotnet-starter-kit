@@ -23,7 +23,7 @@ namespace Integration.Tests.Tests.Multitenancy;
 /// modified; the failure flows through the exact production pipeline.
 /// </summary>
 [Collection(FshCollectionDefinition.Name)]
-public sealed class TenantProvisioningFailureTests
+public sealed class TenantProvisioningFailureTests : IAsyncDisposable
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -38,11 +38,22 @@ public sealed class TenantProvisioningFailureTests
 
     private readonly FshWebApplicationFactory _factory;
     private readonly AuthHelper _auth;
+    private readonly List<string> _failedTenants = [];
 
     public TenantProvisioningFailureTests(FshWebApplicationFactory factory)
     {
         _factory = factory;
         _auth = new AuthHelper(factory);
+    }
+
+    // These tenants can never provision. Left in the shared store they fail every job that walks all tenants
+    // (see TenantCleanup), for whichever test happens to run after this one.
+    public async ValueTask DisposeAsync()
+    {
+        foreach (var tenantId in _failedTenants)
+        {
+            await TenantCleanup.RemoveAsync(_factory.Services, tenantId);
+        }
     }
 
     #region Failure Path
@@ -54,6 +65,7 @@ public sealed class TenantProvisioningFailureTests
         using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var uniqueId = Guid.NewGuid().ToString("N")[..8];
         var tenantId = $"fail-{uniqueId}";
+        _failedTenants.Add(tenantId);
 
         var createResponse = await rootClient.PostAsJsonAsync(TestConstants.TenantsBasePath, new
         {
@@ -100,6 +112,7 @@ public sealed class TenantProvisioningFailureTests
         using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var uniqueId = Guid.NewGuid().ToString("N")[..8];
         var tenantId = $"failguard-{uniqueId}";
+        _failedTenants.Add(tenantId);
 
         var createResponse = await rootClient.PostAsJsonAsync(TestConstants.TenantsBasePath, new
         {
@@ -135,6 +148,7 @@ public sealed class TenantProvisioningFailureTests
         using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var uniqueId = Guid.NewGuid().ToString("N")[..8];
         var tenantId = $"reactivate-{uniqueId}";
+        _failedTenants.Add(tenantId);
 
         var createResponse = await rootClient.PostAsJsonAsync(TestConstants.TenantsBasePath, new
         {

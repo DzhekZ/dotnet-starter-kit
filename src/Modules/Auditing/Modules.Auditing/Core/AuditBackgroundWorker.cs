@@ -135,7 +135,10 @@ public sealed class AuditBackgroundWorker : BackgroundService
     /// <summary>
     /// Attempts to flush <paramref name="batch"/> via the primary sink with
     /// bounded exponential backoff. On exhaustion, hands the batch to the
-    /// dead-letter sink so events survive a Postgres outage. Always clears
+    /// dead-letter sink so events survive a Postgres outage. When the sink
+    /// reports a <see cref="AuditSinkPartialFailureException"/> only the events it
+    /// could not persist are retried and dead-lettered — the rest are already
+    /// durable and re-sending them would insert them twice. Always clears
     /// <paramref name="batch"/> before returning so the caller can re-fill.
     /// </summary>
     private async Task FlushAsync(List<AuditEnvelope> batch, CancellationToken ct)
@@ -143,15 +146,15 @@ public sealed class AuditBackgroundWorker : BackgroundService
         if (batch.Count == 0) return;
 
         var sw = Stopwatch.StartNew();
-        var snapshot = batch.ToArray();
+        IReadOnlyList<AuditEnvelope> pending = batch.ToArray();
         try
         {
             for (int attempt = 1; attempt <= MaxRetries; attempt++)
             {
                 try
                 {
-                    await _sink.WriteAsync(snapshot, ct).ConfigureAwait(false);
-                    AuditingTelemetry.Flushed.Add(snapshot.Length);
+                    await _sink.WriteAsync(pending, ct).ConfigureAwait(false);
+                    AuditingTelemetry.Flushed.Add(pending.Count);
                     return;
                 }
                 catch (OperationCanceledException) when (ct.IsCancellationRequested)
@@ -165,11 +168,17 @@ public sealed class AuditBackgroundWorker : BackgroundService
                     AuditingTelemetry.FlushFailed.Add(1,
                         new KeyValuePair<string, object?>("attempt", attempt));
 
+                    if (ex is AuditSinkPartialFailureException { FailedEnvelopes.Count: > 0 } partial)
+                    {
+                        AuditingTelemetry.Flushed.Add(Math.Max(0, pending.Count - partial.FailedEnvelopes.Count));
+                        pending = partial.FailedEnvelopes;
+                    }
+
                     if (attempt == MaxRetries)
                     {
                         _logger.LogError(ex, "Audit sink failed after {Attempts} attempts; sending {Count} events to DLQ.",
-                            attempt, snapshot.Length);
-                        await _dlq.WriteAsync(snapshot, ct).ConfigureAwait(false);
+                            attempt, pending.Count);
+                        await _dlq.WriteAsync(pending, ct).ConfigureAwait(false);
                         return;
                     }
 

@@ -13,10 +13,10 @@ public sealed class CreateTopupRequestValidatorTests
     [InlineData(0)]
     [InlineData(-5)]
     [InlineData(1_000_001)]
-    public void Rejects_out_of_range(decimal amount)
+    public void Validate_Should_Fail_When_AmountIsOutOfRange(decimal amount)
         => _v.Validate(new CreateTopupRequestCommand(amount, null)).IsValid.ShouldBeFalse();
 
     [Fact]
-    public void Accepts_valid_amount()
+    public void Validate_Should_Pass_When_AmountIsValid()
         => _v.Validate(new CreateTopupRequestCommand(50m, "need credit")).IsValid.ShouldBeTrue();
 }
