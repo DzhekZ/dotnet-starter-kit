@@ -69,7 +69,7 @@
     <!-- Pin the transitive SQLitePCLRaw.lib.e_sqlite3 explicitly. Microsoft.EntityFrameworkCore.Sqlite 10.0.12
          brings in 2.1.11, which bundles a SQLite build vulnerable to a memory-corruption bug fixed upstream in
          SQLite 3.50.2 (GHSA-2m69-gcr7-jv3q) and trips NuGetAudit under TreatWarningsAsErrors. SQLitePCLRaw
-         re-versioned its e_sqlite3 packages to track the embedded SQLite version, so 3.50.3  embeds a fixed build. -->
+         re-versioned its e_sqlite3 packages to track the embedded SQLite version, so 3.50.3 embeds a fixed build. -->
     <PackageVersion Include="SQLitePCLRaw.lib.e_sqlite3" Version="3.53.3" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.13" />
     <PackageVersion Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" Version="10.0.13" />
