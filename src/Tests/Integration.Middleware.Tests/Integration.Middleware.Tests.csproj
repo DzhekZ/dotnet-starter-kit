@@ -21,7 +21,6 @@
         </PackageReference>
         <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
         <PackageReference Include="Microsoft.NET.Test.Sdk" />
-        <PackageReference Include="SSH.NET" />
         <PackageReference Include="Testcontainers.PostgreSql" />
         <PackageReference Include="Testcontainers" />
         <PackageReference Include="Hangfire.InMemory" />
