@@ -102,11 +102,12 @@ public sealed class MiddlewareWebApplicationFactory : WebApplicationFactory<Prog
         }
     }
 
-    public new async Task DisposeAsync()
+    public override async ValueTask DisposeAsync()
     {
         await base.DisposeAsync();
         await _postgres.DisposeAsync();
         await _s3.DisposeAsync();
+        GC.SuppressFinalize(this);
     }
 
     /// <summary>The S3 (RustFS) endpoint URL exposed to the host configuration; useful for tests that need to PUT bytes directly.</summary>

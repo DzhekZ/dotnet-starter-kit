@@ -5,5 +5,5 @@
 /// </summary>
 public interface IAuditSink
 {
-    Task WriteAsync(IReadOnlyList<AuditEnvelope> batch, CancellationToken ct);
+    Task WriteAsync(IReadOnlyList<AuditEnvelope> batch, CancellationToken ct = default);
 }

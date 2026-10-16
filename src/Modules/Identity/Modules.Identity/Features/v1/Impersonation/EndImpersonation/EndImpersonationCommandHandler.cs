@@ -89,7 +89,8 @@ public sealed class EndImpersonationCommandHandler
         }
 
         var actorClaimsResult = await _identityService
-            .BuildClaimsForUserAsync(actorUserId, actorTenantId, cancellationToken);
+            .BuildClaimsForUserAsync(actorUserId, actorTenantId, cancellationToken)
+            .ConfigureAwait(false);
 
         if (actorClaimsResult is null)
         {
@@ -98,8 +99,8 @@ public sealed class EndImpersonationCommandHandler
 
         var (subject, actorClaims) = actorClaimsResult.Value;
 
-        var token = await _tokenService.IssueAsync(subject, actorClaims, actorTenantId, cancellationToken);
-        await _identityService.StoreRefreshTokenAsync(subject, token.RefreshToken, token.RefreshTokenExpiresAt, cancellationToken);
+        var token = await _tokenService.IssueAsync(subject, actorClaims, actorTenantId, cancellationToken).ConfigureAwait(false);
+        await _identityService.StoreRefreshTokenAsync(subject, token.RefreshToken, token.RefreshTokenExpiresAt, cancellationToken).ConfigureAwait(false);
 
         await _securityAudit.ImpersonationEndedAsync(
             actorUserId: actorUserId,
@@ -107,7 +108,7 @@ public sealed class EndImpersonationCommandHandler
             targetUserId: impersonatedUserId,
             targetTenantId: impersonatedTenantId,
             clientId: _requestContext.ClientId ?? "unknown",
-            ct: cancellationToken);
+            ct: cancellationToken).ConfigureAwait(false);
 
         if (_logger.IsEnabled(LogLevel.Information))
         {

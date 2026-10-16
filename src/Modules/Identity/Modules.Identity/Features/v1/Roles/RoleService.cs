@@ -109,7 +109,7 @@ public sealed class RoleService(RoleManager<FshRole> roleManager,
             ? null
             : await roleManager.FindByIdAsync(roleId);
 
-        if (role != null)
+        if (role is not null)
         {
             // System roles cannot be modified — neither renamed nor re-described.
             EnsureNotSystemRole(role.Name, "System roles cannot be modified.");

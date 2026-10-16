@@ -18,7 +18,7 @@ public sealed class TenantCreationTests
     [Fact]
     public async Task CreateTenant_Should_Return201WithId_When_DataIsValid()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var uniqueId = Guid.NewGuid().ToString("N")[..8];
         var tenantId = $"t-{uniqueId}";
 
@@ -30,17 +30,17 @@ public sealed class TenantCreationTests
             adminEmail = $"admin-{uniqueId}@tenant.com",
             adminPassword = TestConstants.DefaultPassword,
             issuer = "test.issuer"
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.Created);
-        var result = await response.DeserializeAsync<CreateTenantResult>();
+        var result = await response.DeserializeAsync<CreateTenantResult>(ct: TestContext.Current.CancellationToken);
         result.Id.ShouldBe(tenantId);
     }
 
     [Fact]
     public async Task CreateTenant_Should_Reject_When_IdAlreadyExists()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var uniqueId = Guid.NewGuid().ToString("N")[..8];
         var payload = new
         {
@@ -52,10 +52,10 @@ public sealed class TenantCreationTests
             issuer = "dup.issuer"
         };
 
-        var firstResponse = await client.PostAsJsonAsync(TestConstants.TenantsBasePath, payload);
+        var firstResponse = await client.PostAsJsonAsync(TestConstants.TenantsBasePath, payload, cancellationToken: TestContext.Current.CancellationToken);
         firstResponse.StatusCode.ShouldBe(HttpStatusCode.Created);
 
-        var secondResponse = await client.PostAsJsonAsync(TestConstants.TenantsBasePath, payload);
+        var secondResponse = await client.PostAsJsonAsync(TestConstants.TenantsBasePath, payload, cancellationToken: TestContext.Current.CancellationToken);
 
         secondResponse.IsSuccessStatusCode.ShouldBeFalse();
     }
@@ -73,7 +73,7 @@ public sealed class TenantCreationTests
             connectionString = (string?)null,
             adminEmail = "noauth@tenant.com",
             issuer = "noauth.issuer"
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
     }
@@ -81,9 +81,9 @@ public sealed class TenantCreationTests
     [Fact]
     public async Task GetTenants_Should_ReturnOk_When_AuthenticatedAsRootAdmin()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
-        var response = await client.GetAsync($"{TestConstants.TenantsBasePath}?pageNumber=1&pageSize=50");
+        var response = await client.GetAsync($"{TestConstants.TenantsBasePath}?pageNumber=1&pageSize=50", TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
@@ -91,9 +91,9 @@ public sealed class TenantCreationTests
     [Fact]
     public async Task GetTenantStatus_Should_ReturnOk_When_TenantExists()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
-        var response = await client.GetAsync($"{TestConstants.TenantsBasePath}/{TestConstants.RootTenantId}/status");
+        var response = await client.GetAsync($"{TestConstants.TenantsBasePath}/{TestConstants.RootTenantId}/status", TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
     }

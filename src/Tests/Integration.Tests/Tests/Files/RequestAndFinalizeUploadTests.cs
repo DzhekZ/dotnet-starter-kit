@@ -19,7 +19,7 @@ public sealed class RequestAndFinalizeUploadTests
     [Fact]
     public async Task UploadUrl_Then_Finalize_Should_TransitionToAvailable()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         byte[] bytes = new byte[1024];
         RandomNumberGenerator.Fill(bytes);
 
@@ -34,13 +34,13 @@ public sealed class RequestAndFinalizeUploadTests
                 Headers = { ContentType = new MediaTypeHeaderValue("application/pdf") }
             }
         };
-        using var putResp = await raw.SendAsync(put);
+        using var putResp = await raw.SendAsync(put, TestContext.Current.CancellationToken);
         putResp.StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        using var finalize = await client.PostAsync($"{FilesBasePath}/{presigned.FileAssetId}/finalize", null);
+        using var finalize = await client.PostAsync($"{FilesBasePath}/{presigned.FileAssetId}/finalize", null, TestContext.Current.CancellationToken);
         finalize.StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        var dto = await finalize.DeserializeAsync<FileAssetDto>();
+        var dto = await finalize.DeserializeAsync<FileAssetDto>(ct: TestContext.Current.CancellationToken);
         dto.ShouldNotBeNull();
         dto.Id.ShouldBe(presigned.FileAssetId);
         dto.Status.ShouldBe(FileAssetStatus.Available);
@@ -52,13 +52,13 @@ public sealed class RequestAndFinalizeUploadTests
     [Fact]
     public async Task GetMetadata_Should_Return_FileAsset_After_Finalize()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var id = await UploadAndFinalizeAsync(client, "report.pdf", "application/pdf", 512, "Document");
 
-        using var response = await client.GetAsync($"{FilesBasePath}/{id}");
+        using var response = await client.GetAsync($"{FilesBasePath}/{id}", TestContext.Current.CancellationToken);
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        var dto = await response.DeserializeAsync<FileAssetDto>();
+        var dto = await response.DeserializeAsync<FileAssetDto>(ct: TestContext.Current.CancellationToken);
         dto.Id.ShouldBe(id);
         dto.Status.ShouldBe(FileAssetStatus.Available);
     }
@@ -66,13 +66,13 @@ public sealed class RequestAndFinalizeUploadTests
     [Fact]
     public async Task GetDownloadUrl_Should_Issue_Presigned_Get_Url_For_Available_File()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var id = await UploadAndFinalizeAsync(client, "download.pdf", "application/pdf", 256, "Document");
 
-        using var response = await client.GetAsync($"{FilesBasePath}/{id}/url");
+        using var response = await client.GetAsync($"{FilesBasePath}/{id}/url", TestContext.Current.CancellationToken);
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        var download = await response.DeserializeAsync<PresignedDownloadResponse>();
+        var download = await response.DeserializeAsync<PresignedDownloadResponse>(ct: TestContext.Current.CancellationToken);
         download.Url.ShouldNotBeNull();
         download.Url.AbsoluteUri.ShouldContain("X-Amz-Signature");
     }
@@ -80,11 +80,11 @@ public sealed class RequestAndFinalizeUploadTests
     [Fact]
     public async Task ListMyFiles_Should_Include_Finalized_File()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var id = await UploadAndFinalizeAsync(client, "mine.pdf", "application/pdf", 128, "Document");
 
-        using var response = await client.GetAsync($"{FilesBasePath}/mine?page=1&pageSize=50");
-        var list = await response.DeserializeAsync<IReadOnlyList<FileAssetDto>>();
+        using var response = await client.GetAsync($"{FilesBasePath}/mine?page=1&pageSize=50", TestContext.Current.CancellationToken);
+        var list = await response.DeserializeAsync<IReadOnlyList<FileAssetDto>>(ct: TestContext.Current.CancellationToken);
         list.ShouldNotBeNull();
         list.ShouldContain(f => f.Id == id);
     }

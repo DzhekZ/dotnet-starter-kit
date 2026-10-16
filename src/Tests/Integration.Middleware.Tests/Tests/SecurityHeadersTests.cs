@@ -26,7 +26,7 @@ public sealed class SecurityHeadersTests
         using var client = _factory.CreateClient();
 
         // Act
-        using var response = await client.GetAsync("/");
+        using var response = await client.GetAsync("/", TestContext.Current.CancellationToken);
         var headers = response.Headers;
 
         // Assert

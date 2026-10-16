@@ -50,7 +50,7 @@ public sealed class ImpersonationTests : IAsyncLifetime
         _auth = new AuthHelper(factory);
     }
 
-    public async Task InitializeAsync()
+    public async ValueTask InitializeAsync()
     {
         var uniqueId = Guid.NewGuid().ToString("N")[..8];
         _tenantId = $"imptest-{uniqueId}";
@@ -69,7 +69,7 @@ public sealed class ImpersonationTests : IAsyncLifetime
         _rootAdminUserId = ReadSubject(rootToken.AccessToken);
     }
 
-    public Task DisposeAsync() => Task.CompletedTask;
+    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 
     // ─── StartImpersonation ─────────────────────────────────────────────
 
@@ -79,7 +79,7 @@ public sealed class ImpersonationTests : IAsyncLifetime
     public async Task Start_Should_IssueImpersonationToken_When_RootImpersonatesTenantUser()
     {
         // Arrange
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
         // Act
         var response = await rootClient.PostAsJsonAsync($"{ImpersonationBasePath}/start", new
@@ -88,11 +88,11 @@ public sealed class ImpersonationTests : IAsyncLifetime
             targetTenantId = _tenantId,
             reason = "verifying tenant onboarding",
             durationMinutes = 15,
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var body = await response.Content.ReadFromJsonAsync<ImpersonationResponse>(Json);
+        var body = await response.Content.ReadFromJsonAsync<ImpersonationResponse>(Json, cancellationToken: TestContext.Current.CancellationToken);
         body.ShouldNotBeNull();
         body.AccessToken.ShouldNotBeNullOrWhiteSpace();
         body.ActorUserId.ShouldBe(_rootAdminUserId);
@@ -105,7 +105,7 @@ public sealed class ImpersonationTests : IAsyncLifetime
     public async Task Start_Should_EmbedActorClaims_In_IssuedToken()
     {
         // Arrange
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
         // Act
         var token = await StartImpersonationAsync(rootClient, _tenantAdminUserId, _tenantId);
@@ -122,7 +122,7 @@ public sealed class ImpersonationTests : IAsyncLifetime
     public async Task Start_Should_HonorRequestedDuration_When_WithinCap()
     {
         // Arrange
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var before = DateTime.UtcNow;
 
         // Act
@@ -132,13 +132,13 @@ public sealed class ImpersonationTests : IAsyncLifetime
             targetTenantId = _tenantId,
             reason = "duration override check",
             durationMinutes = 10,
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert — expiry should be within a few seconds of `now + 10 min`. The
         // default AccessTokenMinutes is 30 in the test config, so 10 must NOT be
         // coming from the default.
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var body = await response.Content.ReadFromJsonAsync<ImpersonationResponse>(Json);
+        var body = await response.Content.ReadFromJsonAsync<ImpersonationResponse>(Json, cancellationToken: TestContext.Current.CancellationToken);
         var expectedMin = before.AddMinutes(10).AddSeconds(-5);
         var expectedMax = before.AddMinutes(10).AddSeconds(60);
         body!.AccessTokenExpiresAt.ShouldBeInRange(expectedMin, expectedMax);
@@ -152,7 +152,7 @@ public sealed class ImpersonationTests : IAsyncLifetime
     public async Task Start_Should_RejectInvalidDuration_When_ExceedsCap()
     {
         // Arrange
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
         // Act — validator caps at 60 min; 999 should bounce with 400.
         var response = await rootClient.PostAsJsonAsync($"{ImpersonationBasePath}/start", new
@@ -161,7 +161,7 @@ public sealed class ImpersonationTests : IAsyncLifetime
             targetTenantId = _tenantId,
             reason = "trying to escape the cap",
             durationMinutes = 999,
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
@@ -179,7 +179,7 @@ public sealed class ImpersonationTests : IAsyncLifetime
             targetUserId = _rootAdminUserId,
             targetTenantId = TestConstants.RootTenantId,
             reason = "trying to escalate to root",
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert — server-side check throws ForbiddenException.
         response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
@@ -189,7 +189,7 @@ public sealed class ImpersonationTests : IAsyncLifetime
     public async Task Start_Should_RejectSelfImpersonation()
     {
         // Arrange — root admin tries to impersonate themselves.
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
         // Act
         var response = await rootClient.PostAsJsonAsync($"{ImpersonationBasePath}/start", new
@@ -197,7 +197,7 @@ public sealed class ImpersonationTests : IAsyncLifetime
             targetUserId = _rootAdminUserId,
             targetTenantId = TestConstants.RootTenantId,
             reason = "pointless self-loop",
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert — handler throws CustomException for this; framework maps to 4xx.
         response.IsSuccessStatusCode.ShouldBeFalse();
@@ -209,7 +209,7 @@ public sealed class ImpersonationTests : IAsyncLifetime
     {
         // Arrange — start one impersonation, then try to start another using the
         // impersonation token.
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var impersonationToken = await StartImpersonationAsync(rootClient, _tenantAdminUserId, _tenantId);
 
         using var nestedClient = _factory.CreateClient();
@@ -222,7 +222,7 @@ public sealed class ImpersonationTests : IAsyncLifetime
             targetUserId = _tenantAdminUserId,
             targetTenantId = _tenantId,
             reason = "nested attempt",
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         response.IsSuccessStatusCode.ShouldBeFalse();
@@ -234,7 +234,7 @@ public sealed class ImpersonationTests : IAsyncLifetime
     {
         // Arrange — root admin's userId is NOT in the test tenant, so passing it with
         // targetTenantId=<test tenant> must 404 (same shape as the admin-app wrong-tenant-user bug).
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
         // Act
         var response = await rootClient.PostAsJsonAsync($"{ImpersonationBasePath}/start", new
@@ -242,7 +242,7 @@ public sealed class ImpersonationTests : IAsyncLifetime
             targetUserId = _rootAdminUserId,
             targetTenantId = _tenantId,
             reason = "wrong-tenant user id",
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
@@ -261,7 +261,7 @@ public sealed class ImpersonationTests : IAsyncLifetime
             targetUserId = _tenantAdminUserId,
             targetTenantId = _tenantId,
             reason = "anonymous",
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
@@ -277,18 +277,18 @@ public sealed class ImpersonationTests : IAsyncLifetime
     public async Task End_Should_IssueActorTokens_When_SessionIsImpersonation()
     {
         // Arrange
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var impersonationToken = await StartImpersonationAsync(rootClient, _tenantAdminUserId, _tenantId);
 
         using var endClient = ClientWithBearer(impersonationToken, _tenantId);
 
         // Act
-        var response = await endClient.PostAsync($"{ImpersonationBasePath}/end", content: null);
+        var response = await endClient.PostAsync($"{ImpersonationBasePath}/end", content: null, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert — returns a fresh access+refresh pair for the original actor.
         // On failure the problem-detail body surfaces the underlying server exception in the test output.
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var body = await response.Content.ReadFromJsonAsync<TokenResult>(Json);
+        var body = await response.Content.ReadFromJsonAsync<TokenResult>(Json, cancellationToken: TestContext.Current.CancellationToken);
         body.ShouldNotBeNull();
         body.AccessToken.ShouldNotBeNullOrWhiteSpace();
         body.RefreshToken.ShouldNotBeNullOrWhiteSpace();
@@ -303,10 +303,10 @@ public sealed class ImpersonationTests : IAsyncLifetime
     public async Task End_Should_Reject_When_SessionIsNotImpersonation()
     {
         // Arrange — a normal root admin client has no act_sub claim.
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var response = await rootClient.PostAsync($"{ImpersonationBasePath}/end", content: null);
+        var response = await rootClient.PostAsync($"{ImpersonationBasePath}/end", content: null, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         response.IsSuccessStatusCode.ShouldBeFalse();
@@ -323,15 +323,15 @@ public sealed class ImpersonationTests : IAsyncLifetime
     public async Task GetGrants_Should_ListActiveGrant_After_Start()
     {
         // Arrange
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         _ = await StartImpersonationAsync(rootClient, _tenantAdminUserId, _tenantId);
 
         // Act
-        var response = await rootClient.GetAsync($"{ImpersonationBasePath}/grants?Status=Active");
+        var response = await rootClient.GetAsync($"{ImpersonationBasePath}/grants?Status=Active", TestContext.Current.CancellationToken);
 
         // Assert — the just-started grant must be visible to the root operator.
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var grants = await response.Content.ReadFromJsonAsync<List<ImpersonationGrantPayload>>(Json);
+        var grants = await response.Content.ReadFromJsonAsync<List<ImpersonationGrantPayload>>(Json, cancellationToken: TestContext.Current.CancellationToken);
         grants.ShouldNotBeNull();
         grants.ShouldContain(g =>
             g.ImpersonatedUserId == _tenantAdminUserId
@@ -344,19 +344,19 @@ public sealed class ImpersonationTests : IAsyncLifetime
     public async Task GetGrants_Should_ScopeByTenant_When_CallerIsTenantAdmin()
     {
         // Arrange — start a cross-tenant grant as root targeting the test tenant.
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         _ = await StartImpersonationAsync(rootClient, _tenantAdminUserId, _tenantId);
 
         // The tenant admin lists grants from their own tenant context.
         using var tenantClient = await CreateTenantAdminClientAsync();
 
         // Act
-        var response = await tenantClient.GetAsync($"{ImpersonationBasePath}/grants");
+        var response = await tenantClient.GetAsync($"{ImpersonationBasePath}/grants", TestContext.Current.CancellationToken);
 
         // Assert — tenant admin should see the grant targeting their tenant
         // (and only grants in their tenant). Verify both presence and scope.
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var grants = await response.Content.ReadFromJsonAsync<List<ImpersonationGrantPayload>>(Json);
+        var grants = await response.Content.ReadFromJsonAsync<List<ImpersonationGrantPayload>>(Json, cancellationToken: TestContext.Current.CancellationToken);
         grants.ShouldNotBeNull();
         grants.ShouldAllBe(g => g.ImpersonatedTenantId == _tenantId);
         grants.ShouldContain(g => g.ImpersonatedUserId == _tenantAdminUserId);
@@ -366,26 +366,23 @@ public sealed class ImpersonationTests : IAsyncLifetime
     public async Task Revoke_Should_RejectImpersonationToken_OnSubsequentRequest()
     {
         // Arrange — start, identify the grant, revoke.
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var impersonationToken = await StartImpersonationAsync(rootClient, _tenantAdminUserId, _tenantId);
 
         var grants = await rootClient
-            .GetFromJsonAsync<List<ImpersonationGrantPayload>>(
-                $"{ImpersonationBasePath}/grants?Status=Active", Json);
+            .GetFromJsonAsync<List<ImpersonationGrantPayload>>($"{ImpersonationBasePath}/grants?Status=Active", Json, cancellationToken: TestContext.Current.CancellationToken);
         var targetGrant = grants!.First(g =>
             g.ImpersonatedUserId == _tenantAdminUserId && g.ImpersonatedTenantId == _tenantId);
 
         // Act — revoke, then try to use the impersonation token.
-        var revokeResponse = await rootClient.PostAsJsonAsync(
-            $"{ImpersonationBasePath}/grants/{targetGrant.Id}/revoke",
-            new { reason = "operator left for the day" });
+        var revokeResponse = await rootClient.PostAsJsonAsync($"{ImpersonationBasePath}/grants/{targetGrant.Id}/revoke", new { reason = "operator left for the day" }, cancellationToken: TestContext.Current.CancellationToken);
         revokeResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
 
         // Assert — the JWT validation hook should now 401 the impersonation token.
         // Cache TTL is short (and revoke primes the cache to EndedOrRevoked) so
         // the rejection should be effectively immediate.
         using var killedClient = ClientWithBearer(impersonationToken, _tenantId);
-        var meResponse = await killedClient.GetAsync($"{TestConstants.IdentityBasePath}/profile");
+        var meResponse = await killedClient.GetAsync($"{TestConstants.IdentityBasePath}/profile", TestContext.Current.CancellationToken);
         meResponse.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
     }
 
@@ -393,17 +390,16 @@ public sealed class ImpersonationTests : IAsyncLifetime
     public async Task End_Should_MarkGrant_As_Ended()
     {
         // Arrange
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var impersonationToken = await StartImpersonationAsync(rootClient, _tenantAdminUserId, _tenantId);
 
         // Act — end via the impersonation session, then list ended grants.
         using var endClient = ClientWithBearer(impersonationToken, _tenantId);
-        var endResponse = await endClient.PostAsync($"{ImpersonationBasePath}/end", content: null);
+        var endResponse = await endClient.PostAsync($"{ImpersonationBasePath}/end", content: null, cancellationToken: TestContext.Current.CancellationToken);
         endResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
 
         // Assert — grant must show up in the Ended bucket for the root operator.
-        var ended = await rootClient.GetFromJsonAsync<List<ImpersonationGrantPayload>>(
-            $"{ImpersonationBasePath}/grants?Status=Ended", Json);
+        var ended = await rootClient.GetFromJsonAsync<List<ImpersonationGrantPayload>>($"{ImpersonationBasePath}/grants?Status=Ended", Json, cancellationToken: TestContext.Current.CancellationToken);
         ended.ShouldNotBeNull();
         ended.ShouldContain(g => g.ImpersonatedUserId == _tenantAdminUserId);
     }
@@ -412,21 +408,16 @@ public sealed class ImpersonationTests : IAsyncLifetime
     public async Task Revoke_Should_BeIdempotent_When_GrantAlreadyTerminal()
     {
         // Arrange — start + revoke once.
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         _ = await StartImpersonationAsync(rootClient, _tenantAdminUserId, _tenantId);
-        var active = await rootClient.GetFromJsonAsync<List<ImpersonationGrantPayload>>(
-            $"{ImpersonationBasePath}/grants?Status=Active", Json);
+        var active = await rootClient.GetFromJsonAsync<List<ImpersonationGrantPayload>>($"{ImpersonationBasePath}/grants?Status=Active", Json, cancellationToken: TestContext.Current.CancellationToken);
         var grant = active!.First(g => g.ImpersonatedUserId == _tenantAdminUserId);
 
-        var firstRevoke = await rootClient.PostAsJsonAsync(
-            $"{ImpersonationBasePath}/grants/{grant.Id}/revoke",
-            new { reason = "first call" });
+        var firstRevoke = await rootClient.PostAsJsonAsync($"{ImpersonationBasePath}/grants/{grant.Id}/revoke", new { reason = "first call" }, cancellationToken: TestContext.Current.CancellationToken);
         firstRevoke.StatusCode.ShouldBe(HttpStatusCode.OK);
 
         // Act — revoke again on the same grant.
-        var secondRevoke = await rootClient.PostAsJsonAsync(
-            $"{ImpersonationBasePath}/grants/{grant.Id}/revoke",
-            new { reason = "second call" });
+        var secondRevoke = await rootClient.PostAsJsonAsync($"{ImpersonationBasePath}/grants/{grant.Id}/revoke", new { reason = "second call" }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert — service treats already-terminal as a no-op and surfaces the
         // existing state; should not 5xx.
@@ -437,13 +428,11 @@ public sealed class ImpersonationTests : IAsyncLifetime
     public async Task Revoke_Should_Return404_When_GrantDoesNotExist()
     {
         // Arrange
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var bogusGuid = Guid.NewGuid();
 
         // Act
-        var response = await rootClient.PostAsJsonAsync(
-            $"{ImpersonationBasePath}/grants/{bogusGuid}/revoke",
-            new { reason = "nothing here" });
+        var response = await rootClient.PostAsJsonAsync($"{ImpersonationBasePath}/grants/{bogusGuid}/revoke", new { reason = "nothing here" }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
@@ -462,7 +451,7 @@ public sealed class ImpersonationTests : IAsyncLifetime
         // role, which does NOT include Users.Impersonate.
         using var tenantAdminClient = await CreateTenantAdminClientAsync();
         var (basicEmail, basicPassword) = await RegisterAndConfirmUserAsync(tenantAdminClient, _tenantId, "basic");
-        using var basicClient = await _auth.CreateAuthenticatedClientAsync(basicEmail, basicPassword, _tenantId);
+        using var basicClient = await _auth.CreateAuthenticatedClientAsync(basicEmail, basicPassword, _tenantId, TestContext.Current.CancellationToken);
 
         // Act
         var response = await basicClient.PostAsJsonAsync($"{ImpersonationBasePath}/start", new
@@ -470,7 +459,7 @@ public sealed class ImpersonationTests : IAsyncLifetime
             targetUserId = _tenantAdminUserId,
             targetTenantId = _tenantId,
             reason = "basic user trying to impersonate",
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
@@ -482,10 +471,10 @@ public sealed class ImpersonationTests : IAsyncLifetime
         // Arrange
         using var tenantAdminClient = await CreateTenantAdminClientAsync();
         var (basicEmail, basicPassword) = await RegisterAndConfirmUserAsync(tenantAdminClient, _tenantId, "basicview");
-        using var basicClient = await _auth.CreateAuthenticatedClientAsync(basicEmail, basicPassword, _tenantId);
+        using var basicClient = await _auth.CreateAuthenticatedClientAsync(basicEmail, basicPassword, _tenantId, TestContext.Current.CancellationToken);
 
         // Act
-        var response = await basicClient.GetAsync($"{ImpersonationBasePath}/grants");
+        var response = await basicClient.GetAsync($"{ImpersonationBasePath}/grants", TestContext.Current.CancellationToken);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
@@ -496,20 +485,17 @@ public sealed class ImpersonationTests : IAsyncLifetime
     {
         // Arrange — start a grant as root, identify it, then attempt revoke as
         // a basic user who doesn't hold Impersonation.Revoke.
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         _ = await StartImpersonationAsync(rootClient, _tenantAdminUserId, _tenantId);
-        var active = await rootClient.GetFromJsonAsync<List<ImpersonationGrantPayload>>(
-            $"{ImpersonationBasePath}/grants?Status=Active", Json);
+        var active = await rootClient.GetFromJsonAsync<List<ImpersonationGrantPayload>>($"{ImpersonationBasePath}/grants?Status=Active", Json, cancellationToken: TestContext.Current.CancellationToken);
         var grant = active!.First(g => g.ImpersonatedUserId == _tenantAdminUserId);
 
         using var tenantAdminClient = await CreateTenantAdminClientAsync();
         var (basicEmail, basicPassword) = await RegisterAndConfirmUserAsync(tenantAdminClient, _tenantId, "basicrev");
-        using var basicClient = await _auth.CreateAuthenticatedClientAsync(basicEmail, basicPassword, _tenantId);
+        using var basicClient = await _auth.CreateAuthenticatedClientAsync(basicEmail, basicPassword, _tenantId, TestContext.Current.CancellationToken);
 
         // Act
-        var response = await basicClient.PostAsJsonAsync(
-            $"{ImpersonationBasePath}/grants/{grant.Id}/revoke",
-            new { reason = "I shouldn't be able to do this" });
+        var response = await basicClient.PostAsJsonAsync($"{ImpersonationBasePath}/grants/{grant.Id}/revoke", new { reason = "I shouldn't be able to do this" }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
@@ -525,17 +511,14 @@ public sealed class ImpersonationTests : IAsyncLifetime
     public async Task Revoke_Should_Allow_TenantAdmin_When_GrantTargetsTheirTenant()
     {
         // Arrange — root starts an impersonation into the test tenant.
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         _ = await StartImpersonationAsync(rootClient, _tenantAdminUserId, _tenantId);
-        var active = await rootClient.GetFromJsonAsync<List<ImpersonationGrantPayload>>(
-            $"{ImpersonationBasePath}/grants?Status=Active", Json);
+        var active = await rootClient.GetFromJsonAsync<List<ImpersonationGrantPayload>>($"{ImpersonationBasePath}/grants?Status=Active", Json, cancellationToken: TestContext.Current.CancellationToken);
         var grant = active!.First(g => g.ImpersonatedUserId == _tenantAdminUserId);
 
         // Act — the test tenant's admin revokes the grant targeting their tenant.
         using var tenantClient = await CreateTenantAdminClientAsync();
-        var response = await tenantClient.PostAsJsonAsync(
-            $"{ImpersonationBasePath}/grants/{grant.Id}/revoke",
-            new { reason = "we noticed a session targeting our tenant" });
+        var response = await tenantClient.PostAsJsonAsync($"{ImpersonationBasePath}/grants/{grant.Id}/revoke", new { reason = "we noticed a session targeting our tenant" }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
@@ -550,22 +533,19 @@ public sealed class ImpersonationTests : IAsyncLifetime
         var otherTenantId = $"impother-{Guid.NewGuid().ToString("N")[..8]}";
         var otherAdminEmail = $"otheradmin-{Guid.NewGuid().ToString("N")[..8]}@imptest.com";
 
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         await CreateTenantAsync(rootClient, otherTenantId, otherAdminEmail);
         await TenantProvisioningWait.WaitForProvisioningAsync(rootClient, otherTenantId);
         var otherToken = await GetTokenWithRetryAsync(otherAdminEmail, TestConstants.DefaultPassword, otherTenantId);
         var otherAdminUserId = ReadSubject(otherToken.AccessToken);
 
         _ = await StartImpersonationAsync(rootClient, otherAdminUserId, otherTenantId);
-        var active = await rootClient.GetFromJsonAsync<List<ImpersonationGrantPayload>>(
-            $"{ImpersonationBasePath}/grants?Status=Active&ImpersonatedTenantId={otherTenantId}", Json);
+        var active = await rootClient.GetFromJsonAsync<List<ImpersonationGrantPayload>>($"{ImpersonationBasePath}/grants?Status=Active&ImpersonatedTenantId={otherTenantId}", Json, cancellationToken: TestContext.Current.CancellationToken);
         var grant = active!.First(g => g.ImpersonatedTenantId == otherTenantId);
 
         // Act — the first test tenant's admin tries to revoke this cross-tenant grant.
         using var tenantClient = await CreateTenantAdminClientAsync();
-        var response = await tenantClient.PostAsJsonAsync(
-            $"{ImpersonationBasePath}/grants/{grant.Id}/revoke",
-            new { reason = "fishing" });
+        var response = await tenantClient.PostAsJsonAsync($"{ImpersonationBasePath}/grants/{grant.Id}/revoke", new { reason = "fishing" }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert — handler returns NotFoundException (404) rather than 403 so
         // we don't confirm cross-tenant grant existence to outside callers.
@@ -583,19 +563,18 @@ public sealed class ImpersonationTests : IAsyncLifetime
     {
         // Arrange
         const string reason = "Customer ticket #4821 — verifying ledger discrepancy";
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var startResponse = await rootClient.PostAsJsonAsync($"{ImpersonationBasePath}/start", new
         {
             targetUserId = _tenantAdminUserId,
             targetTenantId = _tenantId,
             reason,
             durationMinutes = 15,
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
         startResponse.EnsureSuccessStatusCode();
 
         // Act
-        var grants = await rootClient.GetFromJsonAsync<List<ImpersonationGrantPayload>>(
-            $"{ImpersonationBasePath}/grants?Status=Active&ImpersonatedTenantId={_tenantId}", Json);
+        var grants = await rootClient.GetFromJsonAsync<List<ImpersonationGrantPayload>>($"{ImpersonationBasePath}/grants?Status=Active&ImpersonatedTenantId={_tenantId}", Json, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert — reason text round-trips, actor + impersonated identities are
         // captured, and *Name fields are populated from the claims pipeline.
@@ -613,14 +592,13 @@ public sealed class ImpersonationTests : IAsyncLifetime
     public async Task Grant_Jti_Should_Match_IssuedJwt()
     {
         // Arrange
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var token = await StartImpersonationAsync(rootClient, _tenantAdminUserId, _tenantId);
         var jwt = new JwtSecurityTokenHandler().ReadJwtToken(token);
         var jtiClaim = jwt.Claims.First(c => c.Type == "jti").Value;
 
         // Act — query active grants and find the one with this jti.
-        var grants = await rootClient.GetFromJsonAsync<List<ImpersonationGrantPayload>>(
-            $"{ImpersonationBasePath}/grants?Status=Active", Json);
+        var grants = await rootClient.GetFromJsonAsync<List<ImpersonationGrantPayload>>($"{ImpersonationBasePath}/grants?Status=Active", Json, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert — exactly one grant matches this jti, proving the token's jti equals the value
         // persisted in the grant row (the revocation hook keys off this).
@@ -632,7 +610,7 @@ public sealed class ImpersonationTests : IAsyncLifetime
     public async Task Multiple_Impersonations_Should_HaveUniqueJtis()
     {
         // Arrange — issue two impersonation tokens back to back.
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var firstToken = await StartImpersonationAsync(rootClient, _tenantAdminUserId, _tenantId);
         var secondToken = await StartImpersonationAsync(rootClient, _tenantAdminUserId, _tenantId);
 
@@ -642,8 +620,7 @@ public sealed class ImpersonationTests : IAsyncLifetime
 
         // Assert — distinct jtis, distinct grant rows, both Active.
         firstJti.ShouldNotBe(secondJti);
-        var active = await rootClient.GetFromJsonAsync<List<ImpersonationGrantPayload>>(
-            $"{ImpersonationBasePath}/grants?Status=Active", Json);
+        var active = await rootClient.GetFromJsonAsync<List<ImpersonationGrantPayload>>($"{ImpersonationBasePath}/grants?Status=Active", Json, cancellationToken: TestContext.Current.CancellationToken);
         active.ShouldNotBeNull();
         active.ShouldContain(g => g.Jti == firstJti);
         active.ShouldContain(g => g.Jti == secondJti);
@@ -653,29 +630,26 @@ public sealed class ImpersonationTests : IAsyncLifetime
     public async Task Revoking_One_Should_NotAffect_Other_Concurrent_Session()
     {
         // Arrange — two active impersonation sessions for the same target.
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var keepToken = await StartImpersonationAsync(rootClient, _tenantAdminUserId, _tenantId);
         var killToken = await StartImpersonationAsync(rootClient, _tenantAdminUserId, _tenantId);
 
         var killJti = new JwtSecurityTokenHandler().ReadJwtToken(killToken).Claims.First(c => c.Type == "jti").Value;
-        var active = await rootClient.GetFromJsonAsync<List<ImpersonationGrantPayload>>(
-            $"{ImpersonationBasePath}/grants?Status=Active", Json);
+        var active = await rootClient.GetFromJsonAsync<List<ImpersonationGrantPayload>>($"{ImpersonationBasePath}/grants?Status=Active", Json, cancellationToken: TestContext.Current.CancellationToken);
         var killGrant = active!.First(g => g.Jti == killJti);
 
         // Act — revoke only the second grant.
-        var revokeResponse = await rootClient.PostAsJsonAsync(
-            $"{ImpersonationBasePath}/grants/{killGrant.Id}/revoke",
-            new { reason = "kill only this one" });
+        var revokeResponse = await rootClient.PostAsJsonAsync($"{ImpersonationBasePath}/grants/{killGrant.Id}/revoke", new { reason = "kill only this one" }, cancellationToken: TestContext.Current.CancellationToken);
         revokeResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
 
         // Assert — the OTHER session must still be valid.
         using var keepClient = ClientWithBearer(keepToken, _tenantId);
-        var keepProfile = await keepClient.GetAsync($"{TestConstants.IdentityBasePath}/profile");
+        var keepProfile = await keepClient.GetAsync($"{TestConstants.IdentityBasePath}/profile", TestContext.Current.CancellationToken);
         keepProfile.StatusCode.ShouldBe(HttpStatusCode.OK);
 
         // And the revoked session must be rejected.
         using var killClient = ClientWithBearer(killToken, _tenantId);
-        var killProfile = await killClient.GetAsync($"{TestConstants.IdentityBasePath}/profile");
+        var killProfile = await killClient.GetAsync($"{TestConstants.IdentityBasePath}/profile", TestContext.Current.CancellationToken);
         killProfile.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
     }
 
@@ -689,25 +663,20 @@ public sealed class ImpersonationTests : IAsyncLifetime
     public async Task GetGrants_Should_FilterByStatus()
     {
         // Arrange — make sure we have at least one Active and one Revoked grant.
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         _ = await StartImpersonationAsync(rootClient, _tenantAdminUserId, _tenantId);
 
         // Revoke one to populate the Revoked bucket.
-        var seed = await rootClient.GetFromJsonAsync<List<ImpersonationGrantPayload>>(
-            $"{ImpersonationBasePath}/grants?Status=Active", Json);
+        var seed = await rootClient.GetFromJsonAsync<List<ImpersonationGrantPayload>>($"{ImpersonationBasePath}/grants?Status=Active", Json, cancellationToken: TestContext.Current.CancellationToken);
         var toRevoke = seed![0];
-        await rootClient.PostAsJsonAsync(
-            $"{ImpersonationBasePath}/grants/{toRevoke.Id}/revoke",
-            new { reason = "for the filter test" });
+        await rootClient.PostAsJsonAsync($"{ImpersonationBasePath}/grants/{toRevoke.Id}/revoke", new { reason = "for the filter test" }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Start another so Active isn't empty.
         _ = await StartImpersonationAsync(rootClient, _tenantAdminUserId, _tenantId);
 
         // Act
-        var activeOnly = await rootClient.GetFromJsonAsync<List<ImpersonationGrantPayload>>(
-            $"{ImpersonationBasePath}/grants?Status=Active", Json);
-        var revokedOnly = await rootClient.GetFromJsonAsync<List<ImpersonationGrantPayload>>(
-            $"{ImpersonationBasePath}/grants?Status=Revoked", Json);
+        var activeOnly = await rootClient.GetFromJsonAsync<List<ImpersonationGrantPayload>>($"{ImpersonationBasePath}/grants?Status=Active", Json, cancellationToken: TestContext.Current.CancellationToken);
+        var revokedOnly = await rootClient.GetFromJsonAsync<List<ImpersonationGrantPayload>>($"{ImpersonationBasePath}/grants?Status=Revoked", Json, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert — each bucket is internally consistent, and the revoked grant
         // we just made appears under Revoked but not Active.
@@ -723,14 +692,12 @@ public sealed class ImpersonationTests : IAsyncLifetime
     public async Task GetGrants_Should_FilterByActorUserId()
     {
         // Arrange — root impersonates the tenant admin.
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         _ = await StartImpersonationAsync(rootClient, _tenantAdminUserId, _tenantId);
 
         // Act — query for grants by an actor that has none (bogus userId).
-        var bogusActorGrants = await rootClient.GetFromJsonAsync<List<ImpersonationGrantPayload>>(
-            $"{ImpersonationBasePath}/grants?ActorUserId={Guid.NewGuid()}", Json);
-        var rootActorGrants = await rootClient.GetFromJsonAsync<List<ImpersonationGrantPayload>>(
-            $"{ImpersonationBasePath}/grants?ActorUserId={_rootAdminUserId}", Json);
+        var bogusActorGrants = await rootClient.GetFromJsonAsync<List<ImpersonationGrantPayload>>($"{ImpersonationBasePath}/grants?ActorUserId={Guid.NewGuid()}", Json, cancellationToken: TestContext.Current.CancellationToken);
+        var rootActorGrants = await rootClient.GetFromJsonAsync<List<ImpersonationGrantPayload>>($"{ImpersonationBasePath}/grants?ActorUserId={_rootAdminUserId}", Json, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert — bogus actor returns empty; the root actor query returns at
         // least the grant we just created and only grants by that actor.
@@ -752,22 +719,19 @@ public sealed class ImpersonationTests : IAsyncLifetime
     {
         // Arrange — start, revoke via root, then try to End from the (now-dead)
         // impersonation session.
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var impersonationToken = await StartImpersonationAsync(rootClient, _tenantAdminUserId, _tenantId);
 
         var jti = new JwtSecurityTokenHandler().ReadJwtToken(impersonationToken).Claims.First(c => c.Type == "jti").Value;
-        var grants = await rootClient.GetFromJsonAsync<List<ImpersonationGrantPayload>>(
-            $"{ImpersonationBasePath}/grants?Status=Active", Json);
+        var grants = await rootClient.GetFromJsonAsync<List<ImpersonationGrantPayload>>($"{ImpersonationBasePath}/grants?Status=Active", Json, cancellationToken: TestContext.Current.CancellationToken);
         var grantId = grants!.First(g => g.Jti == jti).Id;
 
-        await rootClient.PostAsJsonAsync(
-            $"{ImpersonationBasePath}/grants/{grantId}/revoke",
-            new { reason = "killed before End" });
+        await rootClient.PostAsJsonAsync($"{ImpersonationBasePath}/grants/{grantId}/revoke", new { reason = "killed before End" }, cancellationToken: TestContext.Current.CancellationToken);
 
         using var deadClient = ClientWithBearer(impersonationToken, _tenantId);
 
         // Act
-        var response = await deadClient.PostAsync($"{ImpersonationBasePath}/end", content: null);
+        var response = await deadClient.PostAsync($"{ImpersonationBasePath}/end", content: null, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert — the JWT validation hook short-circuits BEFORE the End handler
         // runs, so the caller sees 401, not a successful end with a fresh token.

@@ -27,7 +27,7 @@ public sealed class S3PresignEndpointTests
         var storage = provider.GetRequiredService<IStorageService>();
 
         // Act
-        var presigned = await storage.GenerateUploadUrlAsync(StorageKey, "image/png", 1024, TimeSpan.FromMinutes(5));
+        var presigned = await storage.GenerateUploadUrlAsync(StorageKey, "image/png", 1024, TimeSpan.FromMinutes(5), TestContext.Current.CancellationToken);
 
         // Assert
         presigned.Url.Scheme.ShouldBe(Uri.UriSchemeHttps);
@@ -43,7 +43,7 @@ public sealed class S3PresignEndpointTests
         var storage = provider.GetRequiredService<IStorageService>();
 
         // Act
-        var url = await storage.GenerateDownloadUrlAsync(StorageKey, TimeSpan.FromMinutes(5));
+        var url = await storage.GenerateDownloadUrlAsync(StorageKey, TimeSpan.FromMinutes(5), cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         url.Scheme.ShouldBe(Uri.UriSchemeHttps);
@@ -67,8 +67,8 @@ public sealed class S3PresignEndpointTests
         var storage = provider.GetRequiredService<IStorageService>();
 
         // Act
-        var upload = await storage.GenerateUploadUrlAsync(StorageKey, "image/png", 1024, TimeSpan.FromMinutes(5));
-        var download = await storage.GenerateDownloadUrlAsync(StorageKey, TimeSpan.FromMinutes(5));
+        var upload = await storage.GenerateUploadUrlAsync(StorageKey, "image/png", 1024, TimeSpan.FromMinutes(5), TestContext.Current.CancellationToken);
+        var download = await storage.GenerateDownloadUrlAsync(StorageKey, TimeSpan.FromMinutes(5), cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         foreach (var url in new[] { upload.Url, download })
@@ -132,8 +132,8 @@ public sealed class S3PresignEndpointTests
         var storage = provider.GetRequiredService<IStorageService>();
 
         // Act
-        var upload = await storage.GenerateUploadUrlAsync(StorageKey, "image/png", 1024, TimeSpan.FromMinutes(5));
-        var download = await storage.GenerateDownloadUrlAsync(StorageKey, TimeSpan.FromMinutes(5));
+        var upload = await storage.GenerateUploadUrlAsync(StorageKey, "image/png", 1024, TimeSpan.FromMinutes(5), TestContext.Current.CancellationToken);
+        var download = await storage.GenerateDownloadUrlAsync(StorageKey, TimeSpan.FromMinutes(5), cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         foreach (var url in new[] { upload.Url, download })
@@ -155,7 +155,7 @@ public sealed class S3PresignEndpointTests
         var storage = provider.GetRequiredService<IStorageService>();
 
         // Act
-        var presigned = await storage.GenerateUploadUrlAsync(StorageKey, "image/png", 1024, TimeSpan.FromMinutes(5));
+        var presigned = await storage.GenerateUploadUrlAsync(StorageKey, "image/png", 1024, TimeSpan.FromMinutes(5), TestContext.Current.CancellationToken);
 
         // Assert
         presigned.Url.Scheme.ShouldBe(Uri.UriSchemeHttps);

@@ -58,7 +58,8 @@ public sealed class GenerateTokenCommandHandler
 
         // Validate credentials (includes 2FA verification when the user has it enabled)
         var identityResult = await _identityService
-            .ValidateCredentialsAsync(request.Email, request.Password, request.TwoFactorCode, cancellationToken);
+            .ValidateCredentialsAsync(request.Email, request.Password, request.TwoFactorCode, cancellationToken)
+            .ConfigureAwait(false);
 
         if (identityResult is null)
         {
@@ -68,7 +69,7 @@ public sealed class GenerateTokenCommandHandler
                 clientId: clientId,
                 reason: "InvalidCredentials",
                 ip: ip,
-                ct: cancellationToken);
+                ct: cancellationToken).ConfigureAwait(false);
 
             throw new UnauthorizedAccessException("Invalid credentials.");
         }
@@ -83,13 +84,13 @@ public sealed class GenerateTokenCommandHandler
             clientId: clientId,
             ip: ip,
             userAgent: ua,
-            ct: cancellationToken);
+            ct: cancellationToken).ConfigureAwait(false);
 
         // Issue token
-        var token = await _tokenService.IssueAsync(subject, claims, /*extra*/ null, cancellationToken);
+        var token = await _tokenService.IssueAsync(subject, claims, /*extra*/ null, cancellationToken).ConfigureAwait(false);
 
         // Persist refresh token (hashed) for this user
-        await _identityService.StoreRefreshTokenAsync(subject, token.RefreshToken, token.RefreshTokenExpiresAt, cancellationToken);
+        await _identityService.StoreRefreshTokenAsync(subject, token.RefreshToken, token.RefreshTokenExpiresAt, cancellationToken).ConfigureAwait(false);
 
         // Create user session for session management (non-blocking, fail gracefully)
         try
@@ -101,7 +102,7 @@ public sealed class GenerateTokenCommandHandler
                 ip,
                 ua,
                 token.RefreshTokenExpiresAt,
-                cancellationToken);
+                cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -118,7 +119,7 @@ public sealed class GenerateTokenCommandHandler
             clientId: clientId,
             tokenFingerprint: fingerprint,
             expiresUtc: token.AccessTokenExpiresAt,
-            ct: cancellationToken);
+            ct: cancellationToken).ConfigureAwait(false);
 
         // 4) Enqueue integration event for token generation (sample event for testing eventing)
         var tenantId = _multiTenantContextAccessor.MultiTenantContext?.TenantInfo?.Id;

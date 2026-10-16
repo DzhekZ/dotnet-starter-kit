@@ -30,7 +30,7 @@ public sealed class MyTenantStatusTests
     [Fact]
     public async Task GetMyStatus_Should_Return_CallersOwn_Plan_And_ExpiryState()
     {
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var unique = Guid.NewGuid().ToString("N")[..8];
         var tenantId = $"mystatus-{unique}";
         var adminEmail = $"mystatus-{unique}@tenant.com";
@@ -40,10 +40,10 @@ public sealed class MyTenantStatusTests
 
         using var tenantClient = await CreateTenantAdminClientWithRetryAsync(adminEmail, TestConstants.DefaultPassword, tenantId);
 
-        var resp = await tenantClient.GetAsync($"{TestConstants.TenantsBasePath}/me/status");
-        resp.StatusCode.ShouldBe(HttpStatusCode.OK, await resp.Content.ReadAsStringAsync());
+        var resp = await tenantClient.GetAsync($"{TestConstants.TenantsBasePath}/me/status", TestContext.Current.CancellationToken);
+        resp.StatusCode.ShouldBe(HttpStatusCode.OK, await resp.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
 
-        var status = await resp.Content.ReadFromJsonAsync<MyStatus>(Json);
+        var status = await resp.Content.ReadFromJsonAsync<MyStatus>(Json, cancellationToken: TestContext.Current.CancellationToken);
         status.ShouldNotBeNull();
         status.Id.ShouldBe(tenantId);
         status.Plan.ShouldBe(planKey);
@@ -56,7 +56,7 @@ public sealed class MyTenantStatusTests
         using var client = _factory.CreateClient();
         client.DefaultRequestHeaders.Add("tenant", TestConstants.RootTenantId);
 
-        var resp = await client.GetAsync($"{TestConstants.TenantsBasePath}/me/status");
+        var resp = await client.GetAsync($"{TestConstants.TenantsBasePath}/me/status", TestContext.Current.CancellationToken);
 
         resp.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
     }

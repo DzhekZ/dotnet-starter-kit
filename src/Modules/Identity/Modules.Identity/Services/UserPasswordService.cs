@@ -23,7 +23,7 @@ internal sealed class UserPasswordService(
     IPasswordHistoryService passwordHistoryService,
     IPasswordExpiryService passwordExpiryService) : IUserPasswordService
 {
-    public async Task ForgotPasswordAsync(string email, string origin, CancellationToken cancellationToken)
+    public async Task ForgotPasswordAsync(string email, string origin, CancellationToken cancellationToken = default)
     {
         EnsureValidTenant();
 
@@ -66,12 +66,12 @@ internal sealed class UserPasswordService(
         jobService.Enqueue(() => mailService.SendAsync(mailRequest, CancellationToken.None));
     }
 
-    public async Task ResetPasswordAsync(string email, string password, string token, CancellationToken cancellationToken)
+    public async Task ResetPasswordAsync(string email, string password, string token, CancellationToken cancellationToken = default)
     {
         EnsureValidTenant();
 
         var user = await userManager.FindByEmailAsync(email);
-        if (user == null)
+        if (user is null)
         {
             throw new NotFoundException("user not found");
         }

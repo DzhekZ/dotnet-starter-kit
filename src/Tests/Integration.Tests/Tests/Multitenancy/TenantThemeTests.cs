@@ -40,7 +40,7 @@ public sealed class TenantThemeTests : IAsyncLifetime
         _auth = new AuthHelper(factory);
     }
 
-    public async Task InitializeAsync()
+    public async ValueTask InitializeAsync()
     {
         var unique = Guid.NewGuid().ToString("N")[..8];
         _tenantA = $"theme-a-{unique}";
@@ -60,7 +60,7 @@ public sealed class TenantThemeTests : IAsyncLifetime
         _ = await GetTokenWithRetryAsync(_tenantBAdminEmail, TestConstants.DefaultPassword, _tenantB);
     }
 
-    public Task DisposeAsync() => Task.CompletedTask;
+    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 
     #region Happy Path
 
@@ -68,15 +68,14 @@ public sealed class TenantThemeTests : IAsyncLifetime
     public async Task GetTheme_Should_ReturnDefault_When_TenantHasNoCustomTheme()
     {
         // Arrange
-        using var client = await _auth.CreateAuthenticatedClientAsync(
-            _tenantBAdminEmail, TestConstants.DefaultPassword, _tenantB);
+        using var client = await _auth.CreateAuthenticatedClientAsync(_tenantBAdminEmail, TestConstants.DefaultPassword, _tenantB, TestContext.Current.CancellationToken);
 
         // Act
-        var response = await client.GetAsync(ThemePath);
+        var response = await client.GetAsync(ThemePath, TestContext.Current.CancellationToken);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var theme = await response.Content.ReadFromJsonAsync<TenantThemeDto>(Json);
+        var theme = await response.Content.ReadFromJsonAsync<TenantThemeDto>(Json, cancellationToken: TestContext.Current.CancellationToken);
         theme.ShouldNotBeNull();
         theme.IsDefault.ShouldBeFalse();
         theme.LightPalette.Primary.ShouldBe("#2563EB");
@@ -88,19 +87,18 @@ public sealed class TenantThemeTests : IAsyncLifetime
     public async Task UpdateTheme_Should_PersistAndReturnUpdatedValues_When_TenantAdminUpdatesOwnTheme()
     {
         // Arrange
-        using var client = await _auth.CreateAuthenticatedClientAsync(
-            _tenantAAdminEmail, TestConstants.DefaultPassword, _tenantA);
+        using var client = await _auth.CreateAuthenticatedClientAsync(_tenantAAdminEmail, TestConstants.DefaultPassword, _tenantA, TestContext.Current.CancellationToken);
         var payload = ValidTheme(primary: "#112233", fontSize: 18, borderRadius: "8px");
 
         // Act
-        var updateResponse = await client.PutAsJsonAsync(ThemePath, payload);
+        var updateResponse = await client.PutAsJsonAsync(ThemePath, payload, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         updateResponse.StatusCode.ShouldBe(HttpStatusCode.NoContent);
 
-        var getResponse = await client.GetAsync(ThemePath);
+        var getResponse = await client.GetAsync(ThemePath, TestContext.Current.CancellationToken);
         getResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var theme = await getResponse.Content.ReadFromJsonAsync<TenantThemeDto>(Json);
+        var theme = await getResponse.Content.ReadFromJsonAsync<TenantThemeDto>(Json, cancellationToken: TestContext.Current.CancellationToken);
         theme.ShouldNotBeNull();
         theme.LightPalette.Primary.ShouldBe("#112233");
         theme.Typography.FontSizeBase.ShouldBe(18);
@@ -111,18 +109,17 @@ public sealed class TenantThemeTests : IAsyncLifetime
     public async Task ResetTheme_Should_RestoreDefaults_After_ThemeWasCustomized()
     {
         // Arrange — customize first
-        using var client = await _auth.CreateAuthenticatedClientAsync(
-            _tenantAAdminEmail, TestConstants.DefaultPassword, _tenantA);
-        var update = await client.PutAsJsonAsync(ThemePath, ValidTheme(primary: "#AABBCC", fontSize: 20));
+        using var client = await _auth.CreateAuthenticatedClientAsync(_tenantAAdminEmail, TestConstants.DefaultPassword, _tenantA, TestContext.Current.CancellationToken);
+        var update = await client.PutAsJsonAsync(ThemePath, ValidTheme(primary: "#AABBCC", fontSize: 20), cancellationToken: TestContext.Current.CancellationToken);
         update.StatusCode.ShouldBe(HttpStatusCode.NoContent);
 
         // Act — reset
-        var resetResponse = await client.PostAsync(ThemeResetPath, content: null);
+        var resetResponse = await client.PostAsync(ThemeResetPath, content: null, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         resetResponse.StatusCode.ShouldBe(HttpStatusCode.NoContent);
-        var getResponse = await client.GetAsync(ThemePath);
-        var theme = await getResponse.Content.ReadFromJsonAsync<TenantThemeDto>(Json);
+        var getResponse = await client.GetAsync(ThemePath, TestContext.Current.CancellationToken);
+        var theme = await getResponse.Content.ReadFromJsonAsync<TenantThemeDto>(Json, cancellationToken: TestContext.Current.CancellationToken);
         theme.ShouldNotBeNull();
         theme.LightPalette.Primary.ShouldBe("#2563EB");
         theme.Typography.FontSizeBase.ShouldBe(14);
@@ -136,12 +133,11 @@ public sealed class TenantThemeTests : IAsyncLifetime
     public async Task UpdateTheme_Should_Return400_When_PaletteColorIsNotHex()
     {
         // Arrange
-        using var client = await _auth.CreateAuthenticatedClientAsync(
-            _tenantAAdminEmail, TestConstants.DefaultPassword, _tenantA);
+        using var client = await _auth.CreateAuthenticatedClientAsync(_tenantAAdminEmail, TestConstants.DefaultPassword, _tenantA, TestContext.Current.CancellationToken);
         var payload = ValidTheme(primary: "not-a-color");
 
         // Act
-        var response = await client.PutAsJsonAsync(ThemePath, payload);
+        var response = await client.PutAsJsonAsync(ThemePath, payload, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
@@ -151,12 +147,11 @@ public sealed class TenantThemeTests : IAsyncLifetime
     public async Task UpdateTheme_Should_Return400_When_FontSizeOutOfRange()
     {
         // Arrange — FontSizeBase must be between 10 and 24
-        using var client = await _auth.CreateAuthenticatedClientAsync(
-            _tenantAAdminEmail, TestConstants.DefaultPassword, _tenantA);
+        using var client = await _auth.CreateAuthenticatedClientAsync(_tenantAAdminEmail, TestConstants.DefaultPassword, _tenantA, TestContext.Current.CancellationToken);
         var payload = ValidTheme(fontSize: 99);
 
         // Act
-        var response = await client.PutAsJsonAsync(ThemePath, payload);
+        var response = await client.PutAsJsonAsync(ThemePath, payload, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
@@ -166,12 +161,11 @@ public sealed class TenantThemeTests : IAsyncLifetime
     public async Task UpdateTheme_Should_Return400_When_FontFamilyIsNotWebSafe()
     {
         // Arrange
-        using var client = await _auth.CreateAuthenticatedClientAsync(
-            _tenantAAdminEmail, TestConstants.DefaultPassword, _tenantA);
+        using var client = await _auth.CreateAuthenticatedClientAsync(_tenantAAdminEmail, TestConstants.DefaultPassword, _tenantA, TestContext.Current.CancellationToken);
         var payload = ValidTheme(fontFamily: "Comic Sans MS, cursive");
 
         // Act
-        var response = await client.PutAsJsonAsync(ThemePath, payload);
+        var response = await client.PutAsJsonAsync(ThemePath, payload, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
@@ -181,12 +175,11 @@ public sealed class TenantThemeTests : IAsyncLifetime
     public async Task UpdateTheme_Should_Return400_When_BorderRadiusIsInvalidCss()
     {
         // Arrange — BorderRadius must match ^\d+(px|rem|em|%)$
-        using var client = await _auth.CreateAuthenticatedClientAsync(
-            _tenantAAdminEmail, TestConstants.DefaultPassword, _tenantA);
+        using var client = await _auth.CreateAuthenticatedClientAsync(_tenantAAdminEmail, TestConstants.DefaultPassword, _tenantA, TestContext.Current.CancellationToken);
         var payload = ValidTheme(borderRadius: "round");
 
         // Act
-        var response = await client.PutAsJsonAsync(ThemePath, payload);
+        var response = await client.PutAsJsonAsync(ThemePath, payload, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
@@ -204,7 +197,7 @@ public sealed class TenantThemeTests : IAsyncLifetime
         client.DefaultRequestHeaders.Add("tenant", _tenantA);
 
         // Act
-        var response = await client.GetAsync(ThemePath);
+        var response = await client.GetAsync(ThemePath, TestContext.Current.CancellationToken);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
@@ -218,7 +211,7 @@ public sealed class TenantThemeTests : IAsyncLifetime
         client.DefaultRequestHeaders.Add("tenant", _tenantA);
 
         // Act
-        var response = await client.PutAsJsonAsync(ThemePath, ValidTheme());
+        var response = await client.PutAsJsonAsync(ThemePath, ValidTheme(), cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
@@ -233,14 +226,14 @@ public sealed class TenantThemeTests : IAsyncLifetime
     {
         // Arrange — root operator scopes to tenant A via the header override and
         // sets a distinctive primary color.
-        var rootToken = await _auth.GetRootAdminTokenAsync();
+        var rootToken = await _auth.GetRootAdminTokenAsync(TestContext.Current.CancellationToken);
         const string marker = "#9911AA";
 
         using (var clientA = _factory.CreateClient())
         {
             clientA.DefaultRequestHeaders.Authorization = new("Bearer", rootToken.AccessToken);
             clientA.DefaultRequestHeaders.Add("tenant", _tenantA);
-            var update = await clientA.PutAsJsonAsync(ThemePath, ValidTheme(primary: marker));
+            var update = await clientA.PutAsJsonAsync(ThemePath, ValidTheme(primary: marker), cancellationToken: TestContext.Current.CancellationToken);
             await ShouldHaveStatusAsync(update, HttpStatusCode.NoContent);
         }
 
@@ -248,11 +241,11 @@ public sealed class TenantThemeTests : IAsyncLifetime
         using var clientB = _factory.CreateClient();
         clientB.DefaultRequestHeaders.Authorization = new("Bearer", rootToken.AccessToken);
         clientB.DefaultRequestHeaders.Add("tenant", _tenantB);
-        var responseB = await clientB.GetAsync(ThemePath);
+        var responseB = await clientB.GetAsync(ThemePath, TestContext.Current.CancellationToken);
 
         // Assert — tenant B must NOT see tenant A's customization.
         await ShouldHaveStatusAsync(responseB, HttpStatusCode.OK);
-        var themeB = await responseB.Content.ReadFromJsonAsync<TenantThemeDto>(Json);
+        var themeB = await responseB.Content.ReadFromJsonAsync<TenantThemeDto>(Json, cancellationToken: TestContext.Current.CancellationToken);
         themeB.ShouldNotBeNull();
         themeB.LightPalette.Primary.ShouldNotBe(marker);
         themeB.LightPalette.Primary.ShouldBe("#2563EB");
@@ -263,10 +256,9 @@ public sealed class TenantThemeTests : IAsyncLifetime
     {
         // Arrange — give tenant A a distinctive theme (as A's own admin).
         const string marker = "#7733EE";
-        using (var clientA = await _auth.CreateAuthenticatedClientAsync(
-            _tenantAAdminEmail, TestConstants.DefaultPassword, _tenantA))
+        using (var clientA = await _auth.CreateAuthenticatedClientAsync(_tenantAAdminEmail, TestConstants.DefaultPassword, _tenantA, TestContext.Current.CancellationToken))
         {
-            var update = await clientA.PutAsJsonAsync(ThemePath, ValidTheme(primary: marker));
+            var update = await clientA.PutAsJsonAsync(ThemePath, ValidTheme(primary: marker), cancellationToken: TestContext.Current.CancellationToken);
             update.StatusCode.ShouldBe(HttpStatusCode.NoContent);
         }
 
@@ -277,12 +269,12 @@ public sealed class TenantThemeTests : IAsyncLifetime
         clientB.DefaultRequestHeaders.Add("tenant", _tenantA); // spoof attempt — must be ignored
 
         // Act
-        var response = await clientB.GetAsync(ThemePath);
+        var response = await clientB.GetAsync(ThemePath, TestContext.Current.CancellationToken);
 
         // Assert — the override is gated to root, so B stays in B and sees defaults,
         // never tenant A's marker color.
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var theme = await response.Content.ReadFromJsonAsync<TenantThemeDto>(Json);
+        var theme = await response.Content.ReadFromJsonAsync<TenantThemeDto>(Json, cancellationToken: TestContext.Current.CancellationToken);
         theme.ShouldNotBeNull();
         theme.LightPalette.Primary.ShouldNotBe(marker);
         theme.LightPalette.Primary.ShouldBe("#2563EB");
@@ -293,10 +285,9 @@ public sealed class TenantThemeTests : IAsyncLifetime
     {
         // Arrange — tenant A's admin sets a known baseline.
         const string baseline = "#445566";
-        using (var clientA = await _auth.CreateAuthenticatedClientAsync(
-            _tenantAAdminEmail, TestConstants.DefaultPassword, _tenantA))
+        using (var clientA = await _auth.CreateAuthenticatedClientAsync(_tenantAAdminEmail, TestConstants.DefaultPassword, _tenantA, TestContext.Current.CancellationToken))
         {
-            var seed = await clientA.PutAsJsonAsync(ThemePath, ValidTheme(primary: baseline));
+            var seed = await clientA.PutAsJsonAsync(ThemePath, ValidTheme(primary: baseline), cancellationToken: TestContext.Current.CancellationToken);
             seed.StatusCode.ShouldBe(HttpStatusCode.NoContent);
         }
 
@@ -306,19 +297,18 @@ public sealed class TenantThemeTests : IAsyncLifetime
         {
             clientB.DefaultRequestHeaders.Authorization = new("Bearer", tokenB.AccessToken);
             clientB.DefaultRequestHeaders.Add("tenant", _tenantA); // spoof attempt
-            var attack = await clientB.PutAsJsonAsync(ThemePath, ValidTheme(primary: "#000000"));
+            var attack = await clientB.PutAsJsonAsync(ThemePath, ValidTheme(primary: "#000000"), cancellationToken: TestContext.Current.CancellationToken);
             // The write is accepted but applies to tenant B (where B is pinned), not A.
             attack.StatusCode.ShouldBe(HttpStatusCode.NoContent);
         }
 
         // Act — re-read tenant A's theme as A's own admin.
-        using var verifyA = await _auth.CreateAuthenticatedClientAsync(
-            _tenantAAdminEmail, TestConstants.DefaultPassword, _tenantA);
-        var response = await verifyA.GetAsync(ThemePath);
+        using var verifyA = await _auth.CreateAuthenticatedClientAsync(_tenantAAdminEmail, TestConstants.DefaultPassword, _tenantA, TestContext.Current.CancellationToken);
+        var response = await verifyA.GetAsync(ThemePath, TestContext.Current.CancellationToken);
 
         // Assert — tenant A's theme is unchanged by B's spoofed write.
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var theme = await response.Content.ReadFromJsonAsync<TenantThemeDto>(Json);
+        var theme = await response.Content.ReadFromJsonAsync<TenantThemeDto>(Json, cancellationToken: TestContext.Current.CancellationToken);
         theme.ShouldNotBeNull();
         theme.LightPalette.Primary.ShouldBe(baseline);
     }

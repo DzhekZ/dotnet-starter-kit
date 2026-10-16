@@ -49,14 +49,12 @@ public sealed class TopupApprovalTests
         var requestId = await SeedPendingTopupRequestAsync(TestConstants.RootTenantId, 250m);
 
         // Act: as ROOT, approve the request.
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
-        using var approveResp = await rootClient.PostAsJsonAsync(
-            $"{BillingBasePath}/wallet/topup-requests/{requestId}/approve",
-            new { note = "approved in integration test" });
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
+        using var approveResp = await rootClient.PostAsJsonAsync($"{BillingBasePath}/wallet/topup-requests/{requestId}/approve", new { note = "approved in integration test" }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert: 200 + a non-empty invoiceId.
         approveResp.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var invoiceId = await approveResp.DeserializeAsync<Guid>();
+        var invoiceId = await approveResp.DeserializeAsync<Guid>(ct: TestContext.Current.CancellationToken);
         invoiceId.ShouldNotBe(Guid.Empty);
 
         // Assert: the request is now Invoiced with InvoiceId set.
@@ -88,13 +86,11 @@ public sealed class TopupApprovalTests
         var requestId = await SeedPendingTopupRequestAsync(TestConstants.RootTenantId, 100m);
 
         // Act: as ROOT, reject the request.
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
-        using var rejectResp = await rootClient.PostAsJsonAsync(
-            $"{BillingBasePath}/wallet/topup-requests/{requestId}/reject",
-            new { reason = "rejected in integration test" });
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
+        using var rejectResp = await rootClient.PostAsJsonAsync($"{BillingBasePath}/wallet/topup-requests/{requestId}/reject", new { reason = "rejected in integration test" }, cancellationToken: TestContext.Current.CancellationToken);
 
         rejectResp.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var returnedId = await rejectResp.DeserializeAsync<Guid>();
+        var returnedId = await rejectResp.DeserializeAsync<Guid>(ct: TestContext.Current.CancellationToken);
         returnedId.ShouldBe(requestId);
 
         // Assert: request is now Rejected.
@@ -115,18 +111,14 @@ public sealed class TopupApprovalTests
         // Arrange: seed a Pending request and perform a successful first rejection.
         var requestId = await SeedPendingTopupRequestAsync(TestConstants.RootTenantId, 120m);
 
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
         // First reject — must succeed.
-        using var firstRejectResp = await rootClient.PostAsJsonAsync(
-            $"{BillingBasePath}/wallet/topup-requests/{requestId}/reject",
-            new { reason = "first rejection" });
+        using var firstRejectResp = await rootClient.PostAsJsonAsync($"{BillingBasePath}/wallet/topup-requests/{requestId}/reject", new { reason = "first rejection" }, cancellationToken: TestContext.Current.CancellationToken);
         firstRejectResp.StatusCode.ShouldBe(HttpStatusCode.OK, "first rejection must succeed");
 
         // Act: attempt a second rejection on the now-Rejected request.
-        using var secondRejectResp = await rootClient.PostAsJsonAsync(
-            $"{BillingBasePath}/wallet/topup-requests/{requestId}/reject",
-            new { reason = "duplicate rejection" });
+        using var secondRejectResp = await rootClient.PostAsJsonAsync($"{BillingBasePath}/wallet/topup-requests/{requestId}/reject", new { reason = "duplicate rejection" }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert: 409 Conflict — not 500.
         secondRejectResp.StatusCode.ShouldBe(HttpStatusCode.Conflict,
@@ -142,7 +134,7 @@ public sealed class TopupApprovalTests
         var rootRequestId = await SeedPendingTopupRequestAsync(TestConstants.RootTenantId, 150m);
 
         // Arrange: provision a fresh TenantB.
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var uniqueId = Guid.NewGuid().ToString("N")[..8];
         var tenantBId = $"topup-iso-{uniqueId}";
         var tenantBAdminEmail = $"topup-admin-{uniqueId}@tenant.com";
@@ -153,8 +145,7 @@ public sealed class TopupApprovalTests
             tenantBAdminEmail, TestConstants.DefaultPassword, tenantBId);
 
         // Act: as TenantB admin, GET /wallet/topup-requests (admin endpoint, own-tenant scoped).
-        using var listResp = await tenantBClient.GetAsync(
-            $"{BillingBasePath}/wallet/topup-requests?pageNumber=1&pageSize=100");
+        using var listResp = await tenantBClient.GetAsync($"{BillingBasePath}/wallet/topup-requests?pageNumber=1&pageSize=100", TestContext.Current.CancellationToken);
         listResp.StatusCode.ShouldBe(HttpStatusCode.OK);
         var page = await ParseAsync<PagedResponse<TopupRequestDto>>(listResp);
 
@@ -163,8 +154,7 @@ public sealed class TopupApprovalTests
             "a non-root tenant must not see another tenant's top-up requests");
 
         // Sanity: root CAN see the request via the same endpoint.
-        using var rootListResp = await rootClient.GetAsync(
-            $"{BillingBasePath}/wallet/topup-requests?pageNumber=1&pageSize=100");
+        using var rootListResp = await rootClient.GetAsync($"{BillingBasePath}/wallet/topup-requests?pageNumber=1&pageSize=100", TestContext.Current.CancellationToken);
         rootListResp.StatusCode.ShouldBe(HttpStatusCode.OK);
         var rootPage = await ParseAsync<PagedResponse<TopupRequestDto>>(rootListResp);
         rootPage.Items.ShouldContain(r => r.Id == rootRequestId,
@@ -179,11 +169,10 @@ public sealed class TopupApprovalTests
         // Arrange: seed a request for root.
         var requestId = await SeedPendingTopupRequestAsync(TestConstants.RootTenantId, 75m);
 
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
         // Act: filter by root tenantId.
-        using var filteredResp = await rootClient.GetAsync(
-            $"{BillingBasePath}/wallet/topup-requests?tenantId={TestConstants.RootTenantId}&pageNumber=1&pageSize=100");
+        using var filteredResp = await rootClient.GetAsync($"{BillingBasePath}/wallet/topup-requests?tenantId={TestConstants.RootTenantId}&pageNumber=1&pageSize=100", TestContext.Current.CancellationToken);
         filteredResp.StatusCode.ShouldBe(HttpStatusCode.OK);
         var page = await ParseAsync<PagedResponse<TopupRequestDto>>(filteredResp);
 

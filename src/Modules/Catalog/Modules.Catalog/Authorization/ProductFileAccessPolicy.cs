@@ -17,13 +17,13 @@ public sealed class ProductFileAccessPolicy : IFileAccessPolicy
 {
     public string OwnerType => "Product";
 
-    public Task<bool> CanAttachAsync(Guid? ownerId, string currentUserId, CancellationToken cancellationToken)
+    public Task<bool> CanAttachAsync(Guid? ownerId, string currentUserId, CancellationToken cancellationToken = default)
         => Task.FromResult(!string.IsNullOrEmpty(currentUserId));
 
-    public Task<bool> CanReadAsync(FileAccessContext context, string currentUserId, CancellationToken cancellationToken)
+    public Task<bool> CanReadAsync(FileAccessContext context, string currentUserId, CancellationToken cancellationToken = default)
         => Task.FromResult(true);
 
-    public Task<bool> CanDeleteAsync(FileAccessContext context, string currentUserId, CancellationToken cancellationToken)
+    public Task<bool> CanDeleteAsync(FileAccessContext context, string currentUserId, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(context);
         return Task.FromResult(

@@ -38,11 +38,11 @@ public sealed class SecurityAuditListBoundsTests
     {
         await SeedSecurityAuditsAsync(SeededRows);
 
-        using var client = await _auth.CreateRootAdminClientAsync();
-        using var response = await client.GetAsync($"{TestConstants.AuditsBasePath}/security");
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
+        using var response = await client.GetAsync($"{TestConstants.AuditsBasePath}/security", TestContext.Current.CancellationToken);
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        var list = await response.DeserializeAsync<IReadOnlyList<AuditSummaryDto>>();
+        var list = await response.DeserializeAsync<IReadOnlyList<AuditSummaryDto>>(ct: TestContext.Current.CancellationToken);
 
         list.Count.ShouldBeLessThanOrEqualTo(
             ExpectedServerCap,

@@ -37,8 +37,8 @@ public sealed class OutboxClaimTests
         var storeB = scopeB.ServiceProvider.GetRequiredService<IOutboxStore>();
 
         var results = await Task.WhenAll(
-            storeA.ClaimBatchAsync(50, "instance-a", Lease),
-            storeB.ClaimBatchAsync(50, "instance-b", Lease));
+            storeA.ClaimBatchAsync(50, "instance-a", Lease, TestContext.Current.CancellationToken),
+            storeB.ClaimBatchAsync(50, "instance-b", Lease, TestContext.Current.CancellationToken));
 
         var claimedIds = results
             .SelectMany(r => r)
@@ -60,12 +60,12 @@ public sealed class OutboxClaimTests
 
         using var scopeA = await CreateTenantScopeAsync();
         var first = await scopeA.ServiceProvider.GetRequiredService<IOutboxStore>()
-            .ClaimBatchAsync(500, "instance-a", Lease);
+            .ClaimBatchAsync(500, "instance-a", Lease, TestContext.Current.CancellationToken);
         first.Count(m => m.Type == marker).ShouldBe(5);
 
         using var scopeB = await CreateTenantScopeAsync();
         var second = await scopeB.ServiceProvider.GetRequiredService<IOutboxStore>()
-            .ClaimBatchAsync(500, "instance-b", Lease);
+            .ClaimBatchAsync(500, "instance-b", Lease, TestContext.Current.CancellationToken);
 
         second.ShouldNotContain(
             m => m.Type == marker,
@@ -81,7 +81,7 @@ public sealed class OutboxClaimTests
 
         using var scope = await CreateTenantScopeAsync();
         var reclaimed = await scope.ServiceProvider.GetRequiredService<IOutboxStore>()
-            .ClaimBatchAsync(500, "instance-b", Lease);
+            .ClaimBatchAsync(500, "instance-b", Lease, TestContext.Current.CancellationToken);
 
         reclaimed.Count(m => m.Type == marker).ShouldBe(
             3,
@@ -98,12 +98,12 @@ public sealed class OutboxClaimTests
         var store = scope.ServiceProvider.GetRequiredService<IOutboxStore>();
         var context = scope.ServiceProvider.GetRequiredService<EventingDbContext>();
 
-        var claimed = (await store.ClaimBatchAsync(500, "instance-a", Lease)).Single(m => m.Type == marker);
+        var claimed = (await store.ClaimBatchAsync(500, "instance-a", Lease, TestContext.Current.CancellationToken)).Single(m => m.Type == marker);
         claimed.ClaimedUntilUtc.ShouldNotBeNull();
 
-        await store.MarkAsFailedAsync(claimed, "boom", isDead: false);
+        await store.MarkAsFailedAsync(claimed, "boom", isDead: false, ct: TestContext.Current.CancellationToken);
 
-        var stored = await context.OutboxMessages.AsNoTracking().SingleAsync(m => m.Id == claimed.Id);
+        var stored = await context.OutboxMessages.AsNoTracking().SingleAsync(m => m.Id == claimed.Id, cancellationToken: TestContext.Current.CancellationToken);
         stored.ClaimedUntilUtc.ShouldBeNull(
             "a retryable row must not stay hidden behind a stale lease until it expires");
         stored.ClaimedBy.ShouldBeNull();

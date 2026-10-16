@@ -37,7 +37,7 @@ public sealed class ProductFileAccessPolicyTests
     public async Task RequestUploadUrl_For_Product_Should_Succeed_For_Authenticated_User()
     {
         // CanAttachAsync returns true for any authenticated user.
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var (brandId, categoryId) = await CreateBrandAndCategoryAsync(client);
         var productId = await CreateProductAsync(client, brandId, categoryId);
 
@@ -50,7 +50,7 @@ public sealed class ProductFileAccessPolicyTests
             sizeBytes = 2048,
             visibility = 0,
             category = "Image",
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
@@ -61,19 +61,19 @@ public sealed class ProductFileAccessPolicyTests
     public async Task GetDownloadUrl_For_Product_Image_Should_Succeed_For_Any_Authenticated_User()
     {
         // CanReadAsync is open: a non-uploader can still mint a download URL for a product image.
-        using var adminClient = await _auth.CreateRootAdminClientAsync();
+        using var adminClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var (brandId, categoryId) = await CreateBrandAndCategoryAsync(adminClient);
         var productId = await CreateProductAsync(adminClient, brandId, categoryId);
         var fileAssetId = await UploadImageAsync(adminClient, productId);
 
         var (otherEmail, otherPassword) = await RegisterAndConfirmAsync(adminClient, "reader");
-        using var otherClient = await _auth.CreateAuthenticatedClientAsync(otherEmail, otherPassword);
+        using var otherClient = await _auth.CreateAuthenticatedClientAsync(otherEmail, otherPassword, ct: TestContext.Current.CancellationToken);
 
-        using var response = await otherClient.GetAsync($"{FilesBasePath}/{fileAssetId}/url");
+        using var response = await otherClient.GetAsync($"{FilesBasePath}/{fileAssetId}/url", TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK,
             "product images are publicly readable, so any authenticated user may mint a download URL");
-        var download = await response.DeserializeAsync<PresignedDownloadResponse>();
+        var download = await response.DeserializeAsync<PresignedDownloadResponse>(ct: TestContext.Current.CancellationToken);
         download.Url.ShouldNotBeNull();
     }
 
@@ -83,12 +83,12 @@ public sealed class ProductFileAccessPolicyTests
     public async Task DeleteFile_For_Product_Image_Should_Succeed_For_Uploader()
     {
         // CanDeleteAsync allows the uploader. Admin uploads, admin deletes.
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var (brandId, categoryId) = await CreateBrandAndCategoryAsync(client);
         var productId = await CreateProductAsync(client, brandId, categoryId);
         var fileAssetId = await UploadImageAsync(client, productId);
 
-        using var response = await client.DeleteAsync($"{FilesBasePath}/{fileAssetId}");
+        using var response = await client.DeleteAsync($"{FilesBasePath}/{fileAssetId}", TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.NoContent);
     }
@@ -97,15 +97,15 @@ public sealed class ProductFileAccessPolicyTests
     public async Task DeleteFile_For_Product_Image_Should_Return403_For_NonUploader()
     {
         // CanDeleteAsync is uploader-only — a different user is forbidden even with Files.DeleteOwn.
-        using var adminClient = await _auth.CreateRootAdminClientAsync();
+        using var adminClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var (brandId, categoryId) = await CreateBrandAndCategoryAsync(adminClient);
         var productId = await CreateProductAsync(adminClient, brandId, categoryId);
         var fileAssetId = await UploadImageAsync(adminClient, productId);
 
         var (otherEmail, otherPassword) = await RegisterAndConfirmAsync(adminClient, "deleter");
-        using var otherClient = await _auth.CreateAuthenticatedClientAsync(otherEmail, otherPassword);
+        using var otherClient = await _auth.CreateAuthenticatedClientAsync(otherEmail, otherPassword, ct: TestContext.Current.CancellationToken);
 
-        using var response = await otherClient.DeleteAsync($"{FilesBasePath}/{fileAssetId}");
+        using var response = await otherClient.DeleteAsync($"{FilesBasePath}/{fileAssetId}", TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
     }

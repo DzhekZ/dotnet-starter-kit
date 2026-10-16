@@ -30,7 +30,7 @@ public class PathAwareAuthorizationHandler : IAuthorizationMiddlewareResultHandl
         {
             // ✅ Respect routing + continue the pipeline
             var endpoint = context.GetEndpoint();
-            if (endpoint != null)
+            if (endpoint is not null)
             {
                 await next(context);
                 return;

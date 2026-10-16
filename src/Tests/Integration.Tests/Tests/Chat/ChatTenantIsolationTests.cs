@@ -33,7 +33,7 @@ public sealed class ChatTenantIsolationTests
     public async Task GetChannelById_Should_Return404_When_Channel_Belongs_To_Different_Tenant()
     {
         #region Arrange
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var unique = Unique();
         var channelName = $"chat-iso-get-{unique}";
         var channelAId = await CreateChannelAsync(rootClient, channelName);
@@ -42,7 +42,7 @@ public sealed class ChatTenantIsolationTests
         #endregion
 
         #region Act
-        using var response = await tenantBClient.GetAsync($"{ChatBasePath}/channels/{channelAId}");
+        using var response = await tenantBClient.GetAsync($"{ChatBasePath}/channels/{channelAId}", TestContext.Current.CancellationToken);
         #endregion
 
         #region Assert
@@ -52,7 +52,7 @@ public sealed class ChatTenantIsolationTests
         // The 404 body is a plain ProblemDetails ("Channel not found.") — it must not carry any of
         // tenant A's channel content. (The channel id legitimately appears in the `instance` URL,
         // since that's the path tenant B itself requested; the leak we guard against is content.)
-        var body = await response.Content.ReadAsStringAsync();
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         body.ShouldNotContain(channelName);
         #endregion
     }
@@ -63,7 +63,7 @@ public sealed class ChatTenantIsolationTests
     public async Task ListMyChannels_Should_Not_Include_Channels_From_Different_Tenant()
     {
         #region Arrange
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var unique = Unique();
         var channelAId = await CreateChannelAsync(rootClient, $"chat-iso-list-{unique}");
 
@@ -71,19 +71,19 @@ public sealed class ChatTenantIsolationTests
         #endregion
 
         #region Act
-        using var response = await tenantBClient.GetAsync($"{ChatBasePath}/channels");
+        using var response = await tenantBClient.GetAsync($"{ChatBasePath}/channels", TestContext.Current.CancellationToken);
         #endregion
 
         #region Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var channels = await response.DeserializeAsync<IReadOnlyList<ChannelDto>>();
+        var channels = await response.DeserializeAsync<IReadOnlyList<ChannelDto>>(ct: TestContext.Current.CancellationToken);
         channels.ShouldNotContain(c => c.Id == channelAId,
             "Tenant B's channel list must never surface tenant A's channels.");
 
         // Discover (public channels not yet joined) must also stay tenant-scoped.
-        using var discover = await tenantBClient.GetAsync($"{ChatBasePath}/channels/discover");
+        using var discover = await tenantBClient.GetAsync($"{ChatBasePath}/channels/discover", TestContext.Current.CancellationToken);
         discover.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var discoverable = await discover.DeserializeAsync<IReadOnlyList<ChannelDto>>();
+        var discoverable = await discover.DeserializeAsync<IReadOnlyList<ChannelDto>>(ct: TestContext.Current.CancellationToken);
         discoverable.ShouldNotContain(c => c.Id == channelAId,
             "Tenant A's public channel must not be discoverable from tenant B.");
         #endregion
@@ -96,7 +96,7 @@ public sealed class ChatTenantIsolationTests
     {
         #region Arrange
         // A public channel in tenant A — even a public channel must be invisible across tenants.
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var unique = Unique();
         var channelAId = await CreateChannelAsync(rootClient, $"chat-iso-join-{unique}", isPrivate: false);
 
@@ -106,9 +106,7 @@ public sealed class ChatTenantIsolationTests
 
         #region Act
         // Tenant B's admin tries to join (add itself to) tenant A's channel.
-        using var response = await tenantBClient.PostAsJsonAsync(
-            $"{ChatBasePath}/channels/{channelAId}/members",
-            new { channelId = channelAId, userIds = new[] { tenantBUserId } });
+        using var response = await tenantBClient.PostAsJsonAsync($"{ChatBasePath}/channels/{channelAId}/members", new { channelId = channelAId, userIds = new[] { tenantBUserId } }, cancellationToken: TestContext.Current.CancellationToken);
         #endregion
 
         #region Assert
@@ -123,7 +121,7 @@ public sealed class ChatTenantIsolationTests
     public async Task SendMessage_Should_Return404_When_Channel_Belongs_To_Different_Tenant()
     {
         #region Arrange
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var unique = Unique();
         var channelAId = await CreateChannelAsync(rootClient, $"chat-iso-send-{unique}");
 
@@ -131,9 +129,7 @@ public sealed class ChatTenantIsolationTests
         #endregion
 
         #region Act
-        using var response = await tenantBClient.PostAsJsonAsync(
-            $"{ChatBasePath}/channels/{channelAId}/messages",
-            new { body = "cross-tenant intrusion", parentMessageId = (Guid?)null, attachments = Array.Empty<object>() });
+        using var response = await tenantBClient.PostAsJsonAsync($"{ChatBasePath}/channels/{channelAId}/messages", new { body = "cross-tenant intrusion", parentMessageId = (Guid?)null, attachments = Array.Empty<object>() }, cancellationToken: TestContext.Current.CancellationToken);
         #endregion
 
         #region Assert
@@ -141,11 +137,41 @@ public sealed class ChatTenantIsolationTests
             "Tenant B must not be able to post into tenant A's channel.");
 
         // And the message must never have landed: tenant A's listing stays clean.
-        using var listForA = await rootClient.GetAsync($"{ChatBasePath}/channels/{channelAId}/messages");
+        using var listForA = await rootClient.GetAsync($"{ChatBasePath}/channels/{channelAId}/messages", TestContext.Current.CancellationToken);
         listForA.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var messages = await listForA.DeserializeAsync<IReadOnlyList<MessageDto>>();
+        var messages = await listForA.DeserializeAsync<IReadOnlyList<MessageDto>>(ct: TestContext.Current.CancellationToken);
         messages.ShouldNotContain(m => m.Body != null && m.Body.Contains("cross-tenant intrusion"),
             "The rejected cross-tenant send must not have persisted into tenant A's channel.");
+        #endregion
+    }
+
+    // ─── restore ─────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task RestoreChannel_Should_Return404_When_Archived_Channel_Belongs_To_Different_Tenant()
+    {
+        #region Arrange
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
+        var channelAId = await CreateChannelAsync(rootClient, $"chat-iso-restore-{Unique()}");
+        using var archive = await rootClient.DeleteAsync($"{ChatBasePath}/channels/{channelAId}", TestContext.Current.CancellationToken);
+        archive.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+
+        using var tenantBClient = await CreateProvisionedTenantAdminClientAsync();
+        #endregion
+
+        #region Act
+        // Tenant B's admin tries to un-archive tenant A's channel.
+        using var response = await tenantBClient.PostAsync($"{ChatBasePath}/channels/{channelAId}/restore", null, TestContext.Current.CancellationToken);
+        #endregion
+
+        #region Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.NotFound,
+            "The restore lookup lifts only the SoftDelete filter; tenant scoping must keep tenant A's channel invisible to tenant B.");
+
+        // The rejected call must not have restored it: for tenant A the channel is still archived (hidden → 404).
+        using var ownerGet = await rootClient.GetAsync($"{ChatBasePath}/channels/{channelAId}", TestContext.Current.CancellationToken);
+        ownerGet.StatusCode.ShouldBe(HttpStatusCode.NotFound,
+            "A cross-tenant restore attempt must leave the channel archived.");
         #endregion
     }
 
@@ -155,7 +181,7 @@ public sealed class ChatTenantIsolationTests
     public async Task Search_Should_Not_Surface_Messages_From_Different_Tenant()
     {
         #region Arrange
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var unique = Unique();
         var token = $"isolatedterm{unique}"; // unique enough to avoid false positives in the shared DB
         var channelAId = await CreateChannelAsync(rootClient, $"chat-iso-search-{unique}");
@@ -166,23 +192,21 @@ public sealed class ChatTenantIsolationTests
 
         #region Act
         // Search from tenant B for the exact token written into tenant A.
-        using var response = await tenantBClient.GetAsync(
-            $"{ChatBasePath}/search?q={Uri.EscapeDataString(token)}");
+        using var response = await tenantBClient.GetAsync($"{ChatBasePath}/search?q={Uri.EscapeDataString(token)}", TestContext.Current.CancellationToken);
         #endregion
 
         #region Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK,
             "Search returns 200 with zero hits cross-tenant — it must not error or leak.");
-        var results = await response.DeserializeAsync<IReadOnlyList<MessageDto>>();
+        var results = await response.DeserializeAsync<IReadOnlyList<MessageDto>>(ct: TestContext.Current.CancellationToken);
         results.ShouldNotContain(m => m.ChannelId == channelAId,
             "Tenant B's search must never surface tenant A's messages.");
         results.ShouldNotContain(m => m.Body != null && m.Body.Contains(token),
             "Tenant A's message content must not leak into tenant B's search results.");
 
         // Sanity: tenant A itself can still find its own message (the row really exists).
-        using var ownSearch = await rootClient.GetAsync(
-            $"{ChatBasePath}/search?q={Uri.EscapeDataString(token)}");
-        var ownResults = await ownSearch.DeserializeAsync<IReadOnlyList<MessageDto>>();
+        using var ownSearch = await rootClient.GetAsync($"{ChatBasePath}/search?q={Uri.EscapeDataString(token)}", TestContext.Current.CancellationToken);
+        var ownResults = await ownSearch.DeserializeAsync<IReadOnlyList<MessageDto>>(ct: TestContext.Current.CancellationToken);
         ownResults.ShouldContain(m => m.ChannelId == channelAId,
             "Tenant A must still see its own message — proving B's empty result is isolation, not a missing row.");
         #endregion

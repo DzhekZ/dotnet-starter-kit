@@ -7,7 +7,7 @@ namespace FSH.Modules.Multitenancy.Contracts;
 
 public interface ITenantService
 {
-    Task<PagedResponse<TenantDto>> GetAllAsync(GetTenantsQuery query, CancellationToken cancellationToken);
+    Task<PagedResponse<TenantDto>> GetAllAsync(GetTenantsQuery query, CancellationToken cancellationToken = default);
 
     Task<bool> ExistsWithIdAsync(string id, CancellationToken cancellationToken = default);
 
@@ -15,9 +15,9 @@ public interface ITenantService
 
     Task<TenantStatusDto> GetStatusAsync(string id, CancellationToken cancellationToken = default);
 
-    Task<string> CreateAsync(string id, string name, string? connectionString, string adminEmail, string? issuer, string planKey, DateTime validUpto, CancellationToken cancellationToken);
+    Task<string> CreateAsync(string id, string name, string? connectionString, string adminEmail, string? issuer, string planKey, DateTime validUpto, CancellationToken cancellationToken = default);
 
-    Task<string> ActivateAsync(string id, CancellationToken cancellationToken);
+    Task<string> ActivateAsync(string id, CancellationToken cancellationToken = default);
 
     Task<string> DeactivateAsync(string id, CancellationToken cancellationToken = default);
 
@@ -37,7 +37,7 @@ public interface ITenantService
     /// </summary>
     Task<DateTime> AdjustValidityAsync(string id, DateTime validUpto, CancellationToken cancellationToken = default);
 
-    Task MigrateTenantAsync(AppTenantInfo tenant, CancellationToken cancellationToken);
+    Task MigrateTenantAsync(AppTenantInfo tenant, CancellationToken cancellationToken = default);
 
-    Task SeedTenantAsync(AppTenantInfo tenant, CancellationToken cancellationToken);
+    Task SeedTenantAsync(AppTenantInfo tenant, CancellationToken cancellationToken = default);
 }

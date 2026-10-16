@@ -24,7 +24,8 @@ public sealed class RemoveUserFromGroupCommandHandler : ICommandHandler<RemoveUs
 
         var membership = await _dbContext.UserGroups
             .Include(ug => ug.Group)
-            .FirstOrDefaultAsync(ug => ug.GroupId == command.GroupId && ug.UserId == command.UserId, cancellationToken);
+            .FirstOrDefaultAsync(ug => ug.GroupId == command.GroupId && ug.UserId == command.UserId, cancellationToken)
+            .ConfigureAwait(false);
 
         if (membership is null)
         {
@@ -39,7 +40,7 @@ public sealed class RemoveUserFromGroupCommandHandler : ICommandHandler<RemoveUs
         }
 
         _dbContext.UserGroups.Remove(membership);
-        await _dbContext.SaveChangesAsync(cancellationToken);
+        await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
         // Leaving a group may revoke roles the user only held through this group —
         // invalidate so the cached permission set is rebuilt on next request.

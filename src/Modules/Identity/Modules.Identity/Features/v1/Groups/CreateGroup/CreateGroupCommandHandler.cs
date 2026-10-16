@@ -26,7 +26,8 @@ public sealed class CreateGroupCommandHandler : ICommandHandler<CreateGroupComma
 
         // Validate name is unique within tenant
         var nameExists = await _dbContext.Groups
-            .AnyAsync(g => g.Name == command.Name, cancellationToken);
+            .AnyAsync(g => g.Name == command.Name, cancellationToken)
+            .ConfigureAwait(false);
 
         if (nameExists)
         {
@@ -40,7 +41,8 @@ public sealed class CreateGroupCommandHandler : ICommandHandler<CreateGroupComma
             var rawRoles = await _dbContext.Roles
                 .Where(r => command.RoleIds.Contains(r.Id))
                 .Select(r => new { r.Id, r.Name })
-                .ToListAsync(cancellationToken);
+                .ToListAsync(cancellationToken)
+                .ConfigureAwait(false);
             resolvedRoles = rawRoles.Select(r => (r.Id, r.Name!)).ToList();
 
             var invalidRoleIds = command.RoleIds.Except(resolvedRoles.Select(r => r.Id)).ToList();
@@ -64,7 +66,7 @@ public sealed class CreateGroupCommandHandler : ICommandHandler<CreateGroupComma
         }
 
         _dbContext.Groups.Add(group);
-        await _dbContext.SaveChangesAsync(cancellationToken);
+        await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
         return new GroupDto
         {

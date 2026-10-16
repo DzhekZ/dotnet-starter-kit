@@ -27,6 +27,7 @@ public sealed class DeleteGroupCommandHandler : ICommandHandler<DeleteGroupComma
 
         var group = await _dbContext.Groups
             .FirstOrDefaultAsync(g => g.Id == command.Id, cancellationToken)
+            .ConfigureAwait(false)
             ?? throw new NotFoundException($"Group with ID '{command.Id}' not found.");
 
         if (group.IsSystemGroup)
@@ -39,12 +40,13 @@ public sealed class DeleteGroupCommandHandler : ICommandHandler<DeleteGroupComma
         var memberIds = await _dbContext.UserGroups
             .Where(ug => ug.GroupId == command.Id)
             .Select(ug => ug.UserId)
-            .ToListAsync(cancellationToken);
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
 
         // Soft delete via domain method
         group.Delete(_currentUser.GetUserId().ToString());
 
-        await _dbContext.SaveChangesAsync(cancellationToken);
+        await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
         // A deleted group can no longer contribute its roles to members' effective
         // permission sets — flush each member's cached entry.

@@ -118,8 +118,7 @@ public sealed class WebhookFanoutTests
 
         using (var client = await CreateRootClientFor(capturingFactory))
         {
-            var del = await client.DeleteAsync(
-                $"{TestConstants.WebhooksBasePath}/subscriptions/{subscriptionId}");
+            var del = await client.DeleteAsync($"{TestConstants.WebhooksBasePath}/subscriptions/{subscriptionId}", TestContext.Current.CancellationToken);
             del.StatusCode.ShouldBe(HttpStatusCode.NoContent);
         }
 

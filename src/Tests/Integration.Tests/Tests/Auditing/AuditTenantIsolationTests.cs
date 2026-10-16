@@ -15,7 +15,7 @@ public sealed class AuditTenantIsolationTests
     [Fact]
     public async Task GetAudits_Should_OnlyReturnCurrentTenantsRecords()
     {
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var uniqueId = Guid.NewGuid().ToString("N")[..8];
         var otherTenantId = $"audit-iso-{uniqueId}";
         var otherAdminEmail = $"audit-admin-{uniqueId}@tenant.com";
@@ -24,7 +24,7 @@ public sealed class AuditTenantIsolationTests
         await TenantProvisioningWait.WaitForProvisioningAsync(rootClient, otherTenantId);
 
         // Authenticating as both tenants triggers audit events on both sides.
-        _ = await _auth.GetRootAdminTokenAsync();
+        _ = await _auth.GetRootAdminTokenAsync(TestContext.Current.CancellationToken);
         using var otherClient = await CreateTenantAdminClientWithRetryAsync(
             otherAdminEmail, TestConstants.DefaultPassword, otherTenantId);
 
@@ -32,17 +32,16 @@ public sealed class AuditTenantIsolationTests
         string body = string.Empty;
         for (int i = 0; i < 20; i++)
         {
-            var response = await otherClient.GetAsync(
-                $"{TestConstants.AuditsBasePath}?pageNumber=1&pageSize=100");
+            var response = await otherClient.GetAsync($"{TestConstants.AuditsBasePath}?pageNumber=1&pageSize=100", TestContext.Current.CancellationToken);
             response.StatusCode.ShouldBe(HttpStatusCode.OK);
-            body = await response.Content.ReadAsStringAsync();
+            body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
 
             if (body.Contains($"\"tenantId\":\"{otherTenantId}\"", StringComparison.Ordinal))
             {
                 break;
             }
 
-            await Task.Delay(500);
+            await Task.Delay(500, TestContext.Current.CancellationToken);
         }
 
         body.ShouldContain($"\"tenantId\":\"{otherTenantId}\"");

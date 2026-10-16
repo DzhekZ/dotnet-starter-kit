@@ -27,16 +27,15 @@ public sealed class UserQueryTests
     public async Task GetUserRoles_Should_ReturnRolesWithEnabledFlags_When_UserExists()
     {
         // Arrange — a freshly registered user has the Basic role enabled.
-        using var adminClient = await _auth.CreateRootAdminClientAsync();
+        using var adminClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var user = await IdentityUserSeeder.CreateLoginableUserAsync(_factory, adminClient, "roles-get");
 
         // Act
-        var response = await adminClient.GetAsync(
-            $"{TestConstants.IdentityBasePath}/users/{user.UserId}/roles");
+        var response = await adminClient.GetAsync($"{TestConstants.IdentityBasePath}/users/{user.UserId}/roles", TestContext.Current.CancellationToken);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var roles = await response.DeserializeAsync<List<UserRoleDto>>();
+        var roles = await response.DeserializeAsync<List<UserRoleDto>>(ct: TestContext.Current.CancellationToken);
         roles.ShouldNotBeNull();
         roles.ShouldContain(r => r.RoleName == "Basic" && r.Enabled);
         roles.ShouldContain(r => r.RoleName == "Admin" && !r.Enabled);
@@ -46,11 +45,10 @@ public sealed class UserQueryTests
     public async Task GetUserRoles_Should_Return404_When_UserDoesNotExist()
     {
         // Arrange
-        using var adminClient = await _auth.CreateRootAdminClientAsync();
+        using var adminClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var response = await adminClient.GetAsync(
-            $"{TestConstants.IdentityBasePath}/users/{Guid.NewGuid()}/roles");
+        var response = await adminClient.GetAsync($"{TestConstants.IdentityBasePath}/users/{Guid.NewGuid()}/roles", TestContext.Current.CancellationToken);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
@@ -64,8 +62,7 @@ public sealed class UserQueryTests
         client.DefaultRequestHeaders.Add("tenant", TestConstants.RootTenantId);
 
         // Act
-        var response = await client.GetAsync(
-            $"{TestConstants.IdentityBasePath}/users/{Guid.NewGuid()}/roles");
+        var response = await client.GetAsync($"{TestConstants.IdentityBasePath}/users/{Guid.NewGuid()}/roles", TestContext.Current.CancellationToken);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
@@ -79,16 +76,15 @@ public sealed class UserQueryTests
     public async Task GetUserGroups_Should_ReturnGroups_When_UserExists()
     {
         // Arrange — new users are auto-added to default groups on registration.
-        using var adminClient = await _auth.CreateRootAdminClientAsync();
+        using var adminClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var user = await IdentityUserSeeder.CreateLoginableUserAsync(_factory, adminClient, "groups-get");
 
         // Act
-        var response = await adminClient.GetAsync(
-            $"{TestConstants.IdentityBasePath}/users/{user.UserId}/groups");
+        var response = await adminClient.GetAsync($"{TestConstants.IdentityBasePath}/users/{user.UserId}/groups", TestContext.Current.CancellationToken);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var groups = await response.DeserializeAsync<List<GroupDto>>();
+        var groups = await response.DeserializeAsync<List<GroupDto>>(ct: TestContext.Current.CancellationToken);
         groups.ShouldNotBeNull();
     }
 
@@ -96,11 +92,10 @@ public sealed class UserQueryTests
     public async Task GetUserGroups_Should_Return404_When_UserDoesNotExist()
     {
         // Arrange
-        using var adminClient = await _auth.CreateRootAdminClientAsync();
+        using var adminClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var response = await adminClient.GetAsync(
-            $"{TestConstants.IdentityBasePath}/users/{Guid.NewGuid()}/groups");
+        var response = await adminClient.GetAsync($"{TestConstants.IdentityBasePath}/users/{Guid.NewGuid()}/groups", TestContext.Current.CancellationToken);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
@@ -114,8 +109,7 @@ public sealed class UserQueryTests
         client.DefaultRequestHeaders.Add("tenant", TestConstants.RootTenantId);
 
         // Act
-        var response = await client.GetAsync(
-            $"{TestConstants.IdentityBasePath}/users/{Guid.NewGuid()}/groups");
+        var response = await client.GetAsync($"{TestConstants.IdentityBasePath}/users/{Guid.NewGuid()}/groups", TestContext.Current.CancellationToken);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
@@ -129,16 +123,15 @@ public sealed class UserQueryTests
     public async Task SearchUsers_Should_FindUserByEmailFragment_When_SearchProvided()
     {
         // Arrange
-        using var adminClient = await _auth.CreateRootAdminClientAsync();
+        using var adminClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var user = await IdentityUserSeeder.CreateLoginableUserAsync(_factory, adminClient, "search-byemail");
 
         // Act
-        var response = await adminClient.GetAsync(
-            $"{TestConstants.IdentityBasePath}/users/search?search={Uri.EscapeDataString(user.Email)}");
+        var response = await adminClient.GetAsync($"{TestConstants.IdentityBasePath}/users/search?search={Uri.EscapeDataString(user.Email)}", TestContext.Current.CancellationToken);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var page = await response.DeserializeAsync<PagedResponse<UserDto>>();
+        var page = await response.DeserializeAsync<PagedResponse<UserDto>>(ct: TestContext.Current.CancellationToken);
         page.Items.ShouldContain(u => u.Email == user.Email);
     }
 
@@ -146,7 +139,7 @@ public sealed class UserQueryTests
     public async Task SearchUsers_Should_FilterByActiveStatus_When_IsActiveProvided()
     {
         // Arrange — deactivate a user, then search active-only.
-        using var adminClient = await _auth.CreateRootAdminClientAsync();
+        using var adminClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var user = await IdentityUserSeeder.CreateLoginableUserAsync(_factory, adminClient, "search-inactive");
 
         var deactivate = new HttpRequestMessage(HttpMethod.Patch,
@@ -154,19 +147,17 @@ public sealed class UserQueryTests
         {
             Content = JsonContent.Create(new { isActive = false })
         };
-        (await adminClient.SendAsync(deactivate)).StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        (await adminClient.SendAsync(deactivate, TestContext.Current.CancellationToken)).StatusCode.ShouldBe(HttpStatusCode.NoContent);
 
         // Act — scope each query to this user's email so the assertions are deterministic
         // regardless of how many other users exist in the tenant.
         var search = Uri.EscapeDataString(user.Email);
-        var activeResponse = await adminClient.GetAsync(
-            $"{TestConstants.IdentityBasePath}/users/search?isActive=true&search={search}&pageSize=100");
-        var inactiveResponse = await adminClient.GetAsync(
-            $"{TestConstants.IdentityBasePath}/users/search?isActive=false&search={search}&pageSize=100");
+        var activeResponse = await adminClient.GetAsync($"{TestConstants.IdentityBasePath}/users/search?isActive=true&search={search}&pageSize=100", TestContext.Current.CancellationToken);
+        var inactiveResponse = await adminClient.GetAsync($"{TestConstants.IdentityBasePath}/users/search?isActive=false&search={search}&pageSize=100", TestContext.Current.CancellationToken);
 
         // Assert — the now-inactive user appears only in the inactive result set.
-        var activePage = await activeResponse.DeserializeAsync<PagedResponse<UserDto>>();
-        var inactivePage = await inactiveResponse.DeserializeAsync<PagedResponse<UserDto>>();
+        var activePage = await activeResponse.DeserializeAsync<PagedResponse<UserDto>>(ct: TestContext.Current.CancellationToken);
+        var inactivePage = await inactiveResponse.DeserializeAsync<PagedResponse<UserDto>>(ct: TestContext.Current.CancellationToken);
         activePage.Items.ShouldNotContain(u => u.Id == user.UserId);
         inactivePage.Items.ShouldContain(u => u.Id == user.UserId);
     }
@@ -175,15 +166,14 @@ public sealed class UserQueryTests
     public async Task SearchUsers_Should_RespectPaging_When_PageSizeProvided()
     {
         // Arrange
-        using var adminClient = await _auth.CreateRootAdminClientAsync();
+        using var adminClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var response = await adminClient.GetAsync(
-            $"{TestConstants.IdentityBasePath}/users/search?pageNumber=1&pageSize=1");
+        var response = await adminClient.GetAsync($"{TestConstants.IdentityBasePath}/users/search?pageNumber=1&pageSize=1", TestContext.Current.CancellationToken);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var page = await response.DeserializeAsync<PagedResponse<UserDto>>();
+        var page = await response.DeserializeAsync<PagedResponse<UserDto>>(ct: TestContext.Current.CancellationToken);
         page.PageNumber.ShouldBe(1);
         page.PageSize.ShouldBe(1);
         page.Items.Count.ShouldBeLessThanOrEqualTo(1);
@@ -194,12 +184,11 @@ public sealed class UserQueryTests
     {
         // Arrange — regression for #1416: an empty result + huge page number overflowed the
         // OFFSET into a negative value and PostgreSQL failed the request with a 500.
-        using var adminClient = await _auth.CreateRootAdminClientAsync();
+        using var adminClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var noMatch = $"nomatch{Guid.NewGuid():N}";
 
         // Act
-        var response = await adminClient.GetAsync(
-            $"{TestConstants.IdentityBasePath}/users/search?search={noMatch}&pageNumber=30000000&pageSize=100");
+        var response = await adminClient.GetAsync($"{TestConstants.IdentityBasePath}/users/search?search={noMatch}&pageNumber=30000000&pageSize=100", TestContext.Current.CancellationToken);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
@@ -209,16 +198,15 @@ public sealed class UserQueryTests
     public async Task SearchUsers_Should_ReturnEmptyFirstPage_When_PageNumberAtBoundOnEmptyResult()
     {
         // Arrange
-        using var adminClient = await _auth.CreateRootAdminClientAsync();
+        using var adminClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var noMatch = $"nomatch{Guid.NewGuid():N}";
 
         // Act
-        var response = await adminClient.GetAsync(
-            $"{TestConstants.IdentityBasePath}/users/search?search={noMatch}&pageNumber=1000000&pageSize=100");
+        var response = await adminClient.GetAsync($"{TestConstants.IdentityBasePath}/users/search?search={noMatch}&pageNumber=1000000&pageSize=100", TestContext.Current.CancellationToken);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var page = await response.DeserializeAsync<PagedResponse<UserDto>>();
+        var page = await response.DeserializeAsync<PagedResponse<UserDto>>(ct: TestContext.Current.CancellationToken);
         page.Items.ShouldBeEmpty();
         page.TotalCount.ShouldBe(0);
         page.PageNumber.ShouldBe(1);
@@ -229,18 +217,17 @@ public sealed class UserQueryTests
     {
         // Arrange — seed two users sharing a unique surname prefix so we can assert ordering
         // deterministically via the search filter.
-        using var adminClient = await _auth.CreateRootAdminClientAsync();
+        using var adminClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var prefix = $"zsort{Guid.NewGuid():N}"[..16];
         await SeedUserWithNamesAsync(adminClient, "Alpha", $"{prefix}aaa");
         await SeedUserWithNamesAsync(adminClient, "Beta", $"{prefix}zzz");
 
         // Act — last name descending: "zzz" must precede "aaa".
-        var response = await adminClient.GetAsync(
-            $"{TestConstants.IdentityBasePath}/users/search?sort=-lastname&search={prefix}&pageSize=100");
+        var response = await adminClient.GetAsync($"{TestConstants.IdentityBasePath}/users/search?sort=-lastname&search={prefix}&pageSize=100", TestContext.Current.CancellationToken);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var page = await response.DeserializeAsync<PagedResponse<UserDto>>();
+        var page = await response.DeserializeAsync<PagedResponse<UserDto>>(ct: TestContext.Current.CancellationToken);
         var lastNames = page.Items.Select(u => u.LastName).ToList();
         lastNames.ShouldBe(lastNames.OrderByDescending(n => n, StringComparer.Ordinal).ToList());
         lastNames[0].ShouldBe($"{prefix}zzz");
@@ -254,7 +241,7 @@ public sealed class UserQueryTests
         client.DefaultRequestHeaders.Add("tenant", TestConstants.RootTenantId);
 
         // Act
-        var response = await client.GetAsync($"{TestConstants.IdentityBasePath}/users/search");
+        var response = await client.GetAsync($"{TestConstants.IdentityBasePath}/users/search", TestContext.Current.CancellationToken);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);

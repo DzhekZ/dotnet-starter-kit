@@ -30,18 +30,18 @@ public sealed class DisableTwoFactorCommandHandler
         }
 
         var userId = _currentUser.GetUserId().ToString();
-        var user = await _userManager.FindByIdAsync(userId)
+        var user = await _userManager.FindByIdAsync(userId).ConfigureAwait(false)
             ?? throw new NotFoundException($"User {userId} not found.");
 
         // Require current password so a stolen access token alone can't downgrade
         // account security.
-        if (!await _userManager.CheckPasswordAsync(user, command.CurrentPassword))
+        if (!await _userManager.CheckPasswordAsync(user, command.CurrentPassword).ConfigureAwait(false))
         {
             throw new UnauthorizedException("Current password is incorrect.");
         }
 
-        await _userManager.SetTwoFactorEnabledAsync(user, false);
-        await _userManager.ResetAuthenticatorKeyAsync(user);
+        await _userManager.SetTwoFactorEnabledAsync(user, false).ConfigureAwait(false);
+        await _userManager.ResetAuthenticatorKeyAsync(user).ConfigureAwait(false);
         return true;
     }
 }

@@ -31,9 +31,9 @@ public sealed class OutboxRetryTests
 
         var message = NewMessage();
         db.Set<OutboxMessage>().Add(message);
-        await db.SaveChangesAsync();
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        await store.MarkAsFailedAsync(message, "transient boom", isDead: false);
+        await store.MarkAsFailedAsync(message, "transient boom", isDead: false, ct: TestContext.Current.CancellationToken);
 
         message.NextRetryAt.ShouldNotBeNull("a non-dead failure must schedule a backed-off retry");
         message.NextRetryAt.Value.ShouldBeGreaterThan(
@@ -58,12 +58,12 @@ public sealed class OutboxRetryTests
         message.RetryCount = 5;
         message.LastError = "exhausted";
         db.Set<OutboxMessage>().Add(message);
-        await db.SaveChangesAsync();
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var redriven = await store.RedriveDeadLettersAsync([message.Id]);
+        var redriven = await store.RedriveDeadLettersAsync([message.Id], TestContext.Current.CancellationToken);
 
         redriven.ShouldBe(1);
-        (await store.GetDeadLetteredAsync(500)).ShouldNotContain(m => m.Id == message.Id);
+        (await store.GetDeadLetteredAsync(500, TestContext.Current.CancellationToken)).ShouldNotContain(m => m.Id == message.Id);
         (await ClaimAsync(store)).ShouldContain(
             m => m.Id == message.Id,
             "a redriven message clears IsDead/RetryCount/NextRetryAt and becomes eligible again");

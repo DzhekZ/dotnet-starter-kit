@@ -48,7 +48,7 @@ public sealed class ChangePasswordCommandHandlerTests
             .Returns(Task.CompletedTask);
 
         // Act
-        var result = await _sut.Handle(command, CancellationToken.None);
+        var result = await _sut.Handle(command, TestContext.Current.CancellationToken);
 
         // Assert
         result.ShouldBe("password reset email sent");
@@ -74,7 +74,7 @@ public sealed class ChangePasswordCommandHandlerTests
             .Returns(Task.CompletedTask);
 
         // Act
-        await _sut.Handle(command, CancellationToken.None);
+        await _sut.Handle(command, TestContext.Current.CancellationToken);
 
         // Assert
         await _userService.Received(1).ChangePasswordAsync(
@@ -155,7 +155,7 @@ public sealed class ChangePasswordCommandHandlerTests
             .Returns(Task.CompletedTask);
 
         // Act
-        await _sut.Handle(command, CancellationToken.None);
+        await _sut.Handle(command, TestContext.Current.CancellationToken);
 
         // Assert
         _currentUser.Received(1).IsAuthenticated();
@@ -182,7 +182,7 @@ public sealed class ChangePasswordCommandHandlerTests
             .Returns(Task.CompletedTask);
 
         // Act
-        await _sut.Handle(command, CancellationToken.None);
+        await _sut.Handle(command, TestContext.Current.CancellationToken);
 
         // Assert
         await _userService.Received(1).ChangePasswordAsync(
@@ -219,7 +219,7 @@ public sealed class ChangePasswordCommandHandlerTests
 
         // Act & Assert
         var exception = await Should.ThrowAsync<UnauthorizedAccessException>(
-            async () => await _sut.Handle(command, CancellationToken.None));
+            async () => await _sut.Handle(command, TestContext.Current.CancellationToken));
 
         exception.Message.ShouldBe(expectedExceptionMessage);
     }
@@ -277,7 +277,7 @@ public sealed class ChangePasswordCommandHandlerTests
         _currentUser.IsAuthenticated().Returns(true);
         _currentUser.GetUserId().Returns(userId);
 
-        _userService.ChangePasswordAsync(command.Password, command.NewPassword, command.ConfirmNewPassword, userId.ToString(), TestContext.Current.CancellationToken)
+        _userService.ChangePasswordAsync(command.Password, command.NewPassword, command.ConfirmNewPassword, userId.ToString(), cancellationToken)
             .Returns(Task.CompletedTask);
 
         // Act
@@ -285,6 +285,12 @@ public sealed class ChangePasswordCommandHandlerTests
 
         // Assert
         result.ShouldBe("password reset email sent");
+        await _userService.Received(1).ChangePasswordAsync(
+            command.Password,
+            command.NewPassword,
+            command.ConfirmNewPassword,
+            userId.ToString(),
+            cancellationToken);
     }
 
     #endregion
@@ -311,7 +317,7 @@ public sealed class ChangePasswordCommandHandlerTests
             .Returns(Task.CompletedTask);
 
         // Act
-        var result = await _sut.Handle(command, CancellationToken.None);
+        var result = await _sut.Handle(command, TestContext.Current.CancellationToken);
 
         // Assert
         result.ShouldBe("password reset email sent");

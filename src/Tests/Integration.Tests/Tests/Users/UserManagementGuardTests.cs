@@ -16,10 +16,10 @@ public sealed class UserManagementGuardTests
     [Fact]
     public async Task DeleteUser_Should_ReturnBadRequest_When_TargetIsSelf()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var profile = await GetCurrentProfileAsync(client);
 
-        var response = await client.DeleteAsync($"{TestConstants.IdentityBasePath}/users/{profile.Id}");
+        var response = await client.DeleteAsync($"{TestConstants.IdentityBasePath}/users/{profile.Id}", TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
@@ -27,7 +27,7 @@ public sealed class UserManagementGuardTests
     [Fact]
     public async Task DeleteUser_Should_ReturnBadRequest_When_TargetIsAdmin()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var uniqueId = Guid.NewGuid().ToString("N")[..8];
 
         // Register a fresh user
@@ -39,15 +39,13 @@ public sealed class UserManagementGuardTests
             userName = $"otheradmin-{uniqueId}",
             password = "Test@1234!",
             confirmPassword = "Test@1234!"
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
         registerResponse.StatusCode.ShouldBe(HttpStatusCode.Created);
-        var registered = await registerResponse.DeserializeAsync<RegisterResult>();
+        var registered = await registerResponse.DeserializeAsync<RegisterResult>(ct: TestContext.Current.CancellationToken);
 
         // Promote the new user to Admin
         var (adminRole, basicRole) = await GetSystemRolesAsync(client);
-        var assignResponse = await client.PostAsJsonAsync(
-            $"{TestConstants.IdentityBasePath}/users/{registered.UserId}/roles",
-            new
+        var assignResponse = await client.PostAsJsonAsync($"{TestConstants.IdentityBasePath}/users/{registered.UserId}/roles", new
             {
                 userId = registered.UserId,
                 userRoles = new[]
@@ -55,31 +53,29 @@ public sealed class UserManagementGuardTests
                     new { roleId = adminRole.Id, roleName = "Admin", enabled = true },
                     new { roleId = basicRole.Id, roleName = "Basic", enabled = true }
                 }
-            });
+            }, cancellationToken: TestContext.Current.CancellationToken);
         assignResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
 
         // Root admin tries to delete the second admin → must be rejected.
-        var deleteResponse = await client.DeleteAsync($"{TestConstants.IdentityBasePath}/users/{registered.UserId}");
+        var deleteResponse = await client.DeleteAsync($"{TestConstants.IdentityBasePath}/users/{registered.UserId}", TestContext.Current.CancellationToken);
         deleteResponse.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
 
     [Fact]
     public async Task AssignUserRoles_Should_ReturnBadRequest_When_RemovingOwnAdminRole()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var profile = await GetCurrentProfileAsync(client);
         var (adminRole, _) = await GetSystemRolesAsync(client);
 
-        var response = await client.PostAsJsonAsync(
-            $"{TestConstants.IdentityBasePath}/users/{profile.Id}/roles",
-            new
+        var response = await client.PostAsJsonAsync($"{TestConstants.IdentityBasePath}/users/{profile.Id}/roles", new
             {
                 userId = profile.Id,
                 userRoles = new[]
                 {
                     new { roleId = adminRole.Id, roleName = "Admin", enabled = false }
                 }
-            });
+            }, cancellationToken: TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }

@@ -25,7 +25,7 @@ public sealed class HangfireDashboardAuthTests
             AllowAutoRedirect = false
         });
 
-        var response = await client.GetAsync(DashboardPath);
+        var response = await client.GetAsync(DashboardPath, TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
         response.Headers.WwwAuthenticate.ToString().ShouldContain("Basic");
@@ -41,7 +41,7 @@ public sealed class HangfireDashboardAuthTests
         client.DefaultRequestHeaders.Authorization =
             new AuthenticationHeaderValue("Basic", EncodeBasic("attacker", "wrong"));
 
-        var response = await client.GetAsync(DashboardPath);
+        var response = await client.GetAsync(DashboardPath, TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
     }
@@ -56,7 +56,7 @@ public sealed class HangfireDashboardAuthTests
         client.DefaultRequestHeaders.Authorization =
             new AuthenticationHeaderValue("Basic", EncodeBasic(TestUser, TestPass));
 
-        var response = await client.GetAsync(DashboardPath);
+        var response = await client.GetAsync(DashboardPath, TestContext.Current.CancellationToken);
 
         // Hangfire either renders the dashboard (200) or redirects to its index (301/302).
         ((int)response.StatusCode).ShouldBeInRange(200, 399);

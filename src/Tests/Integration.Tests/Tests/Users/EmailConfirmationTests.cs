@@ -58,10 +58,10 @@ public sealed class EmailConfirmationTests
         using var client = _factory.CreateClient();
         client.DefaultRequestHeaders.Add("tenant", TestConstants.RootTenantId);
 
-        var response = await client.GetAsync($"{TestConstants.IdentityBasePath}/confirm-email?userId={user.Id}&code={Uri.EscapeDataString(encodedCode)}&tenant={TestConstants.RootTenantId}");
+        var response = await client.GetAsync($"{TestConstants.IdentityBasePath}/confirm-email?userId={user.Id}&code={Uri.EscapeDataString(encodedCode)}&tenant={TestConstants.RootTenantId}", TestContext.Current.CancellationToken);
 
         // Assert
-        var errorContent = await response.Content.ReadAsStringAsync();
+        var errorContent = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         response.StatusCode.ShouldBe(HttpStatusCode.OK, $"Response content: {errorContent}");
         
         // Verify user is now confirmed in a fresh scope to avoid stale EF cache
@@ -103,12 +103,12 @@ public sealed class EmailConfirmationTests
         client.DefaultRequestHeaders.Add("tenant", TestConstants.RootTenantId);
 
         var invalidCode = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes("invalid-code"));
-        var response = await client.GetAsync($"{TestConstants.IdentityBasePath}/confirm-email?userId={user.Id}&code={invalidCode}&tenant={TestConstants.RootTenantId}");
+        var response = await client.GetAsync($"{TestConstants.IdentityBasePath}/confirm-email?userId={user.Id}&code={invalidCode}&tenant={TestConstants.RootTenantId}", TestContext.Current.CancellationToken);
 
         // Assert
         // The endpoint currently returns Ok(result) where result is the message from UserService.
         // Let's check what UserService.ConfirmEmailAsync returns on failure.
-        var message = await response.Content.ReadAsStringAsync();
+        var message = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         message.ShouldContain("Error", Case.Insensitive);
 
         // Verify user is still NOT confirmed

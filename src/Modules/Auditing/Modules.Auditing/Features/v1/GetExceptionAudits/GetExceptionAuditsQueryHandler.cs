@@ -33,7 +33,7 @@ public sealed class GetExceptionAuditsQueryHandler : IQueryHandler<GetExceptionA
         var take = query.Take is >= 1 and <= MaxPageSize ? query.Take.Value : DefaultPageSize;
         var skip = query.Skip is > 0 ? query.Skip.Value : 0;
 
-        return await ProjectToDto(audits, skip, take, cancellationToken);
+        return await ProjectToDto(audits, skip, take, cancellationToken).ConfigureAwait(false);
     }
 
     private IQueryable<AuditRecord> GetBaseQuery()

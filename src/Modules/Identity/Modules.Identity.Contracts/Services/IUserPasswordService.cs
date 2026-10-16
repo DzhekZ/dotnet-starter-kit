@@ -8,12 +8,12 @@ public interface IUserPasswordService
     /// <summary>
     /// Initiates the forgot password flow by sending a reset email.
     /// </summary>
-    Task ForgotPasswordAsync(string email, string origin, CancellationToken cancellationToken);
+    Task ForgotPasswordAsync(string email, string origin, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Resets a user's password using a token.
     /// </summary>
-    Task ResetPasswordAsync(string email, string password, string token, CancellationToken cancellationToken);
+    Task ResetPasswordAsync(string email, string password, string token, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Changes the current user's password.

@@ -60,7 +60,8 @@ public sealed class SearchUsersQueryHandler : IQueryHandler<SearchUsersQuery, Pa
             var userIdsInRole = await _dbContext.UserRoles
                 .Where(ur => ur.RoleId == query.RoleId)
                 .Select(ur => ur.UserId)
-                .ToListAsync(cancellationToken);
+                .ToListAsync(cancellationToken)
+                .ConfigureAwait(false);
 
             users = users.Where(u => userIdsInRole.Contains(u.Id));
         }

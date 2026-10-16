@@ -24,7 +24,7 @@ public sealed class TicketSearchAndLifecycleTests
     public async Task SearchTickets_Should_FilterBy_Priority()
     {
         #region Arrange
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var lowId = await CreateAsync(client, UniqueTitle("LowPrio"), priority: "Low");
         var highId = await CreateAsync(client, UniqueTitle("HighPrio"), priority: "High");
         #endregion
@@ -45,7 +45,7 @@ public sealed class TicketSearchAndLifecycleTests
     public async Task SearchTickets_Should_FilterBy_AssignedToUserId()
     {
         #region Arrange
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var assignee = Guid.NewGuid();
         var assignedId = await CreateAsync(client, UniqueTitle("AssignedFilter"), assignedToUserId: assignee);
         var otherId = await CreateAsync(client, UniqueTitle("UnassignedFilter"));
@@ -66,7 +66,7 @@ public sealed class TicketSearchAndLifecycleTests
     public async Task SearchTickets_Should_FilterBy_ReporterUserId()
     {
         #region Arrange
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         // All tickets in this test share one reporter (the root admin). Create a
         // ticket and read back its reporter, then assert the filter returns it.
         var ticketId = await CreateAsync(client, UniqueTitle("ReporterFilter"));
@@ -92,7 +92,7 @@ public sealed class TicketSearchAndLifecycleTests
     public async Task SearchTickets_Should_MatchOn_TitleSubstring_When_FreeTextSearch()
     {
         #region Arrange
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         // Embed a unique, unguessable token in the title so the ILIKE match
         // is isolated from every other ticket in the shared DB.
         var token = $"ztok{Guid.NewGuid().ToString("N")[..10]}";
@@ -114,7 +114,7 @@ public sealed class TicketSearchAndLifecycleTests
     public async Task SearchTickets_Should_MatchOn_Number_When_FreeTextSearch()
     {
         #region Arrange
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var ticketId = await CreateAsync(client, UniqueTitle("ByNumber"));
         var created = await GetAsync(client, ticketId);
         created.Number.ShouldStartWith("TK-");
@@ -134,7 +134,7 @@ public sealed class TicketSearchAndLifecycleTests
     public async Task SearchTickets_Should_HonorSort_When_SortByTitleAscending()
     {
         #region Arrange
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var assignee = Guid.NewGuid(); // isolate this batch via a private assignee
         await CreateAsync(client, "MMM-sort-b", assignedToUserId: assignee);
         await CreateAsync(client, "MMM-sort-a", assignedToUserId: assignee);
@@ -156,7 +156,7 @@ public sealed class TicketSearchAndLifecycleTests
     public async Task SearchTickets_Should_HonorSort_When_SortByNumberDescending()
     {
         #region Arrange
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var assignee = Guid.NewGuid();
         var firstId = await CreateAsync(client, UniqueTitle("NumSortFirst"), assignedToUserId: assignee);
         var secondId = await CreateAsync(client, UniqueTitle("NumSortSecond"), assignedToUserId: assignee);
@@ -182,7 +182,7 @@ public sealed class TicketSearchAndLifecycleTests
     public async Task SearchTickets_Should_Paginate_When_PageSizeSmallerThanResultSet()
     {
         #region Arrange
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var assignee = Guid.NewGuid();
         for (int i = 0; i < 3; i++)
         {
@@ -215,7 +215,7 @@ public sealed class TicketSearchAndLifecycleTests
     public async Task SearchTickets_Should_ClampOutOfRange_PagingArgs_To_Defaults()
     {
         #region Arrange
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var assignee = Guid.NewGuid();
         await CreateAsync(client, UniqueTitle("Clamp"), assignedToUserId: assignee);
         #endregion
@@ -239,15 +239,13 @@ public sealed class TicketSearchAndLifecycleTests
     {
         // Resolve closes the assign path: ThrowIfClosedOrResolved rejects it.
         #region Arrange
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var ticketId = await CreateAsync(client, UniqueTitle("AssignResolved"));
         await ResolveAsync(client, ticketId, "fixed");
         #endregion
 
         #region Act
-        var response = await client.PostAsJsonAsync(
-            $"{TestConstants.TicketsBasePath}/tickets/{ticketId}/assign",
-            new { assigneeUserId = Guid.NewGuid() });
+        var response = await client.PostAsJsonAsync($"{TestConstants.TicketsBasePath}/tickets/{ticketId}/assign", new { assigneeUserId = Guid.NewGuid() }, cancellationToken: TestContext.Current.CancellationToken);
         #endregion
 
         #region Assert
@@ -259,7 +257,7 @@ public sealed class TicketSearchAndLifecycleTests
     public async Task ResolveTicket_Should_BeIdempotent_When_AlreadyResolved()
     {
         #region Arrange
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var ticketId = await CreateAsync(client, UniqueTitle("ResolveTwice"));
         await ResolveAsync(client, ticketId, "first note");
         #endregion
@@ -267,9 +265,7 @@ public sealed class TicketSearchAndLifecycleTests
         #region Act
         // Second resolve is a no-op — the aggregate returns early. The first
         // note must survive (the second call must not overwrite it).
-        var second = await client.PostAsJsonAsync(
-            $"{TestConstants.TicketsBasePath}/tickets/{ticketId}/resolve",
-            new { resolutionNote = "second note" });
+        var second = await client.PostAsJsonAsync($"{TestConstants.TicketsBasePath}/tickets/{ticketId}/resolve", new { resolutionNote = "second note" }, cancellationToken: TestContext.Current.CancellationToken);
         #endregion
 
         #region Assert
@@ -284,13 +280,12 @@ public sealed class TicketSearchAndLifecycleTests
     public async Task ReopenTicket_Should_BeNoop_When_TicketIsOpen()
     {
         #region Arrange
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var ticketId = await CreateAsync(client, UniqueTitle("ReopenOpen"));
         #endregion
 
         #region Act
-        var response = await client.PostAsync(
-            $"{TestConstants.TicketsBasePath}/tickets/{ticketId}/reopen", content: null);
+        var response = await client.PostAsync($"{TestConstants.TicketsBasePath}/tickets/{ticketId}/reopen", content: null, cancellationToken: TestContext.Current.CancellationToken);
         #endregion
 
         #region Assert
@@ -306,14 +301,13 @@ public sealed class TicketSearchAndLifecycleTests
         // Reopen falls back to assignment state: unassigned → Open (the base
         // suite only covered the still-assigned → InProgress branch).
         #region Arrange
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var ticketId = await CreateAsync(client, UniqueTitle("ReopenUnassigned"));
         await ResolveAsync(client, ticketId, "shipped");
         #endregion
 
         #region Act
-        var response = await client.PostAsync(
-            $"{TestConstants.TicketsBasePath}/tickets/{ticketId}/reopen", content: null);
+        var response = await client.PostAsync($"{TestConstants.TicketsBasePath}/tickets/{ticketId}/reopen", content: null, cancellationToken: TestContext.Current.CancellationToken);
         #endregion
 
         #region Assert
@@ -332,7 +326,7 @@ public sealed class TicketSearchAndLifecycleTests
     public async Task CreateTicket_Should_Return400_When_TitleIsEmpty()
     {
         #region Arrange
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         #endregion
 
         #region Act
@@ -340,7 +334,7 @@ public sealed class TicketSearchAndLifecycleTests
         {
             title = "",
             priority = "Medium",
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
         #endregion
 
         #region Assert
@@ -352,7 +346,7 @@ public sealed class TicketSearchAndLifecycleTests
     public async Task CreateTicket_Should_Return400_When_TitleExceedsMaxLength()
     {
         #region Arrange
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var tooLong = new string('x', 161); // limit is 160
         #endregion
 
@@ -361,7 +355,7 @@ public sealed class TicketSearchAndLifecycleTests
         {
             title = tooLong,
             priority = "Medium",
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
         #endregion
 
         #region Assert

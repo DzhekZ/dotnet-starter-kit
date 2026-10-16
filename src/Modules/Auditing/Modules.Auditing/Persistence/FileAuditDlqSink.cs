@@ -39,7 +39,7 @@ public sealed class FileAuditDlqSink : IAuditDlqSink, IDisposable
 
     public void Dispose() => _writeGate.Dispose();
 
-    public async Task WriteAsync(IReadOnlyList<AuditEnvelope> batch, CancellationToken ct)
+    public async Task WriteAsync(IReadOnlyList<AuditEnvelope> batch, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(batch);
         if (batch.Count == 0) return;

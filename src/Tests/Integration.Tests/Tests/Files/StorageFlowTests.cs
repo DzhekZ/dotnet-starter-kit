@@ -29,37 +29,37 @@ public sealed class StorageFlowTests
     public async Task DownloadUrl_Should_RoundTrip_The_Exact_Bytes_That_Were_Uploaded()
     {
         // Arrange — upload known bytes through the presigned PUT, then finalize.
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         byte[] bytes = new byte[2048];
         RandomNumberGenerator.Fill(bytes);
         var id = await UploadAndFinalizeAsync(client, "roundtrip.pdf", "application/pdf", bytes);
 
         // Act — mint a presigned GET and fetch the bytes straight from RustFS.
-        using var urlResp = await client.GetAsync($"{FilesBasePath}/{id}/url");
+        using var urlResp = await client.GetAsync($"{FilesBasePath}/{id}/url", TestContext.Current.CancellationToken);
         urlResp.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var download = await urlResp.DeserializeAsync<PresignedDownloadResponse>();
+        var download = await urlResp.DeserializeAsync<PresignedDownloadResponse>(ct: TestContext.Current.CancellationToken);
 
         using var raw = new HttpClient();
-        using var getResp = await raw.GetAsync(download.Url);
+        using var getResp = await raw.GetAsync(download.Url, TestContext.Current.CancellationToken);
 
         // Assert — the bytes match exactly (presigned GET serves what the presigned PUT stored).
         getResp.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var fetched = await getResp.Content.ReadAsByteArrayAsync();
+        var fetched = await getResp.Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         fetched.ShouldBe(bytes);
     }
 
     [Fact]
     public async Task DownloadUrl_Should_Request_Attachment_Disposition_With_Original_Filename_By_Default()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var id = await UploadAndFinalizeAsync(client, "report-final.pdf", "application/pdf", RandomBytes(512));
 
         // Default (no ?inline) → S3 echoes Content-Disposition: attachment; filename="report-final.pdf".
-        using var urlResp = await client.GetAsync($"{FilesBasePath}/{id}/url");
-        var download = await urlResp.DeserializeAsync<PresignedDownloadResponse>();
+        using var urlResp = await client.GetAsync($"{FilesBasePath}/{id}/url", TestContext.Current.CancellationToken);
+        var download = await urlResp.DeserializeAsync<PresignedDownloadResponse>(ct: TestContext.Current.CancellationToken);
 
         using var raw = new HttpClient();
-        using var getResp = await raw.GetAsync(download.Url);
+        using var getResp = await raw.GetAsync(download.Url, TestContext.Current.CancellationToken);
         getResp.StatusCode.ShouldBe(HttpStatusCode.OK);
 
         var disposition = getResp.Content.Headers.ContentDisposition;
@@ -72,15 +72,15 @@ public sealed class StorageFlowTests
     [Fact]
     public async Task DownloadUrl_Should_Request_Inline_Disposition_When_Inline_True()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var id = await UploadAndFinalizeAsync(client, "preview.pdf", "application/pdf", RandomBytes(512));
 
-        using var urlResp = await client.GetAsync($"{FilesBasePath}/{id}/url?inline=true");
+        using var urlResp = await client.GetAsync($"{FilesBasePath}/{id}/url?inline=true", TestContext.Current.CancellationToken);
         urlResp.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var download = await urlResp.DeserializeAsync<PresignedDownloadResponse>();
+        var download = await urlResp.DeserializeAsync<PresignedDownloadResponse>(ct: TestContext.Current.CancellationToken);
 
         using var raw = new HttpClient();
-        using var getResp = await raw.GetAsync(download.Url);
+        using var getResp = await raw.GetAsync(download.Url, TestContext.Current.CancellationToken);
         getResp.StatusCode.ShouldBe(HttpStatusCode.OK);
 
         var disposition = getResp.Content.Headers.ContentDisposition;

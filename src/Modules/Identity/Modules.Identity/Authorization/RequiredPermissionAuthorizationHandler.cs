@@ -24,7 +24,7 @@ public sealed class RequiredPermissionAuthorizationHandler(IUserService userServ
         // IMPORTANT: resolve IRequiredPermissionMetadata from FSH.Framework.Shared.Identity.Authorization (the
         // interface the attribute implements) — a duplicate would silently fail-open every .RequirePermission().
         var requiredPermissions = endpoint?.Metadata.GetMetadata<IRequiredPermissionMetadata>()?.RequiredPermissions;
-        if (requiredPermissions == null)
+        if (requiredPermissions is null)
         {
             // there are no permission requirements set by the endpoint
             // hence, authorize requests

@@ -35,7 +35,7 @@ public sealed class RenewTenantTests
     [Fact]
     public async Task RenewTenant_Should_Extend_Validity_By_One_Term()
     {
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var unique = Guid.NewGuid().ToString("N")[..8];
         var tenantId = $"renew-{unique}";
         var planKey = await CreatePlanAsync(rootClient, $"renew-m-{unique}", monthlyBasePrice: 10m);
@@ -43,12 +43,10 @@ public sealed class RenewTenantTests
 
         var before = (await GetStatusAsync(rootClient, tenantId)).ValidUpto!.Value;
 
-        var response = await rootClient.PostAsJsonAsync(
-            $"{TestConstants.TenantsBasePath}/{tenantId}/renew",
-            new { tenantId, planKey });
+        var response = await rootClient.PostAsJsonAsync($"{TestConstants.TenantsBasePath}/{tenantId}/renew", new { tenantId, planKey }, cancellationToken: TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var result = await response.Content.ReadFromJsonAsync<RenewResult>(Json);
+        var result = await response.Content.ReadFromJsonAsync<RenewResult>(Json, cancellationToken: TestContext.Current.CancellationToken);
         result.ShouldNotBeNull();
         result.PlanChanged.ShouldBeFalse("renewing the same plan does not change it");
         // Monthly plan → validity advances ~1 month from the prior ValidUpto (stacking).
@@ -62,7 +60,7 @@ public sealed class RenewTenantTests
     [Fact]
     public async Task RenewTenant_Should_Switch_Plan_When_Different_Key_Supplied()
     {
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var unique = Guid.NewGuid().ToString("N")[..8];
         var tenantId = $"renew-sw-{unique}";
         var monthly = await CreatePlanAsync(rootClient, $"sw-m-{unique}", monthlyBasePrice: 10m);
@@ -71,12 +69,10 @@ public sealed class RenewTenantTests
 
         var before = (await GetStatusAsync(rootClient, tenantId)).ValidUpto!.Value;
 
-        var response = await rootClient.PostAsJsonAsync(
-            $"{TestConstants.TenantsBasePath}/{tenantId}/renew",
-            new { tenantId, planKey = annual });
+        var response = await rootClient.PostAsJsonAsync($"{TestConstants.TenantsBasePath}/{tenantId}/renew", new { tenantId, planKey = annual }, cancellationToken: TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var result = await response.Content.ReadFromJsonAsync<RenewResult>(Json);
+        var result = await response.Content.ReadFromJsonAsync<RenewResult>(Json, cancellationToken: TestContext.Current.CancellationToken);
         result.ShouldNotBeNull();
         result.PlanChanged.ShouldBeTrue("switching from monthly to annual changes the plan");
         result.PlanKey.ShouldBe(annual);
@@ -90,7 +86,7 @@ public sealed class RenewTenantTests
     [Fact]
     public async Task RenewTenant_Should_Stack_Two_Terms_When_RenewedTwice()
     {
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var unique = Guid.NewGuid().ToString("N")[..8];
         var tenantId = $"renew-x2-{unique}";
         var planKey = await CreatePlanAsync(rootClient, $"x2-m-{unique}", monthlyBasePrice: 10m);
@@ -110,7 +106,7 @@ public sealed class RenewTenantTests
     [Fact]
     public async Task RenewTenant_Should_StartFromNow_When_TenantHasLapsed()
     {
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var unique = Guid.NewGuid().ToString("N")[..8];
         var tenantId = $"renew-lapsed-{unique}";
         var planKey = await CreatePlanAsync(rootClient, $"lap-m-{unique}", monthlyBasePrice: 10m);
@@ -118,10 +114,8 @@ public sealed class RenewTenantTests
 
         // Lapse the tenant 30 days ago (operator override), then renew: stacking must restart from "now",
         // not from the long-past validity, so the tenant gets a full term going forward.
-        var adjust = await rootClient.PostAsJsonAsync(
-            $"{TestConstants.TenantsBasePath}/{tenantId}/adjust-validity",
-            new { tenantId, validUpto = DateTime.UtcNow.AddDays(-30) });
-        adjust.StatusCode.ShouldBe(HttpStatusCode.OK, await adjust.Content.ReadAsStringAsync());
+        var adjust = await rootClient.PostAsJsonAsync($"{TestConstants.TenantsBasePath}/{tenantId}/adjust-validity", new { tenantId, validUpto = DateTime.UtcNow.AddDays(-30) }, cancellationToken: TestContext.Current.CancellationToken);
+        adjust.StatusCode.ShouldBe(HttpStatusCode.OK, await adjust.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
 
         var result = await RenewAsync(rootClient, tenantId, planKey);
 
@@ -135,7 +129,7 @@ public sealed class RenewTenantTests
     {
         // Regression for billing/tenant drift: a same-plan renewal advanced tenant.ValidUpto but left
         // Subscription.EndUtc untouched, so the two diverged each renewal. Both must move together.
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var unique = Guid.NewGuid().ToString("N")[..8];
         var tenantId = $"renew-drift-{unique}";
         var planKey = await CreatePlanAsync(rootClient, $"drift-m-{unique}", monthlyBasePrice: 10m);
@@ -169,15 +163,13 @@ public sealed class RenewTenantTests
     [Fact]
     public async Task RenewTenant_Should_Return400_When_RouteIdDoesNotMatchBody()
     {
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var unique = Guid.NewGuid().ToString("N")[..8];
         var tenantId = $"renew-mm-{unique}";
         var planKey = await CreatePlanAsync(rootClient, $"mm-{unique}", monthlyBasePrice: 5m);
         await CreateTenantAsync(rootClient, tenantId, $"renew-mm-{unique}@tenant.com", planKey);
 
-        var response = await rootClient.PostAsJsonAsync(
-            $"{TestConstants.TenantsBasePath}/{tenantId}/renew",
-            new { tenantId = "some-other-tenant", planKey });
+        var response = await rootClient.PostAsJsonAsync($"{TestConstants.TenantsBasePath}/{tenantId}/renew", new { tenantId = "some-other-tenant", planKey }, cancellationToken: TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
@@ -185,15 +177,13 @@ public sealed class RenewTenantTests
     [Fact]
     public async Task RenewTenant_Should_Return400_When_TenantIsEmpty()
     {
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var unique = Guid.NewGuid().ToString("N")[..8];
         var tenantId = $"renew-empty-{unique}";
         var planKey = await CreatePlanAsync(rootClient, $"em-{unique}", monthlyBasePrice: 5m);
         await CreateTenantAsync(rootClient, tenantId, $"renew-empty-{unique}@tenant.com", planKey);
 
-        var response = await rootClient.PostAsJsonAsync(
-            $"{TestConstants.TenantsBasePath}/{tenantId}/renew",
-            new { tenantId = "", planKey });
+        var response = await rootClient.PostAsJsonAsync($"{TestConstants.TenantsBasePath}/{tenantId}/renew", new { tenantId = "", planKey }, cancellationToken: TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
@@ -208,9 +198,7 @@ public sealed class RenewTenantTests
         using var client = _factory.CreateClient();
         client.DefaultRequestHeaders.Add("tenant", TestConstants.RootTenantId);
 
-        var response = await client.PostAsJsonAsync(
-            $"{TestConstants.TenantsBasePath}/anytenant/renew",
-            new { tenantId = "anytenant", planKey = "pro" });
+        var response = await client.PostAsJsonAsync($"{TestConstants.TenantsBasePath}/anytenant/renew", new { tenantId = "anytenant", planKey = "pro" }, cancellationToken: TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
     }
@@ -218,7 +206,7 @@ public sealed class RenewTenantTests
     [Fact]
     public async Task RenewTenant_Should_Forbid_When_CallerIsTenantAdmin()
     {
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var unique = Guid.NewGuid().ToString("N")[..8];
         var tenantId = $"renew-authz-{unique}";
         var adminEmail = $"renew-authz-{unique}@tenant.com";
@@ -229,9 +217,7 @@ public sealed class RenewTenantTests
         using var tenantClient = await CreateTenantAdminClientWithRetryAsync(
             adminEmail, TestConstants.DefaultPassword, tenantId);
 
-        var response = await tenantClient.PostAsJsonAsync(
-            $"{TestConstants.TenantsBasePath}/{tenantId}/renew",
-            new { tenantId, planKey });
+        var response = await tenantClient.PostAsJsonAsync($"{TestConstants.TenantsBasePath}/{tenantId}/renew", new { tenantId, planKey }, cancellationToken: TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
     }

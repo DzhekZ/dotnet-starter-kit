@@ -37,7 +37,7 @@ public sealed class JoinChannelTests
     [Fact]
     public async Task JoinChannel_Should_Deliver_Messages_For_A_Channel_Joined_After_Connect()
     {
-        using var adminClient = await _auth.CreateRootAdminClientAsync();
+        using var adminClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var (peer, peerToken) = await RegisterAndSignInAsync(adminClient, "joiner");
 
         // Channel exists, but the peer connects BEFORE being added — so OnConnectedAsync
@@ -49,7 +49,7 @@ public sealed class JoinChannelTests
         await AddMemberAsync(adminClient, channelId, peer.Id);
 
         // The fix: the client joins the group on demand once the channel is open.
-        await peerHub.InvokeAsync("JoinChannel", channelId);
+        await peerHub.InvokeAsync("JoinChannel", channelId, cancellationToken: TestContext.Current.CancellationToken);
 
         await SendMessageAsync(adminClient, channelId, "live to a late joiner");
 
@@ -61,7 +61,7 @@ public sealed class JoinChannelTests
     [Fact]
     public async Task JoinChannel_Should_Not_Add_NonMembers_To_The_Group()
     {
-        using var adminClient = await _auth.CreateRootAdminClientAsync();
+        using var adminClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var (_, peerToken) = await RegisterAndSignInAsync(adminClient, "outsider");
 
         // Peer is never added as a member.
@@ -70,7 +70,7 @@ public sealed class JoinChannelTests
         using var peerInbox = new EventInbox<MessageDto>(peerHub, "ChatMessageCreated");
 
         // Membership check must reject this — the connection stays out of the group.
-        await peerHub.InvokeAsync("JoinChannel", channelId);
+        await peerHub.InvokeAsync("JoinChannel", channelId, cancellationToken: TestContext.Current.CancellationToken);
 
         await SendMessageAsync(adminClient, channelId, "should not leak");
 

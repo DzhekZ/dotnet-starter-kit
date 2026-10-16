@@ -30,7 +30,7 @@ public sealed class TenantExpiryScanJobTests
     [Fact]
     public async Task ScanJob_Should_Record_GraceNotice_Dedup_And_Email()
     {
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var unique = Guid.NewGuid().ToString("N")[..8];
         var tenantId = $"scan-{unique}";
         var adminEmail = $"scan-{unique}@tenant.com";
@@ -38,10 +38,8 @@ public sealed class TenantExpiryScanJobTests
         await CreateTenantAsync(rootClient, tenantId, adminEmail, planKey);
 
         // Lapse into the grace period (1 day past ValidUpto).
-        var adjust = await rootClient.PostAsJsonAsync(
-            $"{TestConstants.TenantsBasePath}/{tenantId}/adjust-validity",
-            new { tenantId, validUpto = DateTime.UtcNow.AddDays(-1) });
-        adjust.StatusCode.ShouldBe(HttpStatusCode.OK, await adjust.Content.ReadAsStringAsync());
+        var adjust = await rootClient.PostAsJsonAsync($"{TestConstants.TenantsBasePath}/{tenantId}/adjust-validity", new { tenantId, validUpto = DateTime.UtcNow.AddDays(-1) }, cancellationToken: TestContext.Current.CancellationToken);
+        adjust.StatusCode.ShouldBe(HttpStatusCode.OK, await adjust.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
 
         var mail = (NoOpMailService)_factory.Services.GetRequiredService<IMailService>();
         mail.Clear();
@@ -63,7 +61,7 @@ public sealed class TenantExpiryScanJobTests
     [Fact]
     public async Task InvoiceIssued_Should_Email_TenantAdmin_OnPaidPlan()
     {
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var unique = Guid.NewGuid().ToString("N")[..8];
         var tenantId = $"inv-{unique}";
         var adminEmail = $"inv-{unique}@tenant.com";

@@ -14,11 +14,11 @@ public interface IFileAccessPolicy
     /// <summary>The OwnerType this policy handles. Must be unique across registered policies.</summary>
     string OwnerType { get; }
 
-    Task<bool> CanAttachAsync(Guid? ownerId, string currentUserId, CancellationToken cancellationToken);
+    Task<bool> CanAttachAsync(Guid? ownerId, string currentUserId, CancellationToken cancellationToken = default);
 
-    Task<bool> CanReadAsync(FileAccessContext context, string currentUserId, CancellationToken cancellationToken);
+    Task<bool> CanReadAsync(FileAccessContext context, string currentUserId, CancellationToken cancellationToken = default);
 
-    Task<bool> CanDeleteAsync(FileAccessContext context, string currentUserId, CancellationToken cancellationToken);
+    Task<bool> CanDeleteAsync(FileAccessContext context, string currentUserId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Whether the caller may change a file's <see cref="FileAccessContext.Visibility"/> after
@@ -26,7 +26,7 @@ public interface IFileAccessPolicy
     /// Modules whose files are tied to a domain entity (Catalog product images, Chat attachments)
     /// can override to disallow visibility flips entirely.
     /// </summary>
-    Task<bool> CanChangeVisibilityAsync(FileAccessContext context, string currentUserId, CancellationToken cancellationToken)
+    Task<bool> CanChangeVisibilityAsync(FileAccessContext context, string currentUserId, CancellationToken cancellationToken = default)
         => CanDeleteAsync(context, currentUserId, cancellationToken);
 }
 

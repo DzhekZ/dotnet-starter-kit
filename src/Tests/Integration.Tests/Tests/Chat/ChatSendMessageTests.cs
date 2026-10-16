@@ -39,14 +39,14 @@ public sealed class ChatSendMessageTests
     {
         // Reproduces the dashboard composer's exact wire shape (POST messages + fresh Idempotency-Key header +
         // body { body, parentMessageId: null, attachments: [] }) so any client/contract drift is caught here.
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var channelId = await CreateChannelAsync(client, UniqueName("Dash"));
 
         using var request = BuildSendRequest(channelId, "hello from the dashboard", Guid.NewGuid().ToString());
-        using var response = await client.SendAsync(request);
+        using var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var dto = await response.DeserializeAsync<MessageDto>();
+        var dto = await response.DeserializeAsync<MessageDto>(ct: TestContext.Current.CancellationToken);
         dto.ChannelId.ShouldBe(channelId);
         dto.Body.ShouldBe("hello from the dashboard");
         dto.ParentMessageId.ShouldBeNull();
@@ -58,14 +58,12 @@ public sealed class ChatSendMessageTests
     [Fact]
     public async Task SendMessage_Should_Trim_Body_Whitespace()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var channelId = await CreateChannelAsync(client, UniqueName("Trim"));
 
-        using var response = await client.PostAsJsonAsync(
-            $"{ChatBasePath}/channels/{channelId}/messages",
-            new { body = "  surrounded by spaces  ", parentMessageId = (Guid?)null, attachments = Array.Empty<object>() });
+        using var response = await client.PostAsJsonAsync($"{ChatBasePath}/channels/{channelId}/messages", new { body = "  surrounded by spaces  ", parentMessageId = (Guid?)null, attachments = Array.Empty<object>() }, cancellationToken: TestContext.Current.CancellationToken);
 
-        var dto = await response.DeserializeAsync<MessageDto>();
+        var dto = await response.DeserializeAsync<MessageDto>(ct: TestContext.Current.CancellationToken);
         dto.Body.ShouldBe("surrounded by spaces", "Domain Message.Create trims body before persisting.");
     }
 
@@ -74,58 +72,58 @@ public sealed class ChatSendMessageTests
     [Fact]
     public async Task SendMessage_Should_Replay_Same_Response_When_Idempotency_Key_Reused()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var channelId = await CreateChannelAsync(client, UniqueName("Replay"));
         var key = Guid.NewGuid().ToString();
 
-        using var first = await client.SendAsync(BuildSendRequest(channelId, "ping", key));
+        using var first = await client.SendAsync(BuildSendRequest(channelId, "ping", key), TestContext.Current.CancellationToken);
         first.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var firstDto = await first.DeserializeAsync<MessageDto>();
+        var firstDto = await first.DeserializeAsync<MessageDto>(ct: TestContext.Current.CancellationToken);
 
-        using var second = await client.SendAsync(BuildSendRequest(channelId, "ping", key));
+        using var second = await client.SendAsync(BuildSendRequest(channelId, "ping", key), TestContext.Current.CancellationToken);
         second.StatusCode.ShouldBe(HttpStatusCode.OK);
         second.Headers.Contains(ReplayedHeader).ShouldBeTrue(
             "Second call with the same idempotency key must carry the Idempotency-Replayed header.");
-        var secondDto = await second.DeserializeAsync<MessageDto>();
+        var secondDto = await second.DeserializeAsync<MessageDto>(ct: TestContext.Current.CancellationToken);
 
         secondDto.Id.ShouldBe(firstDto.Id, "Replay must surface the same MessageId — not a brand-new row.");
         secondDto.Body.ShouldBe(firstDto.Body);
         secondDto.CreatedAtUtc.ShouldBe(firstDto.CreatedAtUtc);
 
         // The channel listing should show exactly one row from this exchange (no double-write).
-        using var list = await client.GetAsync($"{ChatBasePath}/channels/{channelId}/messages");
-        var messages = await list.DeserializeAsync<IReadOnlyList<MessageDto>>();
+        using var list = await client.GetAsync($"{ChatBasePath}/channels/{channelId}/messages", TestContext.Current.CancellationToken);
+        var messages = await list.DeserializeAsync<IReadOnlyList<MessageDto>>(ct: TestContext.Current.CancellationToken);
         messages.Count(m => m.Id == firstDto.Id).ShouldBe(1, "A replay must not produce a duplicate row.");
     }
 
     [Fact]
     public async Task SendMessage_Should_Persist_Two_Rows_For_Different_Idempotency_Keys()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var channelId = await CreateChannelAsync(client, UniqueName("DiffKey"));
 
-        using var first = await client.SendAsync(BuildSendRequest(channelId, "msg-a", Guid.NewGuid().ToString()));
-        using var second = await client.SendAsync(BuildSendRequest(channelId, "msg-b", Guid.NewGuid().ToString()));
+        using var first = await client.SendAsync(BuildSendRequest(channelId, "msg-a", Guid.NewGuid().ToString()), TestContext.Current.CancellationToken);
+        using var second = await client.SendAsync(BuildSendRequest(channelId, "msg-b", Guid.NewGuid().ToString()), TestContext.Current.CancellationToken);
         first.StatusCode.ShouldBe(HttpStatusCode.OK);
         second.StatusCode.ShouldBe(HttpStatusCode.OK);
         second.Headers.Contains(ReplayedHeader).ShouldBeFalse();
 
-        var firstDto = await first.DeserializeAsync<MessageDto>();
-        var secondDto = await second.DeserializeAsync<MessageDto>();
+        var firstDto = await first.DeserializeAsync<MessageDto>(ct: TestContext.Current.CancellationToken);
+        var secondDto = await second.DeserializeAsync<MessageDto>(ct: TestContext.Current.CancellationToken);
         secondDto.Id.ShouldNotBe(firstDto.Id);
     }
 
     [Fact]
     public async Task SendMessage_Should_Return400_When_Idempotency_Key_Exceeds_MaxLength()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var channelId = await CreateChannelAsync(client, UniqueName("LongKey"));
 
         // Default MaxKeyLength is 128; 200 chars is comfortably over.
         var oversize = new string('k', 200);
 
         using var request = BuildSendRequest(channelId, "hi", oversize);
-        using var response = await client.SendAsync(request);
+        using var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
@@ -135,15 +133,13 @@ public sealed class ChatSendMessageTests
     [Fact]
     public async Task SendMessage_Should_Return400_When_Body_Exceeds_MaxLength()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var channelId = await CreateChannelAsync(client, UniqueName("BigBody"));
 
         // Validator caps Body at 32_768; 33_000 chars trips it.
         var huge = new string('x', 33_000);
 
-        using var response = await client.PostAsJsonAsync(
-            $"{ChatBasePath}/channels/{channelId}/messages",
-            new { body = huge, parentMessageId = (Guid?)null, attachments = Array.Empty<object>() });
+        using var response = await client.PostAsJsonAsync($"{ChatBasePath}/channels/{channelId}/messages", new { body = huge, parentMessageId = (Guid?)null, attachments = Array.Empty<object>() }, cancellationToken: TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
@@ -151,7 +147,7 @@ public sealed class ChatSendMessageTests
     [Fact]
     public async Task SendMessage_Should_Return400_When_Attachments_Exceed_Cap()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var channelId = await CreateChannelAsync(client, UniqueName("ManyAtt"));
 
         var attachments = Enumerable.Range(0, 11).Select(i => new
@@ -163,9 +159,7 @@ public sealed class ChatSendMessageTests
             sizeBytes = 100L,
         }).ToArray();
 
-        using var response = await client.PostAsJsonAsync(
-            $"{ChatBasePath}/channels/{channelId}/messages",
-            new { body = "with attachments", parentMessageId = (Guid?)null, attachments });
+        using var response = await client.PostAsJsonAsync($"{ChatBasePath}/channels/{channelId}/messages", new { body = "with attachments", parentMessageId = (Guid?)null, attachments }, cancellationToken: TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
@@ -173,12 +167,10 @@ public sealed class ChatSendMessageTests
     [Fact]
     public async Task SendMessage_Should_Return400_When_Attachment_Url_Empty()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var channelId = await CreateChannelAsync(client, UniqueName("BadAtt"));
 
-        using var response = await client.PostAsJsonAsync(
-            $"{ChatBasePath}/channels/{channelId}/messages",
-            new
+        using var response = await client.PostAsJsonAsync($"{ChatBasePath}/channels/{channelId}/messages", new
             {
                 body = "broken attachment",
                 parentMessageId = (Guid?)null,
@@ -193,7 +185,7 @@ public sealed class ChatSendMessageTests
                         sizeBytes = 100L,
                     },
                 },
-            });
+            }, cancellationToken: TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
@@ -203,27 +195,23 @@ public sealed class ChatSendMessageTests
     {
         // Threads are 1-deep: a reply to a top-level parent in the *same* channel lands 200 and bumps ReplyCount (covered elsewhere).
         // This locks the happy thread shape so the negative case that follows is meaningful.
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var channelId = await CreateChannelAsync(client, UniqueName("OkThread"));
         var parentId = await SendMessageAsync(client, channelId, "parent");
 
-        using var reply = await client.PostAsJsonAsync(
-            $"{ChatBasePath}/channels/{channelId}/messages",
-            new { body = "child", parentMessageId = (Guid?)parentId, attachments = Array.Empty<object>() });
+        using var reply = await client.PostAsJsonAsync($"{ChatBasePath}/channels/{channelId}/messages", new { body = "child", parentMessageId = (Guid?)parentId, attachments = Array.Empty<object>() }, cancellationToken: TestContext.Current.CancellationToken);
         reply.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
     [Fact]
     public async Task SendMessage_Should_Return400_When_Parent_Belongs_To_Different_Channel()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var channelA = await CreateChannelAsync(client, UniqueName("ChanA"));
         var channelB = await CreateChannelAsync(client, UniqueName("ChanB"));
         var foreignParent = await SendMessageAsync(client, channelA, "in-A");
 
-        using var response = await client.PostAsJsonAsync(
-            $"{ChatBasePath}/channels/{channelB}/messages",
-            new { body = "tries to reply across channels", parentMessageId = (Guid?)foreignParent, attachments = Array.Empty<object>() });
+        using var response = await client.PostAsJsonAsync($"{ChatBasePath}/channels/{channelB}/messages", new { body = "tries to reply across channels", parentMessageId = (Guid?)foreignParent, attachments = Array.Empty<object>() }, cancellationToken: TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest,
             "Parent in another channel must be rejected (cross-channel thread invariant).");
@@ -232,12 +220,10 @@ public sealed class ChatSendMessageTests
     [Fact]
     public async Task SendMessage_Should_Return404_When_Parent_Does_Not_Exist()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var channelId = await CreateChannelAsync(client, UniqueName("GhostParent"));
 
-        using var response = await client.PostAsJsonAsync(
-            $"{ChatBasePath}/channels/{channelId}/messages",
-            new { body = "reply to nothing", parentMessageId = (Guid?)Guid.NewGuid(), attachments = Array.Empty<object>() });
+        using var response = await client.PostAsJsonAsync($"{ChatBasePath}/channels/{channelId}/messages", new { body = "reply to nothing", parentMessageId = (Guid?)Guid.NewGuid(), attachments = Array.Empty<object>() }, cancellationToken: TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
@@ -252,9 +238,7 @@ public sealed class ChatSendMessageTests
         using var anon = _factory.CreateClient();
         anon.DefaultRequestHeaders.Add("tenant", TestConstants.RootTenantId);
 
-        using var response = await anon.PostAsJsonAsync(
-            $"{ChatBasePath}/channels/{Guid.NewGuid()}/messages",
-            new { body = "anonymous", parentMessageId = (Guid?)null, attachments = Array.Empty<object>() });
+        using var response = await anon.PostAsJsonAsync($"{ChatBasePath}/channels/{Guid.NewGuid()}/messages", new { body = "anonymous", parentMessageId = (Guid?)null, attachments = Array.Empty<object>() }, cancellationToken: TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
     }
@@ -263,16 +247,14 @@ public sealed class ChatSendMessageTests
     public async Task SendMessage_Should_Return404_When_Caller_Is_Not_A_Channel_Member()
     {
         // Non-members get 404 (not 403) by design — channel existence must not leak.
-        using var adminClient = await _auth.CreateRootAdminClientAsync();
+        using var adminClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var (outsider, _) = await RegisterUserAsync(adminClient, "outsider");
 
         // Admin makes a private channel; outsider is never invited.
         var channelId = await CreateChannelAsync(adminClient, UniqueName("Closed"), isPrivate: true);
 
-        using var outsiderClient = await _auth.CreateAuthenticatedClientAsync(outsider.Email, outsider.Password);
-        using var response = await outsiderClient.PostAsJsonAsync(
-            $"{ChatBasePath}/channels/{channelId}/messages",
-            new { body = "i don't belong here", parentMessageId = (Guid?)null, attachments = Array.Empty<object>() });
+        using var outsiderClient = await _auth.CreateAuthenticatedClientAsync(outsider.Email, outsider.Password, ct: TestContext.Current.CancellationToken);
+        using var response = await outsiderClient.PostAsJsonAsync($"{ChatBasePath}/channels/{channelId}/messages", new { body = "i don't belong here", parentMessageId = (Guid?)null, attachments = Array.Empty<object>() }, cancellationToken: TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound,
             "Non-members must see 404 (not 403) so channel existence isn't leaked.");
@@ -283,16 +265,14 @@ public sealed class ChatSendMessageTests
     [Fact]
     public async Task SendMessage_Should_Return404_After_Channel_Is_Archived()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var channelId = await CreateChannelAsync(client, UniqueName("Archived"));
 
         // Archive (soft-delete) the channel.
-        using var archive = await client.DeleteAsync($"{ChatBasePath}/channels/{channelId}");
+        using var archive = await client.DeleteAsync($"{ChatBasePath}/channels/{channelId}", TestContext.Current.CancellationToken);
         archive.StatusCode.ShouldBe(HttpStatusCode.NoContent);
 
-        using var response = await client.PostAsJsonAsync(
-            $"{ChatBasePath}/channels/{channelId}/messages",
-            new { body = "after archive", parentMessageId = (Guid?)null, attachments = Array.Empty<object>() });
+        using var response = await client.PostAsJsonAsync($"{ChatBasePath}/channels/{channelId}/messages", new { body = "after archive", parentMessageId = (Guid?)null, attachments = Array.Empty<object>() }, cancellationToken: TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound,
             "Soft-delete query filter must hide archived channels from the send path.");
@@ -301,18 +281,16 @@ public sealed class ChatSendMessageTests
     [Fact]
     public async Task SendMessage_Should_Succeed_Again_After_Channel_Is_Restored()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var channelId = await CreateChannelAsync(client, UniqueName("RoundTrip"));
 
-        using var archive = await client.DeleteAsync($"{ChatBasePath}/channels/{channelId}");
+        using var archive = await client.DeleteAsync($"{ChatBasePath}/channels/{channelId}", TestContext.Current.CancellationToken);
         archive.StatusCode.ShouldBe(HttpStatusCode.NoContent);
 
-        using var restore = await client.PostAsync($"{ChatBasePath}/channels/{channelId}/restore", content: null);
+        using var restore = await client.PostAsync($"{ChatBasePath}/channels/{channelId}/restore", content: null, cancellationToken: TestContext.Current.CancellationToken);
         restore.StatusCode.ShouldBe(HttpStatusCode.NoContent);
 
-        using var send = await client.PostAsJsonAsync(
-            $"{ChatBasePath}/channels/{channelId}/messages",
-            new { body = "back from the dead", parentMessageId = (Guid?)null, attachments = Array.Empty<object>() });
+        using var send = await client.PostAsJsonAsync($"{ChatBasePath}/channels/{channelId}/messages", new { body = "back from the dead", parentMessageId = (Guid?)null, attachments = Array.Empty<object>() }, cancellationToken: TestContext.Current.CancellationToken);
 
         send.StatusCode.ShouldBe(HttpStatusCode.OK);
     }

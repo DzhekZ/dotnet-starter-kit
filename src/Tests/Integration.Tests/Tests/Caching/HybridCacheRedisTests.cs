@@ -20,12 +20,12 @@ public sealed class HybridCacheRedisTests : IAsyncLifetime
     private readonly RedisContainer _redis = new RedisBuilder("valkey/valkey:9.1.0-alpine")
         .Build();
 
-    public ValueTask InitializeAsync()
+    public async ValueTask InitializeAsync()
     {
-        return _redis.StartAsync();
+        await _redis.StartAsync(TestContext.Current.CancellationToken);
     }
 
-    public ValueTask DisposeAsync() => _redis.DisposeAsync().AsTask();
+    public ValueTask DisposeAsync() => _redis.DisposeAsync();
 
     private (HybridCache cache, IDistributedCache distributedCache, ServiceProvider provider) CreateCache()
     {
@@ -53,17 +53,11 @@ public sealed class HybridCacheRedisTests : IAsyncLifetime
             var payload = new TestPayload("hello", 42);
 
             // First call invokes factory, caches in L1 + L2 (Redis).
-            var stored = await cache.GetOrCreateAsync(
-                "rt:1",
-                payload,
-                static (p, ct) => ValueTask.FromResult(p));
+            var stored = await cache.GetOrCreateAsync("rt:1", payload, static (p, ct) => ValueTask.FromResult(p), cancellationToken: TestContext.Current.CancellationToken);
 
             // Second call on the same instance — L1 hit, factory must NOT run.
             var factoryRuns = 0;
-            var fetched = await cache.GetOrCreateAsync(
-                "rt:1",
-                payload,
-                (p, ct) => { Interlocked.Increment(ref factoryRuns); return ValueTask.FromResult(p); });
+            var fetched = await cache.GetOrCreateAsync("rt:1", payload, (p, ct) => { Interlocked.Increment(ref factoryRuns); return ValueTask.FromResult(p); }, cancellationToken: TestContext.Current.CancellationToken);
 
             stored.ShouldBe(payload);
             fetched.ShouldBe(payload);
@@ -79,10 +73,10 @@ public sealed class HybridCacheRedisTests : IAsyncLifetime
         var (cache, distributedCache, provider) = CreateCache();
         await using (provider)
         {
-            await cache.SetAsync("rt:set", "persisted-value");
+            await cache.SetAsync("rt:set", "persisted-value", cancellationToken: TestContext.Current.CancellationToken);
 
             // Read the underlying L2 directly to confirm bytes are present.
-            var raw = await distributedCache.GetAsync("rt:set");
+            var raw = await distributedCache.GetAsync("rt:set", TestContext.Current.CancellationToken);
             raw.ShouldNotBeNull();
             raw.Length.ShouldBeGreaterThan(0);
         }
@@ -96,21 +90,15 @@ public sealed class HybridCacheRedisTests : IAsyncLifetime
         var (cache, _, provider) = CreateCache();
         await using (provider)
         {
-            await cache.SetAsync("rt:tag:a", "v1", tags: ["group-x"]);
-            await cache.SetAsync("rt:tag:b", "v2", tags: ["group-x"]);
+            await cache.SetAsync("rt:tag:a", "v1", tags: ["group-x"], cancellationToken: TestContext.Current.CancellationToken);
+            await cache.SetAsync("rt:tag:b", "v2", tags: ["group-x"], cancellationToken: TestContext.Current.CancellationToken);
 
-            await cache.RemoveByTagAsync("group-x");
+            await cache.RemoveByTagAsync("group-x", TestContext.Current.CancellationToken);
 
             var aRuns = 0;
             var bRuns = 0;
-            await cache.GetOrCreateAsync(
-                "rt:tag:a",
-                0,
-                (s, ct) => { Interlocked.Increment(ref aRuns); return ValueTask.FromResult("reload-a"); });
-            await cache.GetOrCreateAsync(
-                "rt:tag:b",
-                0,
-                (s, ct) => { Interlocked.Increment(ref bRuns); return ValueTask.FromResult("reload-b"); });
+            await cache.GetOrCreateAsync("rt:tag:a", 0, (s, ct) => { Interlocked.Increment(ref aRuns); return ValueTask.FromResult("reload-a"); }, cancellationToken: TestContext.Current.CancellationToken);
+            await cache.GetOrCreateAsync("rt:tag:b", 0, (s, ct) => { Interlocked.Increment(ref bRuns); return ValueTask.FromResult("reload-b"); }, cancellationToken: TestContext.Current.CancellationToken);
 
             aRuns.ShouldBe(1);
             bRuns.ShouldBe(1);

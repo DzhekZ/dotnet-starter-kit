@@ -21,7 +21,7 @@ public sealed class ThreadAndReactionTests
     [Fact]
     public async Task ListReplies_Should_Return_Only_Children_Of_Parent_Reverse_Chronological()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var channelId = await CreateChannelAsync(client, Unique("Thread"));
         var parentId = await SendMessageAsync(client, channelId, "parent");
 
@@ -29,8 +29,8 @@ public sealed class ThreadAndReactionTests
         var reply2 = await SendMessageAsync(client, channelId, "second reply", parentId);
         var unrelated = await SendMessageAsync(client, channelId, "top-level");
 
-        using var listResponse = await client.GetAsync($"{ChatBasePath}/messages/{parentId}/replies");
-        var replies = await listResponse.DeserializeAsync<IReadOnlyList<MessageDto>>();
+        using var listResponse = await client.GetAsync($"{ChatBasePath}/messages/{parentId}/replies", TestContext.Current.CancellationToken);
+        var replies = await listResponse.DeserializeAsync<IReadOnlyList<MessageDto>>(ct: TestContext.Current.CancellationToken);
 
         replies.Count.ShouldBe(2);
         replies[0].Id.ShouldBe(reply2);
@@ -41,7 +41,7 @@ public sealed class ThreadAndReactionTests
     [Fact]
     public async Task ListReplies_Should_Page_Backwards_With_Before_Cursor()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var channelId = await CreateChannelAsync(client, Unique("Page"));
         var parentId = await SendMessageAsync(client, channelId, "parent");
 
@@ -51,15 +51,14 @@ public sealed class ThreadAndReactionTests
             ids.Add(await SendMessageAsync(client, channelId, $"reply {i}", parentId));
         }
 
-        using var firstPage = await client.GetAsync($"{ChatBasePath}/messages/{parentId}/replies?pageSize=2");
-        var page1 = await firstPage.DeserializeAsync<IReadOnlyList<MessageDto>>();
+        using var firstPage = await client.GetAsync($"{ChatBasePath}/messages/{parentId}/replies?pageSize=2", TestContext.Current.CancellationToken);
+        var page1 = await firstPage.DeserializeAsync<IReadOnlyList<MessageDto>>(ct: TestContext.Current.CancellationToken);
         page1.Count.ShouldBe(2);
         page1[0].Id.ShouldBe(ids[3]);
         page1[1].Id.ShouldBe(ids[2]);
 
-        using var secondPage = await client.GetAsync(
-            $"{ChatBasePath}/messages/{parentId}/replies?pageSize=2&before={ids[2]}");
-        var page2 = await secondPage.DeserializeAsync<IReadOnlyList<MessageDto>>();
+        using var secondPage = await client.GetAsync($"{ChatBasePath}/messages/{parentId}/replies?pageSize=2&before={ids[2]}", TestContext.Current.CancellationToken);
+        var page2 = await secondPage.DeserializeAsync<IReadOnlyList<MessageDto>>(ct: TestContext.Current.CancellationToken);
         page2[0].Id.ShouldBe(ids[1]);
         page2[1].Id.ShouldBe(ids[0]);
     }
@@ -67,15 +66,15 @@ public sealed class ThreadAndReactionTests
     [Fact]
     public async Task ListReplies_Should_Return_404_For_Missing_Parent()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
-        using var response = await client.GetAsync($"{ChatBasePath}/messages/{Guid.NewGuid()}/replies");
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
+        using var response = await client.GetAsync($"{ChatBasePath}/messages/{Guid.NewGuid()}/replies", TestContext.Current.CancellationToken);
         response.StatusCode.ShouldBe(System.Net.HttpStatusCode.NotFound);
     }
 
     [Fact]
     public async Task DeleteReply_Should_Decrement_Parent_ReplyCount()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var channelId = await CreateChannelAsync(client, Unique("DelReply"));
         var parentId = await SendMessageAsync(client, channelId, "parent");
         var replyId = await SendMessageAsync(client, channelId, "reply", parentId);
@@ -83,7 +82,7 @@ public sealed class ThreadAndReactionTests
         var parentBefore = await GetMessageAsync(client, channelId, parentId);
         parentBefore.ReplyCount.ShouldBe(1);
 
-        using var del = await client.DeleteAsync($"{ChatBasePath}/messages/{replyId}");
+        using var del = await client.DeleteAsync($"{ChatBasePath}/messages/{replyId}", TestContext.Current.CancellationToken);
         del.StatusCode.ShouldBe(System.Net.HttpStatusCode.NoContent);
 
         var parentAfter = await GetMessageAsync(client, channelId, parentId);
@@ -95,12 +94,11 @@ public sealed class ThreadAndReactionTests
     [Fact]
     public async Task AddReaction_Should_Attach_Reaction_To_Message()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var channelId = await CreateChannelAsync(client, Unique("React"));
         var messageId = await SendMessageAsync(client, channelId, "react to me");
 
-        using var add = await client.PostAsJsonAsync($"{ChatBasePath}/messages/{messageId}/reactions",
-            new { emoji = "🚀" });
+        using var add = await client.PostAsJsonAsync($"{ChatBasePath}/messages/{messageId}/reactions", new { emoji = "🚀" }, cancellationToken: TestContext.Current.CancellationToken);
         add.StatusCode.ShouldBe(System.Net.HttpStatusCode.NoContent);
 
         var message = await GetMessageAsync(client, channelId, messageId);
@@ -111,13 +109,12 @@ public sealed class ThreadAndReactionTests
     [Fact]
     public async Task AddReaction_Should_Be_Idempotent_For_Same_User_Emoji()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var channelId = await CreateChannelAsync(client, Unique("Dup"));
         var messageId = await SendMessageAsync(client, channelId, "react");
 
-        await client.PostAsJsonAsync($"{ChatBasePath}/messages/{messageId}/reactions", new { emoji = "🚀" });
-        using var second = await client.PostAsJsonAsync($"{ChatBasePath}/messages/{messageId}/reactions",
-            new { emoji = "🚀" });
+        await client.PostAsJsonAsync($"{ChatBasePath}/messages/{messageId}/reactions", new { emoji = "🚀" }, cancellationToken: TestContext.Current.CancellationToken);
+        using var second = await client.PostAsJsonAsync($"{ChatBasePath}/messages/{messageId}/reactions", new { emoji = "🚀" }, cancellationToken: TestContext.Current.CancellationToken);
         second.StatusCode.ShouldBe(System.Net.HttpStatusCode.NoContent);
 
         var message = await GetMessageAsync(client, channelId, messageId);
@@ -127,13 +124,12 @@ public sealed class ThreadAndReactionTests
     [Fact]
     public async Task RemoveReaction_Should_Drop_The_Row()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var channelId = await CreateChannelAsync(client, Unique("Rem"));
         var messageId = await SendMessageAsync(client, channelId, "react");
-        await client.PostAsJsonAsync($"{ChatBasePath}/messages/{messageId}/reactions", new { emoji = "🚀" });
+        await client.PostAsJsonAsync($"{ChatBasePath}/messages/{messageId}/reactions", new { emoji = "🚀" }, cancellationToken: TestContext.Current.CancellationToken);
 
-        using var del = await client.DeleteAsync(
-            $"{ChatBasePath}/messages/{messageId}/reactions/{Uri.EscapeDataString("🚀")}");
+        using var del = await client.DeleteAsync($"{ChatBasePath}/messages/{messageId}/reactions/{Uri.EscapeDataString("🚀")}", TestContext.Current.CancellationToken);
         del.StatusCode.ShouldBe(System.Net.HttpStatusCode.NoContent);
 
         var message = await GetMessageAsync(client, channelId, messageId);
@@ -143,10 +139,8 @@ public sealed class ThreadAndReactionTests
     [Fact]
     public async Task AddReaction_Should_Return_404_For_Missing_Message()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
-        using var response = await client.PostAsJsonAsync(
-            $"{ChatBasePath}/messages/{Guid.NewGuid()}/reactions",
-            new { emoji = "🚀" });
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
+        using var response = await client.PostAsJsonAsync($"{ChatBasePath}/messages/{Guid.NewGuid()}/reactions", new { emoji = "🚀" }, cancellationToken: TestContext.Current.CancellationToken);
         response.StatusCode.ShouldBe(System.Net.HttpStatusCode.NotFound);
     }
 

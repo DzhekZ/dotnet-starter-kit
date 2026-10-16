@@ -30,7 +30,7 @@ public sealed class ProductImageRemoveReorderTests
     [Fact]
     public async Task RemoveProductImage_Should_Detach_And_PromoteNextThumbnail_When_RemovingCover()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var (brandId, categoryId) = await CreateBrandAndCategoryAsync(client);
         var productId = await CreateProductAsync(client, brandId, categoryId);
 
@@ -38,8 +38,7 @@ public sealed class ProductImageRemoveReorderTests
         var firstId = (await AttachImageAsync(client, productId)).Id;
         var secondId = (await AttachImageAsync(client, productId)).Id;
 
-        using var remove = await client.DeleteAsync(
-            $"{TestConstants.CatalogBasePath}/products/{productId}/images/{firstId}");
+        using var remove = await client.DeleteAsync($"{TestConstants.CatalogBasePath}/products/{productId}/images/{firstId}", TestContext.Current.CancellationToken);
         remove.StatusCode.ShouldBe(HttpStatusCode.NoContent);
 
         var after = await GetProductAsync(client, productId);
@@ -52,15 +51,14 @@ public sealed class ProductImageRemoveReorderTests
     [Fact]
     public async Task RemoveProductImage_Should_Detach_NonThumbnail_And_Leave_Cover_Intact()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var (brandId, categoryId) = await CreateBrandAndCategoryAsync(client);
         var productId = await CreateProductAsync(client, brandId, categoryId);
 
         var coverId = (await AttachImageAsync(client, productId)).Id;
         var extraId = (await AttachImageAsync(client, productId)).Id;
 
-        using var remove = await client.DeleteAsync(
-            $"{TestConstants.CatalogBasePath}/products/{productId}/images/{extraId}");
+        using var remove = await client.DeleteAsync($"{TestConstants.CatalogBasePath}/products/{productId}/images/{extraId}", TestContext.Current.CancellationToken);
         remove.StatusCode.ShouldBe(HttpStatusCode.NoContent);
 
         var after = await GetProductAsync(client, productId);
@@ -72,14 +70,13 @@ public sealed class ProductImageRemoveReorderTests
     [Fact]
     public async Task RemoveProductImage_Should_Leave_Product_Without_Cover_When_LastImageRemoved()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var (brandId, categoryId) = await CreateBrandAndCategoryAsync(client);
         var productId = await CreateProductAsync(client, brandId, categoryId);
 
         var onlyId = (await AttachImageAsync(client, productId)).Id;
 
-        using var remove = await client.DeleteAsync(
-            $"{TestConstants.CatalogBasePath}/products/{productId}/images/{onlyId}");
+        using var remove = await client.DeleteAsync($"{TestConstants.CatalogBasePath}/products/{productId}/images/{onlyId}", TestContext.Current.CancellationToken);
         remove.StatusCode.ShouldBe(HttpStatusCode.NoContent);
 
         var after = await GetProductAsync(client, productId);
@@ -92,10 +89,9 @@ public sealed class ProductImageRemoveReorderTests
     [Fact]
     public async Task RemoveProductImage_Should_Return404_For_Unknown_Product()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
-        using var response = await client.DeleteAsync(
-            $"{TestConstants.CatalogBasePath}/products/{Guid.NewGuid()}/images/{Guid.NewGuid()}");
+        using var response = await client.DeleteAsync($"{TestConstants.CatalogBasePath}/products/{Guid.NewGuid()}/images/{Guid.NewGuid()}", TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
@@ -103,13 +99,12 @@ public sealed class ProductImageRemoveReorderTests
     [Fact]
     public async Task RemoveProductImage_Should_Return404_For_Unknown_Image_On_Existing_Product()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var (brandId, categoryId) = await CreateBrandAndCategoryAsync(client);
         var productId = await CreateProductAsync(client, brandId, categoryId);
         // No image attached — handler translates the domain "not found" into a 404.
 
-        using var response = await client.DeleteAsync(
-            $"{TestConstants.CatalogBasePath}/products/{productId}/images/{Guid.NewGuid()}");
+        using var response = await client.DeleteAsync($"{TestConstants.CatalogBasePath}/products/{productId}/images/{Guid.NewGuid()}", TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
@@ -122,8 +117,7 @@ public sealed class ProductImageRemoveReorderTests
         using var client = _factory.CreateClient();
         client.DefaultRequestHeaders.Add("tenant", TestConstants.RootTenantId);
 
-        using var response = await client.DeleteAsync(
-            $"{TestConstants.CatalogBasePath}/products/{Guid.NewGuid()}/images/{Guid.NewGuid()}");
+        using var response = await client.DeleteAsync($"{TestConstants.CatalogBasePath}/products/{Guid.NewGuid()}/images/{Guid.NewGuid()}", TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
     }
@@ -133,7 +127,7 @@ public sealed class ProductImageRemoveReorderTests
     [Fact]
     public async Task ReorderProductImages_Should_Apply_Supplied_Order()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var (brandId, categoryId) = await CreateBrandAndCategoryAsync(client);
         var productId = await CreateProductAsync(client, brandId, categoryId);
 
@@ -142,9 +136,7 @@ public sealed class ProductImageRemoveReorderTests
         var c = (await AttachImageAsync(client, productId)).Id;
 
         // Reverse the natural 0,1,2 order to c,b,a.
-        using var reorder = await client.PutAsJsonAsync(
-            $"{TestConstants.CatalogBasePath}/products/{productId}/images/order",
-            new { orderedImageIds = new[] { c, b, a } });
+        using var reorder = await client.PutAsJsonAsync($"{TestConstants.CatalogBasePath}/products/{productId}/images/order", new { orderedImageIds = new[] { c, b, a } }, cancellationToken: TestContext.Current.CancellationToken);
         reorder.StatusCode.ShouldBe(HttpStatusCode.NoContent);
 
         var after = await GetProductAsync(client, productId);
@@ -156,7 +148,7 @@ public sealed class ProductImageRemoveReorderTests
     [Fact]
     public async Task ReorderProductImages_Should_Append_Unlisted_Images_After_The_Listed_Ones()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var (brandId, categoryId) = await CreateBrandAndCategoryAsync(client);
         var productId = await CreateProductAsync(client, brandId, categoryId);
 
@@ -166,9 +158,7 @@ public sealed class ProductImageRemoveReorderTests
 
         // Only list the last image; a and b are unlisted and must be appended after it,
         // preserving their relative order.
-        using var reorder = await client.PutAsJsonAsync(
-            $"{TestConstants.CatalogBasePath}/products/{productId}/images/order",
-            new { orderedImageIds = new[] { c } });
+        using var reorder = await client.PutAsJsonAsync($"{TestConstants.CatalogBasePath}/products/{productId}/images/order", new { orderedImageIds = new[] { c } }, cancellationToken: TestContext.Current.CancellationToken);
         reorder.StatusCode.ShouldBe(HttpStatusCode.NoContent);
 
         var after = await GetProductAsync(client, productId);
@@ -181,7 +171,7 @@ public sealed class ProductImageRemoveReorderTests
     [Fact]
     public async Task ReorderProductImages_Should_Ignore_Unknown_Image_Ids()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var (brandId, categoryId) = await CreateBrandAndCategoryAsync(client);
         var productId = await CreateProductAsync(client, brandId, categoryId);
 
@@ -189,9 +179,7 @@ public sealed class ProductImageRemoveReorderTests
         var b = (await AttachImageAsync(client, productId)).Id;
 
         // A stray id that doesn't belong to the product is silently skipped by the aggregate.
-        using var reorder = await client.PutAsJsonAsync(
-            $"{TestConstants.CatalogBasePath}/products/{productId}/images/order",
-            new { orderedImageIds = new[] { b, Guid.NewGuid(), a } });
+        using var reorder = await client.PutAsJsonAsync($"{TestConstants.CatalogBasePath}/products/{productId}/images/order", new { orderedImageIds = new[] { b, Guid.NewGuid(), a } }, cancellationToken: TestContext.Current.CancellationToken);
         reorder.StatusCode.ShouldBe(HttpStatusCode.NoContent);
 
         var after = await GetProductAsync(client, productId);
@@ -203,16 +191,14 @@ public sealed class ProductImageRemoveReorderTests
     public async Task ReorderProductImages_Should_Succeed_With_Empty_List()
     {
         // Empty list is valid (NotNull, not NotEmpty) — it's a no-op that leaves existing order intact.
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var (brandId, categoryId) = await CreateBrandAndCategoryAsync(client);
         var productId = await CreateProductAsync(client, brandId, categoryId);
 
         var a = (await AttachImageAsync(client, productId)).Id;
         var b = (await AttachImageAsync(client, productId)).Id;
 
-        using var reorder = await client.PutAsJsonAsync(
-            $"{TestConstants.CatalogBasePath}/products/{productId}/images/order",
-            new { orderedImageIds = Array.Empty<Guid>() });
+        using var reorder = await client.PutAsJsonAsync($"{TestConstants.CatalogBasePath}/products/{productId}/images/order", new { orderedImageIds = Array.Empty<Guid>() }, cancellationToken: TestContext.Current.CancellationToken);
         reorder.StatusCode.ShouldBe(HttpStatusCode.NoContent);
 
         var after = await GetProductAsync(client, productId);
@@ -225,11 +211,9 @@ public sealed class ProductImageRemoveReorderTests
     [Fact]
     public async Task ReorderProductImages_Should_Return404_For_Unknown_Product()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
-        using var response = await client.PutAsJsonAsync(
-            $"{TestConstants.CatalogBasePath}/products/{Guid.NewGuid()}/images/order",
-            new { orderedImageIds = new[] { Guid.NewGuid() } });
+        using var response = await client.PutAsJsonAsync($"{TestConstants.CatalogBasePath}/products/{Guid.NewGuid()}/images/order", new { orderedImageIds = new[] { Guid.NewGuid() } }, cancellationToken: TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
@@ -237,14 +221,12 @@ public sealed class ProductImageRemoveReorderTests
     [Fact]
     public async Task ReorderProductImages_Should_Return400_When_OrderedImageIds_Is_Null()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var (brandId, categoryId) = await CreateBrandAndCategoryAsync(client);
         var productId = await CreateProductAsync(client, brandId, categoryId);
 
         // Body present but the required collection is null — validator (NotNull) rejects it.
-        using var response = await client.PutAsJsonAsync(
-            $"{TestConstants.CatalogBasePath}/products/{productId}/images/order",
-            new { orderedImageIds = (Guid[]?)null });
+        using var response = await client.PutAsJsonAsync($"{TestConstants.CatalogBasePath}/products/{productId}/images/order", new { orderedImageIds = (Guid[]?)null }, cancellationToken: TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
@@ -255,9 +237,7 @@ public sealed class ProductImageRemoveReorderTests
         using var client = _factory.CreateClient();
         client.DefaultRequestHeaders.Add("tenant", TestConstants.RootTenantId);
 
-        using var response = await client.PutAsJsonAsync(
-            $"{TestConstants.CatalogBasePath}/products/{Guid.NewGuid()}/images/order",
-            new { orderedImageIds = new[] { Guid.NewGuid() } });
+        using var response = await client.PutAsJsonAsync($"{TestConstants.CatalogBasePath}/products/{Guid.NewGuid()}/images/order", new { orderedImageIds = new[] { Guid.NewGuid() } }, cancellationToken: TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
     }

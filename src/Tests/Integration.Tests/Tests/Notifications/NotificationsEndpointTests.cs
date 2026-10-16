@@ -39,7 +39,7 @@ public sealed class NotificationsEndpointTests
         using var client = _factory.CreateClient();
         client.DefaultRequestHeaders.Add("tenant", TestConstants.RootTenantId);
 
-        using var response = await client.GetAsync($"{NotificationsBasePath}/");
+        using var response = await client.GetAsync($"{NotificationsBasePath}/", TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
     }
@@ -50,7 +50,7 @@ public sealed class NotificationsEndpointTests
         using var client = _factory.CreateClient();
         client.DefaultRequestHeaders.Add("tenant", TestConstants.RootTenantId);
 
-        using var response = await client.GetAsync($"{NotificationsBasePath}/unread-count");
+        using var response = await client.GetAsync($"{NotificationsBasePath}/unread-count", TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
     }
@@ -61,8 +61,7 @@ public sealed class NotificationsEndpointTests
         using var client = _factory.CreateClient();
         client.DefaultRequestHeaders.Add("tenant", TestConstants.RootTenantId);
 
-        using var response = await client.PostAsync(
-            $"{NotificationsBasePath}/{Guid.NewGuid()}/read", content: null);
+        using var response = await client.PostAsync($"{NotificationsBasePath}/{Guid.NewGuid()}/read", content: null, cancellationToken: TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
     }
@@ -73,7 +72,7 @@ public sealed class NotificationsEndpointTests
         using var client = _factory.CreateClient();
         client.DefaultRequestHeaders.Add("tenant", TestConstants.RootTenantId);
 
-        using var response = await client.PostAsync($"{NotificationsBasePath}/read-all", content: null);
+        using var response = await client.PostAsync($"{NotificationsBasePath}/read-all", content: null, cancellationToken: TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
     }
@@ -84,7 +83,7 @@ public sealed class NotificationsEndpointTests
     public async Task ListNotifications_Should_Return_Empty_For_FreshUser()
     {
         var user = await RegisterFreshUserAsync();
-        using var client = await _auth.CreateAuthenticatedClientAsync(user.Email, user.Password);
+        using var client = await _auth.CreateAuthenticatedClientAsync(user.Email, user.Password, ct: TestContext.Current.CancellationToken);
 
         var inbox = await ReadInboxAsync(client);
 
@@ -97,12 +96,12 @@ public sealed class NotificationsEndpointTests
     public async Task GetUnreadCount_Should_Return_Zero_For_FreshUser()
     {
         var user = await RegisterFreshUserAsync();
-        using var client = await _auth.CreateAuthenticatedClientAsync(user.Email, user.Password);
+        using var client = await _auth.CreateAuthenticatedClientAsync(user.Email, user.Password, ct: TestContext.Current.CancellationToken);
 
-        using var response = await client.GetAsync($"{NotificationsBasePath}/unread-count");
+        using var response = await client.GetAsync($"{NotificationsBasePath}/unread-count", TestContext.Current.CancellationToken);
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        var count = await response.DeserializeAsync<int>();
+        var count = await response.DeserializeAsync<int>(ct: TestContext.Current.CancellationToken);
         count.ShouldBe(0);
     }
 
@@ -110,12 +109,12 @@ public sealed class NotificationsEndpointTests
     public async Task MarkAllNotificationsRead_Should_Return_Zero_Updated_For_FreshUser()
     {
         var user = await RegisterFreshUserAsync();
-        using var client = await _auth.CreateAuthenticatedClientAsync(user.Email, user.Password);
+        using var client = await _auth.CreateAuthenticatedClientAsync(user.Email, user.Password, ct: TestContext.Current.CancellationToken);
 
-        using var response = await client.PostAsync($"{NotificationsBasePath}/read-all", content: null);
+        using var response = await client.PostAsync($"{NotificationsBasePath}/read-all", content: null, cancellationToken: TestContext.Current.CancellationToken);
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        var payload = await response.DeserializeAsync<UpdatedCountPayload>();
+        var payload = await response.DeserializeAsync<UpdatedCountPayload>(ct: TestContext.Current.CancellationToken);
         payload.Updated.ShouldBe(0);
     }
 
@@ -126,7 +125,7 @@ public sealed class NotificationsEndpointTests
     {
         var user = await RegisterFreshUserAsync();
         var seeded = await SeedNotificationsAsync(user.Id, count: 1, type: "test.shape");
-        using var client = await _auth.CreateAuthenticatedClientAsync(user.Email, user.Password);
+        using var client = await _auth.CreateAuthenticatedClientAsync(user.Email, user.Password, ct: TestContext.Current.CancellationToken);
 
         var inbox = await ReadInboxAsync(client);
 
@@ -145,10 +144,10 @@ public sealed class NotificationsEndpointTests
     {
         var user = await RegisterFreshUserAsync();
         await SeedNotificationsAsync(user.Id, count: 3);
-        using var client = await _auth.CreateAuthenticatedClientAsync(user.Email, user.Password);
+        using var client = await _auth.CreateAuthenticatedClientAsync(user.Email, user.Password, ct: TestContext.Current.CancellationToken);
 
-        using var response = await client.GetAsync($"{NotificationsBasePath}/unread-count");
-        var count = await response.DeserializeAsync<int>();
+        using var response = await client.GetAsync($"{NotificationsBasePath}/unread-count", TestContext.Current.CancellationToken);
+        var count = await response.DeserializeAsync<int>(ct: TestContext.Current.CancellationToken);
 
         count.ShouldBe(3);
     }
@@ -158,10 +157,9 @@ public sealed class NotificationsEndpointTests
     {
         var user = await RegisterFreshUserAsync();
         var seeded = await SeedNotificationsAsync(user.Id, count: 2);
-        using var client = await _auth.CreateAuthenticatedClientAsync(user.Email, user.Password);
+        using var client = await _auth.CreateAuthenticatedClientAsync(user.Email, user.Password, ct: TestContext.Current.CancellationToken);
 
-        using var markResponse = await client.PostAsync(
-            $"{NotificationsBasePath}/{seeded[0]}/read", content: null);
+        using var markResponse = await client.PostAsync($"{NotificationsBasePath}/{seeded[0]}/read", content: null, cancellationToken: TestContext.Current.CancellationToken);
         markResponse.StatusCode.ShouldBe(HttpStatusCode.NoContent);
 
         var inbox = await ReadInboxAsync(client);
@@ -179,9 +177,9 @@ public sealed class NotificationsEndpointTests
         // mutate the timestamp. This guards against the "MarkRead is a setter" misreading.
         var user = await RegisterFreshUserAsync();
         var seeded = await SeedNotificationsAsync(user.Id, count: 1);
-        using var client = await _auth.CreateAuthenticatedClientAsync(user.Email, user.Password);
+        using var client = await _auth.CreateAuthenticatedClientAsync(user.Email, user.Password, ct: TestContext.Current.CancellationToken);
 
-        using var first = await client.PostAsync($"{NotificationsBasePath}/{seeded[0]}/read", content: null);
+        using var first = await client.PostAsync($"{NotificationsBasePath}/{seeded[0]}/read", content: null, cancellationToken: TestContext.Current.CancellationToken);
         first.StatusCode.ShouldBe(HttpStatusCode.NoContent);
 
         var inboxAfterFirst = await ReadInboxAsync(client);
@@ -189,9 +187,9 @@ public sealed class NotificationsEndpointTests
         stampedAt.ShouldNotBeNull();
 
         // Wait a beat so any spurious re-stamp would produce a clearly different timestamp.
-        await Task.Delay(20);
+        await Task.Delay(20, TestContext.Current.CancellationToken);
 
-        using var second = await client.PostAsync($"{NotificationsBasePath}/{seeded[0]}/read", content: null);
+        using var second = await client.PostAsync($"{NotificationsBasePath}/{seeded[0]}/read", content: null, cancellationToken: TestContext.Current.CancellationToken);
         second.StatusCode.ShouldBe(HttpStatusCode.NoContent);
 
         var inboxAfterSecond = await ReadInboxAsync(client);
@@ -207,15 +205,14 @@ public sealed class NotificationsEndpointTests
         var alice = await RegisterFreshUserAsync("alice");
         var bob = await RegisterFreshUserAsync("bob");
         var bobsNotification = (await SeedNotificationsAsync(bob.Id, count: 1))[0];
-        using var aliceClient = await _auth.CreateAuthenticatedClientAsync(alice.Email, alice.Password);
+        using var aliceClient = await _auth.CreateAuthenticatedClientAsync(alice.Email, alice.Password, ct: TestContext.Current.CancellationToken);
 
-        using var response = await aliceClient.PostAsync(
-            $"{NotificationsBasePath}/{bobsNotification}/read", content: null);
+        using var response = await aliceClient.PostAsync($"{NotificationsBasePath}/{bobsNotification}/read", content: null, cancellationToken: TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
 
         // Bob's row must remain unread — Alice's request mustn't be able to mark it as a side effect.
-        using var bobClient = await _auth.CreateAuthenticatedClientAsync(bob.Email, bob.Password);
+        using var bobClient = await _auth.CreateAuthenticatedClientAsync(bob.Email, bob.Password, ct: TestContext.Current.CancellationToken);
         var bobInbox = await ReadInboxAsync(bobClient);
         bobInbox.Single(n => n.Id == bobsNotification).ReadAtUtc.ShouldBeNull(
             "Alice's failed MarkRead must not mutate Bob's notification");
@@ -225,10 +222,9 @@ public sealed class NotificationsEndpointTests
     public async Task MarkNotificationRead_Should_Return404_When_Notification_DoesNotExist()
     {
         var user = await RegisterFreshUserAsync();
-        using var client = await _auth.CreateAuthenticatedClientAsync(user.Email, user.Password);
+        using var client = await _auth.CreateAuthenticatedClientAsync(user.Email, user.Password, ct: TestContext.Current.CancellationToken);
 
-        using var response = await client.PostAsync(
-            $"{NotificationsBasePath}/{Guid.NewGuid()}/read", content: null);
+        using var response = await client.PostAsync($"{NotificationsBasePath}/{Guid.NewGuid()}/read", content: null, cancellationToken: TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
@@ -240,11 +236,11 @@ public sealed class NotificationsEndpointTests
     {
         var user = await RegisterFreshUserAsync();
         await SeedNotificationsAsync(user.Id, count: 4);
-        using var client = await _auth.CreateAuthenticatedClientAsync(user.Email, user.Password);
+        using var client = await _auth.CreateAuthenticatedClientAsync(user.Email, user.Password, ct: TestContext.Current.CancellationToken);
 
-        using var response = await client.PostAsync($"{NotificationsBasePath}/read-all", content: null);
+        using var response = await client.PostAsync($"{NotificationsBasePath}/read-all", content: null, cancellationToken: TestContext.Current.CancellationToken);
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var payload = await response.DeserializeAsync<UpdatedCountPayload>();
+        var payload = await response.DeserializeAsync<UpdatedCountPayload>(ct: TestContext.Current.CancellationToken);
         payload.Updated.ShouldBe(4);
 
         (await GetUnreadCountAsync(client)).ShouldBe(0);
@@ -259,14 +255,14 @@ public sealed class NotificationsEndpointTests
     {
         var user = await RegisterFreshUserAsync();
         await SeedNotificationsAsync(user.Id, count: 2);
-        using var client = await _auth.CreateAuthenticatedClientAsync(user.Email, user.Password);
+        using var client = await _auth.CreateAuthenticatedClientAsync(user.Email, user.Password, ct: TestContext.Current.CancellationToken);
 
-        using var firstCall = await client.PostAsync($"{NotificationsBasePath}/read-all", content: null);
-        (await firstCall.DeserializeAsync<UpdatedCountPayload>()).Updated.ShouldBe(2);
+        using var firstCall = await client.PostAsync($"{NotificationsBasePath}/read-all", content: null, cancellationToken: TestContext.Current.CancellationToken);
+        (await firstCall.DeserializeAsync<UpdatedCountPayload>(ct: TestContext.Current.CancellationToken)).Updated.ShouldBe(2);
 
-        using var secondCall = await client.PostAsync($"{NotificationsBasePath}/read-all", content: null);
+        using var secondCall = await client.PostAsync($"{NotificationsBasePath}/read-all", content: null, cancellationToken: TestContext.Current.CancellationToken);
         secondCall.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var second = await secondCall.DeserializeAsync<UpdatedCountPayload>();
+        var second = await secondCall.DeserializeAsync<UpdatedCountPayload>(ct: TestContext.Current.CancellationToken);
         second.Updated.ShouldBe(0, "Second read-all must update nothing");
     }
 
@@ -278,13 +274,13 @@ public sealed class NotificationsEndpointTests
         var bob = await RegisterFreshUserAsync("bob");
         await SeedNotificationsAsync(alice.Id, count: 2);
         await SeedNotificationsAsync(bob.Id, count: 3);
-        using var aliceClient = await _auth.CreateAuthenticatedClientAsync(alice.Email, alice.Password);
+        using var aliceClient = await _auth.CreateAuthenticatedClientAsync(alice.Email, alice.Password, ct: TestContext.Current.CancellationToken);
 
-        using var response = await aliceClient.PostAsync($"{NotificationsBasePath}/read-all", content: null);
-        var payload = await response.DeserializeAsync<UpdatedCountPayload>();
+        using var response = await aliceClient.PostAsync($"{NotificationsBasePath}/read-all", content: null, cancellationToken: TestContext.Current.CancellationToken);
+        var payload = await response.DeserializeAsync<UpdatedCountPayload>(ct: TestContext.Current.CancellationToken);
         payload.Updated.ShouldBe(2, "read-all must scope strictly to the caller");
 
-        using var bobClient = await _auth.CreateAuthenticatedClientAsync(bob.Email, bob.Password);
+        using var bobClient = await _auth.CreateAuthenticatedClientAsync(bob.Email, bob.Password, ct: TestContext.Current.CancellationToken);
         (await GetUnreadCountAsync(bobClient)).ShouldBe(3, "Bob's inbox must be untouched by Alice's read-all");
     }
 
@@ -295,19 +291,19 @@ public sealed class NotificationsEndpointTests
     {
         var user = await RegisterFreshUserAsync();
         var seeded = await SeedNotificationsAsync(user.Id, count: 3);
-        using var client = await _auth.CreateAuthenticatedClientAsync(user.Email, user.Password);
+        using var client = await _auth.CreateAuthenticatedClientAsync(user.Email, user.Password, ct: TestContext.Current.CancellationToken);
 
         // Mark the first as read; the other two stay unread.
-        await client.PostAsync($"{NotificationsBasePath}/{seeded[0]}/read", content: null);
+        await client.PostAsync($"{NotificationsBasePath}/{seeded[0]}/read", content: null, cancellationToken: TestContext.Current.CancellationToken);
 
-        using var unreadOnlyResp = await client.GetAsync($"{NotificationsBasePath}/?unreadOnly=true");
-        var unreadList = await unreadOnlyResp.DeserializeAsync<IReadOnlyList<NotificationDto>>();
+        using var unreadOnlyResp = await client.GetAsync($"{NotificationsBasePath}/?unreadOnly=true", TestContext.Current.CancellationToken);
+        var unreadList = await unreadOnlyResp.DeserializeAsync<IReadOnlyList<NotificationDto>>(ct: TestContext.Current.CancellationToken);
         unreadList.Count.ShouldBe(2);
         unreadList.ShouldAllBe(n => n.ReadAtUtc == null);
         unreadList.ShouldNotContain(n => n.Id == seeded[0]);
 
-        using var allResp = await client.GetAsync($"{NotificationsBasePath}/");
-        var allList = await allResp.DeserializeAsync<IReadOnlyList<NotificationDto>>();
+        using var allResp = await client.GetAsync($"{NotificationsBasePath}/", TestContext.Current.CancellationToken);
+        var allList = await allResp.DeserializeAsync<IReadOnlyList<NotificationDto>>(ct: TestContext.Current.CancellationToken);
         allList.Count.ShouldBe(3, "Default list (no unreadOnly) must include both read and unread");
     }
 
@@ -316,7 +312,7 @@ public sealed class NotificationsEndpointTests
     {
         var user = await RegisterFreshUserAsync();
         var seeded = await SeedNotificationsAsync(user.Id, count: 3, spaceCreationByMs: 50);
-        using var client = await _auth.CreateAuthenticatedClientAsync(user.Email, user.Password);
+        using var client = await _auth.CreateAuthenticatedClientAsync(user.Email, user.Password, ct: TestContext.Current.CancellationToken);
 
         var inbox = await ReadInboxAsync(client);
         inbox.Count.ShouldBe(3);
@@ -332,16 +328,16 @@ public sealed class NotificationsEndpointTests
     {
         var user = await RegisterFreshUserAsync();
         var seeded = await SeedNotificationsAsync(user.Id, count: 4, spaceCreationByMs: 50);
-        using var client = await _auth.CreateAuthenticatedClientAsync(user.Email, user.Password);
+        using var client = await _auth.CreateAuthenticatedClientAsync(user.Email, user.Password, ct: TestContext.Current.CancellationToken);
 
-        using var page1Resp = await client.GetAsync($"{NotificationsBasePath}/?page=1&pageSize=2");
-        var page1 = await page1Resp.DeserializeAsync<IReadOnlyList<NotificationDto>>();
+        using var page1Resp = await client.GetAsync($"{NotificationsBasePath}/?page=1&pageSize=2", TestContext.Current.CancellationToken);
+        var page1 = await page1Resp.DeserializeAsync<IReadOnlyList<NotificationDto>>(ct: TestContext.Current.CancellationToken);
         page1.Count.ShouldBe(2, "Page 1 with pageSize=2 must return the first 2 rows");
         page1[0].Id.ShouldBe(seeded[3], "Newest first across pages");
         page1[1].Id.ShouldBe(seeded[2]);
 
-        using var page2Resp = await client.GetAsync($"{NotificationsBasePath}/?page=2&pageSize=2");
-        var page2 = await page2Resp.DeserializeAsync<IReadOnlyList<NotificationDto>>();
+        using var page2Resp = await client.GetAsync($"{NotificationsBasePath}/?page=2&pageSize=2", TestContext.Current.CancellationToken);
+        var page2 = await page2Resp.DeserializeAsync<IReadOnlyList<NotificationDto>>(ct: TestContext.Current.CancellationToken);
         page2.Count.ShouldBe(2);
         page2[0].Id.ShouldBe(seeded[1]);
         page2[1].Id.ShouldBe(seeded[0]);

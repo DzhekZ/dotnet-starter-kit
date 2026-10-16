@@ -60,14 +60,14 @@ public sealed class OutboxAtomicityTests
         var brand = Brand.Create($"atomicity-{Guid.CreateVersion7():N}", null, null);
         var eventId = Guid.CreateVersion7();
 
-        await using (var transaction = await catalog.Database.BeginTransactionAsync())
+        await using (var transaction = await catalog.Database.BeginTransactionAsync(TestContext.Current.CancellationToken))
         {
             catalog.Brands.Add(brand);
-            await catalog.SaveChangesAsync();
+            await catalog.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-            await store.AddAsync(NewEvent(eventId));
+            await store.AddAsync(NewEvent(eventId), TestContext.Current.CancellationToken);
 
-            await transaction.RollbackAsync();
+            await transaction.RollbackAsync(TestContext.Current.CancellationToken);
         }
 
         await AssertOutboxRowAsync(eventId, shouldExist: false,
@@ -89,14 +89,14 @@ public sealed class OutboxAtomicityTests
         var brand = Brand.Create($"atomicity-{Guid.CreateVersion7():N}", null, null);
         var eventId = Guid.CreateVersion7();
 
-        await using (var transaction = await catalog.Database.BeginTransactionAsync())
+        await using (var transaction = await catalog.Database.BeginTransactionAsync(TestContext.Current.CancellationToken))
         {
             catalog.Brands.Add(brand);
-            await catalog.SaveChangesAsync();
+            await catalog.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-            await store.AddAsync(NewEvent(eventId));
+            await store.AddAsync(NewEvent(eventId), TestContext.Current.CancellationToken);
 
-            await transaction.CommitAsync();
+            await transaction.CommitAsync(TestContext.Current.CancellationToken);
         }
 
         await AssertOutboxRowAsync(eventId, shouldExist: true,
@@ -115,7 +115,7 @@ public sealed class OutboxAtomicityTests
         var store = scope.ServiceProvider.GetRequiredService<IOutboxStore>();
         var eventId = Guid.CreateVersion7();
 
-        await store.AddAsync(NewEvent(eventId));
+        await store.AddAsync(NewEvent(eventId), TestContext.Current.CancellationToken);
 
         await AssertOutboxRowAsync(eventId, shouldExist: true,
             "with no ambient transaction the store must behave exactly as it always has");
@@ -133,16 +133,16 @@ public sealed class OutboxAtomicityTests
         var store = scope.ServiceProvider.GetRequiredService<IOutboxStore>();
 
         var insideId = Guid.CreateVersion7();
-        await using (var transaction = await catalog.Database.BeginTransactionAsync())
+        await using (var transaction = await catalog.Database.BeginTransactionAsync(TestContext.Current.CancellationToken))
         {
-            await store.AddAsync(NewEvent(insideId));
-            await transaction.RollbackAsync();
+            await store.AddAsync(NewEvent(insideId), TestContext.Current.CancellationToken);
+            await transaction.RollbackAsync(TestContext.Current.CancellationToken);
         }
 
         // The eventing context is still holding the transaction it joined; a naive implementation
         // would now fail or silently write into a completed transaction.
         var afterId = Guid.CreateVersion7();
-        await store.AddAsync(NewEvent(afterId));
+        await store.AddAsync(NewEvent(afterId), TestContext.Current.CancellationToken);
 
         await AssertOutboxRowAsync(insideId, shouldExist: false, "rolled back with its transaction");
         await AssertOutboxRowAsync(afterId, shouldExist: true, "a later write must stand on its own again");

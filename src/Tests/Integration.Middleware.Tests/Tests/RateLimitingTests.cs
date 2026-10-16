@@ -74,7 +74,7 @@ public sealed class RateLimitingTests
             rejected.Headers.TryGetValues("Retry-After", out var retryAfter).ShouldBeTrue();
             retryAfter.ShouldNotBeEmpty();
 
-            var body = await rejected.Content.ReadAsStringAsync();
+            var body = await rejected.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
             using var doc = JsonDocument.Parse(body);
             var root = doc.RootElement;
 

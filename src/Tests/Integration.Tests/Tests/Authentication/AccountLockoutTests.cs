@@ -24,7 +24,7 @@ public sealed class AccountLockoutTests
     [Fact]
     public async Task Login_Should_LockAccount_After_ConsecutiveFailedAttempts()
     {
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var (email, _) = await CreateConfirmedUserAsync(rootClient);
 
         // Five wrong-password attempts must all return 401 (generic auth failure).
@@ -43,7 +43,7 @@ public sealed class AccountLockoutTests
     [Fact]
     public async Task Login_Should_ResetFailedCount_After_SuccessfulAuthentication()
     {
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var (email, password) = await CreateConfirmedUserAsync(rootClient);
 
         // Three wrong attempts — below the 5-attempt threshold.

@@ -10,10 +10,10 @@ public interface IUserRoleService
     /// <summary>
     /// Assigns roles to a user.
     /// </summary>
-    Task<string> AssignRolesAsync(string userId, List<UserRoleDto> userRoles, CancellationToken cancellationToken);
+    Task<string> AssignRolesAsync(string userId, List<UserRoleDto> userRoles, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Gets all roles for a user.
     /// </summary>
-    Task<List<UserRoleDto>> GetUserRolesAsync(string userId, CancellationToken cancellationToken);
+    Task<List<UserRoleDto>> GetUserRolesAsync(string userId, CancellationToken cancellationToken = default);
 }

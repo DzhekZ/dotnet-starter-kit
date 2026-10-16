@@ -25,15 +25,14 @@ public sealed class ForgotPasswordRequestTests
     public async Task ForgotPassword_Should_ReturnOk_When_EmailBelongsToExistingUser()
     {
         // Arrange
-        using var adminClient = await _auth.CreateRootAdminClientAsync();
+        using var adminClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var user = await IdentityUserSeeder.CreateLoginableUserAsync(_factory, adminClient, "forgot-known");
 
         using var client = _factory.CreateClient();
         client.DefaultRequestHeaders.Add("tenant", TestConstants.RootTenantId);
 
         // Act
-        var response = await client.PostAsJsonAsync(
-            $"{TestConstants.IdentityBasePath}/forgot-password", new { email = user.Email });
+        var response = await client.PostAsJsonAsync($"{TestConstants.IdentityBasePath}/forgot-password", new { email = user.Email }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
@@ -47,8 +46,7 @@ public sealed class ForgotPasswordRequestTests
         client.DefaultRequestHeaders.Add("tenant", TestConstants.RootTenantId);
 
         // Act
-        var response = await client.PostAsJsonAsync(
-            $"{TestConstants.IdentityBasePath}/forgot-password", new { email = "" });
+        var response = await client.PostAsJsonAsync($"{TestConstants.IdentityBasePath}/forgot-password", new { email = "" }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
@@ -62,8 +60,7 @@ public sealed class ForgotPasswordRequestTests
         client.DefaultRequestHeaders.Add("tenant", TestConstants.RootTenantId);
 
         // Act
-        var response = await client.PostAsJsonAsync(
-            $"{TestConstants.IdentityBasePath}/forgot-password", new { email = "not-an-email" });
+        var response = await client.PostAsJsonAsync($"{TestConstants.IdentityBasePath}/forgot-password", new { email = "not-an-email" }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
@@ -73,7 +70,7 @@ public sealed class ForgotPasswordRequestTests
     public async Task ForgotPassword_Should_Reject_When_OriginNotAllowed()
     {
         // Arrange - a forged Origin header (not in FrontendOptions:AllowedOrigins) must never build a reset link.
-        using var adminClient = await _auth.CreateRootAdminClientAsync();
+        using var adminClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var user = await IdentityUserSeeder.CreateLoginableUserAsync(_factory, adminClient, "forgot-forged");
 
         using var client = _factory.CreateClient();
@@ -82,8 +79,7 @@ public sealed class ForgotPasswordRequestTests
         client.DefaultRequestHeaders.Add("Origin", "https://evil.example.com");
 
         // Act
-        var response = await client.PostAsJsonAsync(
-            $"{TestConstants.IdentityBasePath}/forgot-password", new { email = user.Email });
+        var response = await client.PostAsJsonAsync($"{TestConstants.IdentityBasePath}/forgot-password", new { email = user.Email }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert - a present-but-unlisted origin is a client fault: 400, not the 500 a server fault
         // would raise, and not the uniform OK the happy path returns.
@@ -98,9 +94,7 @@ public sealed class ForgotPasswordRequestTests
         client.DefaultRequestHeaders.Add("tenant", TestConstants.RootTenantId);
 
         // Act
-        var response = await client.PostAsJsonAsync(
-            $"{TestConstants.IdentityBasePath}/forgot-password",
-            new { email = $"definitely-missing-{Guid.NewGuid():N}@example.com" });
+        var response = await client.PostAsJsonAsync($"{TestConstants.IdentityBasePath}/forgot-password", new { email = $"definitely-missing-{Guid.NewGuid():N}@example.com" }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert — should be indistinguishable from the known-email path.
         response.StatusCode.ShouldBe(HttpStatusCode.OK);

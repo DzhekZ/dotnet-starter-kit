@@ -43,14 +43,12 @@ public sealed class WalletEndpointsTests
     [Fact]
     public async Task CreateTopupRequest_Should_Return200_And_NewGuid()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
-        using var response = await client.PostAsJsonAsync(
-            $"{BillingBasePath}/wallet/topup-requests",
-            new { amount = 100m, note = "integration test topup" });
+        using var response = await client.PostAsJsonAsync($"{BillingBasePath}/wallet/topup-requests", new { amount = 100m, note = "integration test topup" }, cancellationToken: TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var id = await response.DeserializeAsync<Guid>();
+        var id = await response.DeserializeAsync<Guid>(ct: TestContext.Current.CancellationToken);
         id.ShouldNotBe(Guid.Empty);
     }
 
@@ -59,18 +57,15 @@ public sealed class WalletEndpointsTests
     [Fact]
     public async Task GetMyTopupRequests_Should_Include_JustCreated_Request_As_Pending()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
         // Create a topup request.
-        using var createResp = await client.PostAsJsonAsync(
-            $"{BillingBasePath}/wallet/topup-requests",
-            new { amount = 75m, note = "list-check" });
+        using var createResp = await client.PostAsJsonAsync($"{BillingBasePath}/wallet/topup-requests", new { amount = 75m, note = "list-check" }, cancellationToken: TestContext.Current.CancellationToken);
         createResp.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var requestId = await createResp.DeserializeAsync<Guid>();
+        var requestId = await createResp.DeserializeAsync<Guid>(ct: TestContext.Current.CancellationToken);
 
         // Retrieve the list and assert the new request is present with Pending status.
-        using var listResp = await client.GetAsync(
-            $"{BillingBasePath}/wallet/topup-requests/me?pageNumber=1&pageSize=50");
+        using var listResp = await client.GetAsync($"{BillingBasePath}/wallet/topup-requests/me?pageNumber=1&pageSize=50", TestContext.Current.CancellationToken);
         listResp.StatusCode.ShouldBe(HttpStatusCode.OK);
         var page = await ParseAsync<PagedResponse<TopupRequestDto>>(listResp);
 
@@ -85,9 +80,9 @@ public sealed class WalletEndpointsTests
     [Fact]
     public async Task GetMyWallet_Should_Return_WalletDto_With_Zero_Balance_When_No_Credits()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
-        using var response = await client.GetAsync($"{BillingBasePath}/wallet/me");
+        using var response = await client.GetAsync($"{BillingBasePath}/wallet/me", TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
         var wallet = await ParseAsync<WalletDto>(response);
@@ -109,9 +104,7 @@ public sealed class WalletEndpointsTests
         using var client = _factory.CreateClient();
         client.DefaultRequestHeaders.Add("tenant", TestConstants.RootTenantId);
 
-        using var response = await client.PostAsJsonAsync(
-            $"{BillingBasePath}/wallet/topup-requests",
-            new { amount = 50m, note = "unauth" });
+        using var response = await client.PostAsJsonAsync($"{BillingBasePath}/wallet/topup-requests", new { amount = 50m, note = "unauth" }, cancellationToken: TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
     }
@@ -122,8 +115,7 @@ public sealed class WalletEndpointsTests
         using var client = _factory.CreateClient();
         client.DefaultRequestHeaders.Add("tenant", TestConstants.RootTenantId);
 
-        using var response = await client.GetAsync(
-            $"{BillingBasePath}/wallet/topup-requests/me?pageNumber=1&pageSize=20");
+        using var response = await client.GetAsync($"{BillingBasePath}/wallet/topup-requests/me?pageNumber=1&pageSize=20", TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
     }
@@ -134,7 +126,7 @@ public sealed class WalletEndpointsTests
         using var client = _factory.CreateClient();
         client.DefaultRequestHeaders.Add("tenant", TestConstants.RootTenantId);
 
-        using var response = await client.GetAsync($"{BillingBasePath}/wallet/me");
+        using var response = await client.GetAsync($"{BillingBasePath}/wallet/me", TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
     }
@@ -145,13 +137,11 @@ public sealed class WalletEndpointsTests
     public async Task GetMyTopupRequests_Must_NotLeak_Requests_From_Other_Tenant()
     {
         // Arrange — root (Tenant A) creates a topup request.
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
-        using var createResp = await rootClient.PostAsJsonAsync(
-            $"{BillingBasePath}/wallet/topup-requests",
-            new { amount = 200m, note = "tenant-a-request" });
+        using var createResp = await rootClient.PostAsJsonAsync($"{BillingBasePath}/wallet/topup-requests", new { amount = 200m, note = "tenant-a-request" }, cancellationToken: TestContext.Current.CancellationToken);
         createResp.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var rootRequestId = await createResp.DeserializeAsync<Guid>();
+        var rootRequestId = await createResp.DeserializeAsync<Guid>(ct: TestContext.Current.CancellationToken);
 
         // Arrange — provision a fresh Tenant B.
         var uniqueId = Guid.NewGuid().ToString("N")[..8];
@@ -165,8 +155,7 @@ public sealed class WalletEndpointsTests
             otherAdminEmail, TestConstants.DefaultPassword, otherTenantId);
 
         // Act — Tenant B lists its own topup requests.
-        using var otherListResp = await otherClient.GetAsync(
-            $"{BillingBasePath}/wallet/topup-requests/me?pageNumber=1&pageSize=100");
+        using var otherListResp = await otherClient.GetAsync($"{BillingBasePath}/wallet/topup-requests/me?pageNumber=1&pageSize=100", TestContext.Current.CancellationToken);
         otherListResp.StatusCode.ShouldBe(HttpStatusCode.OK);
         var otherPage = await ParseAsync<PagedResponse<TopupRequestDto>>(otherListResp);
 
@@ -175,8 +164,7 @@ public sealed class WalletEndpointsTests
             "Tenant B must not see Tenant A's top-up request");
 
         // Sanity — Tenant A can still see its own request.
-        using var rootListResp = await rootClient.GetAsync(
-            $"{BillingBasePath}/wallet/topup-requests/me?pageNumber=1&pageSize=100");
+        using var rootListResp = await rootClient.GetAsync($"{BillingBasePath}/wallet/topup-requests/me?pageNumber=1&pageSize=100", TestContext.Current.CancellationToken);
         rootListResp.StatusCode.ShouldBe(HttpStatusCode.OK);
         var rootPage = await ParseAsync<PagedResponse<TopupRequestDto>>(rootListResp);
         rootPage.Items.ShouldContain(r => r.Id == rootRequestId,

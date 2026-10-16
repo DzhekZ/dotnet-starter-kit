@@ -21,7 +21,8 @@ public sealed class GetUserGroupsQueryHandler : IQueryHandler<GetUserGroupsQuery
         // Validate user exists
         var userExists = await _dbContext.Users
             .AsNoTracking()
-            .AnyAsync(u => u.Id == query.UserId, cancellationToken);
+            .AnyAsync(u => u.Id == query.UserId, cancellationToken)
+            .ConfigureAwait(false);
 
         if (!userExists)
         {
@@ -33,7 +34,8 @@ public sealed class GetUserGroupsQueryHandler : IQueryHandler<GetUserGroupsQuery
             .AsNoTracking()
             .Where(ug => ug.UserId == query.UserId)
             .Select(ug => ug.GroupId)
-            .ToListAsync(cancellationToken);
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
 
         if (groupIds.Count == 0)
         {
@@ -44,7 +46,8 @@ public sealed class GetUserGroupsQueryHandler : IQueryHandler<GetUserGroupsQuery
             .AsNoTracking()
             .Include(g => g.GroupRoles)
             .Where(g => groupIds.Contains(g.Id))
-            .ToListAsync(cancellationToken);
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
 
         // Get member counts
         var memberCounts = await _dbContext.UserGroups
@@ -52,7 +55,8 @@ public sealed class GetUserGroupsQueryHandler : IQueryHandler<GetUserGroupsQuery
             .Where(ug => groupIds.Contains(ug.GroupId))
             .GroupBy(ug => ug.GroupId)
             .Select(g => new { GroupId = g.Key, Count = g.Count() })
-            .ToDictionaryAsync(x => x.GroupId, x => x.Count, cancellationToken);
+            .ToDictionaryAsync(x => x.GroupId, x => x.Count, cancellationToken)
+            .ConfigureAwait(false);
 
         // Get role names
         var allRoleIds = groups
@@ -65,6 +69,7 @@ public sealed class GetUserGroupsQueryHandler : IQueryHandler<GetUserGroupsQuery
                 .AsNoTracking()
                 .Where(r => allRoleIds.Contains(r.Id))
                 .ToDictionaryAsync(r => r.Id, r => r.Name!, cancellationToken)
+                .ConfigureAwait(false)
             : new Dictionary<string, string>();
 
         return groups.Select(g => new GroupDto

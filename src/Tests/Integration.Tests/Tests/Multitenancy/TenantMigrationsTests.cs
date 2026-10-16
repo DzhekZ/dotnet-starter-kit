@@ -39,14 +39,14 @@ public sealed class TenantMigrationsTests
     public async Task GetMigrations_Should_IncludeRootTenant_WithProviderAndNoPending()
     {
         // Arrange
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var response = await rootClient.GetAsync(MigrationsPath);
+        var response = await rootClient.GetAsync(MigrationsPath, TestContext.Current.CancellationToken);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var statuses = await response.Content.ReadFromJsonAsync<List<MigrationStatus>>(Json);
+        var statuses = await response.Content.ReadFromJsonAsync<List<MigrationStatus>>(Json, cancellationToken: TestContext.Current.CancellationToken);
         statuses.ShouldNotBeNull();
 
         var root = statuses.SingleOrDefault(s => s.TenantId == TestConstants.RootTenantId);
@@ -63,18 +63,18 @@ public sealed class TenantMigrationsTests
     public async Task GetMigrations_Should_IncludeNewlyProvisionedTenant_When_ProvisioningCompleted()
     {
         // Arrange — provision a fresh tenant.
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var unique = Guid.NewGuid().ToString("N")[..8];
         var tenantId = $"mig-{unique}";
         await CreateTenantAsync(rootClient, tenantId, $"mig-{unique}@tenant.com");
         await TenantProvisioningWait.WaitForProvisioningAsync(rootClient, tenantId);
 
         // Act
-        var response = await rootClient.GetAsync(MigrationsPath);
+        var response = await rootClient.GetAsync(MigrationsPath, TestContext.Current.CancellationToken);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var statuses = await response.Content.ReadFromJsonAsync<List<MigrationStatus>>(Json);
+        var statuses = await response.Content.ReadFromJsonAsync<List<MigrationStatus>>(Json, cancellationToken: TestContext.Current.CancellationToken);
         statuses.ShouldNotBeNull();
 
         var tenant = statuses.SingleOrDefault(s => s.TenantId == tenantId);
@@ -97,7 +97,7 @@ public sealed class TenantMigrationsTests
         client.DefaultRequestHeaders.Add("tenant", TestConstants.RootTenantId);
 
         // Act
-        var response = await client.GetAsync(MigrationsPath);
+        var response = await client.GetAsync(MigrationsPath, TestContext.Current.CancellationToken);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
@@ -107,7 +107,7 @@ public sealed class TenantMigrationsTests
     public async Task GetMigrations_Should_Forbid_When_CallerIsTenantAdmin()
     {
         // Arrange — Tenants.View is a root-only permission; a tenant admin lacks it.
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var unique = Guid.NewGuid().ToString("N")[..8];
         var tenantId = $"mig-authz-{unique}";
         var adminEmail = $"mig-authz-{unique}@tenant.com";
@@ -118,7 +118,7 @@ public sealed class TenantMigrationsTests
             adminEmail, TestConstants.DefaultPassword, tenantId);
 
         // Act
-        var response = await tenantClient.GetAsync(MigrationsPath);
+        var response = await tenantClient.GetAsync(MigrationsPath, TestContext.Current.CancellationToken);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);

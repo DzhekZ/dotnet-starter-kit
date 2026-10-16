@@ -53,7 +53,7 @@ public sealed class TwoFactorAuthTests
         var (email, password) = await CreateConfirmedUserAsync();
         using var client = await SignInAsync(email, password);
 
-        var response = await client.PostAsJsonAsync("/api/v1/identity/2fa/enroll", new { });
+        var response = await client.PostAsJsonAsync("/api/v1/identity/2fa/enroll", new { }, cancellationToken: TestContext.Current.CancellationToken);
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
         var enrollment = await DeserializeAsync<TwoFactorEnrollmentResponse>(response);
@@ -88,9 +88,9 @@ public sealed class TwoFactorAuthTests
     {
         var (email, password) = await CreateConfirmedUserAsync();
         using var client = await SignInAsync(email, password);
-        (await client.PostAsJsonAsync("/api/v1/identity/2fa/enroll", new { })).EnsureSuccessStatusCode();
+        (await client.PostAsJsonAsync("/api/v1/identity/2fa/enroll", new { }, cancellationToken: TestContext.Current.CancellationToken)).EnsureSuccessStatusCode();
 
-        var response = await client.PostAsJsonAsync("/api/v1/identity/2fa/verify", new { code = "000000" });
+        var response = await client.PostAsJsonAsync("/api/v1/identity/2fa/verify", new { code = "000000" }, cancellationToken: TestContext.Current.CancellationToken);
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
 
         (await IsTwoFactorEnabledAsync(email)).ShouldBeFalse();
@@ -108,9 +108,7 @@ public sealed class TwoFactorAuthTests
         using var client = await SignInAsync(email, password);
         await SetTwoFactorAsync(email, enabled: true);
 
-        var wrongPasswordResponse = await client.PostAsJsonAsync(
-            "/api/v1/identity/2fa/disable",
-            new { currentPassword = "NotThePassword!1" });
+        var wrongPasswordResponse = await client.PostAsJsonAsync("/api/v1/identity/2fa/disable", new { currentPassword = "NotThePassword!1" }, cancellationToken: TestContext.Current.CancellationToken);
         wrongPasswordResponse.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
 
         (await IsTwoFactorEnabledAsync(email)).ShouldBeTrue();

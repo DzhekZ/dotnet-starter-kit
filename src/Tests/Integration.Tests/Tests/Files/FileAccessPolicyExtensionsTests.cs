@@ -15,11 +15,11 @@ public sealed class FileAccessPolicyExtensionsTests
     private sealed class StubPolicy : IFileAccessPolicy
     {
         public string OwnerType => "ExtensionsTestOwner";
-        public Task<bool> CanAttachAsync(Guid? ownerId, string currentUserId, CancellationToken cancellationToken)
+        public Task<bool> CanAttachAsync(Guid? ownerId, string currentUserId, CancellationToken cancellationToken = default)
             => Task.FromResult(true);
-        public Task<bool> CanReadAsync(FileAccessContext context, string currentUserId, CancellationToken cancellationToken)
+        public Task<bool> CanReadAsync(FileAccessContext context, string currentUserId, CancellationToken cancellationToken = default)
             => Task.FromResult(true);
-        public Task<bool> CanDeleteAsync(FileAccessContext context, string currentUserId, CancellationToken cancellationToken)
+        public Task<bool> CanDeleteAsync(FileAccessContext context, string currentUserId, CancellationToken cancellationToken = default)
             => Task.FromResult(true);
     }
 

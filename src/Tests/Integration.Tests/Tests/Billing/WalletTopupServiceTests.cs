@@ -52,23 +52,23 @@ public sealed class WalletTopupServiceTests
         // Arrange: seed a pending top-up request directly.
         var request = TopupRequest.Create(tenantId, 50m, "USD", "need credit", "user-1");
         db.TopupRequests.Add(request);
-        await db.SaveChangesAsync();
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act: create the top-up invoice.
-        var invoice = await billing.CreateTopupInvoiceAsync(tenantId, request.Id);
+        var invoice = await billing.CreateTopupInvoiceAsync(tenantId, request.Id, TestContext.Current.CancellationToken);
 
         invoice.Purpose.ShouldBe(InvoicePurpose.Topup);
         invoice.Status.ShouldBe(InvoiceStatus.Issued);
 
         // Act: mark it paid — should credit the wallet in the same UoW.
-        await billing.MarkInvoicePaidAsync(invoice.Id);
+        await billing.MarkInvoicePaidAsync(invoice.Id, TestContext.Current.CancellationToken);
 
         // Assert: wallet balance equals the top-up amount.
-        var wallet = await billing.GetOrCreateWalletAsync(tenantId, "USD");
+        var wallet = await billing.GetOrCreateWalletAsync(tenantId, "USD", TestContext.Current.CancellationToken);
         wallet.Balance.Amount.ShouldBe(50m);
 
         // Assert: request transitioned to Completed.
-        var reloaded = await db.TopupRequests.FindAsync(request.Id);
+        var reloaded = await db.TopupRequests.FindAsync(new object?[] { request.Id }, TestContext.Current.CancellationToken);
         reloaded!.Status.ShouldBe(TopupRequestStatus.Completed);
     }
 
@@ -94,11 +94,11 @@ public sealed class WalletTopupServiceTests
         var req1 = TopupRequest.Create(tenantId, 25m, "USD", "first", "user-1");
         var req2 = TopupRequest.Create(tenantId, 75m, "USD", "second", "user-1");
         db.TopupRequests.AddRange(req1, req2);
-        await db.SaveChangesAsync();
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act: create both top-up invoices. Should not throw despite same month/tenant.
-        var inv1 = await billing.CreateTopupInvoiceAsync(tenantId, req1.Id);
-        var inv2 = await billing.CreateTopupInvoiceAsync(tenantId, req2.Id);
+        var inv1 = await billing.CreateTopupInvoiceAsync(tenantId, req1.Id, TestContext.Current.CancellationToken);
+        var inv2 = await billing.CreateTopupInvoiceAsync(tenantId, req2.Id, TestContext.Current.CancellationToken);
 
         // Assert: both invoices are issued with Topup purpose and distinct numbers.
         inv1.Status.ShouldBe(InvoiceStatus.Issued);
@@ -129,8 +129,8 @@ public sealed class WalletTopupServiceTests
         // Arrange: seed a Pending request and advance it to Invoiced via the happy path.
         var request = TopupRequest.Create(tenantId, 10m, "USD", "advance to invoiced", "user-1");
         db.TopupRequests.Add(request);
-        await db.SaveChangesAsync();
-        await billing.CreateTopupInvoiceAsync(tenantId, request.Id);
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        await billing.CreateTopupInvoiceAsync(tenantId, request.Id, TestContext.Current.CancellationToken);
 
         // Act + Assert: a second call for the same (now Invoiced) request must 404, not 500.
         await Should.ThrowAsync<NotFoundException>(

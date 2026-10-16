@@ -133,7 +133,7 @@ public sealed class PaginationExtensionsTests
         var query = new PagedQuery { PageNumber = int.MaxValue, PageSize = 100 };
 
         // Act
-        var response = await Source(0).ToPagedResponseAsync(query);
+        var response = await Source(0).ToPagedResponseAsync(query, TestContext.Current.CancellationToken);
 
         // Assert
         response.Items.ShouldBeEmpty();
@@ -152,7 +152,7 @@ public sealed class PaginationExtensionsTests
         var query = new PagedQuery { PageNumber = int.MaxValue, PageSize = 100 };
 
         // Act
-        var response = await Source(250).ToPagedResponseAsync(query);
+        var response = await Source(250).ToPagedResponseAsync(query, TestContext.Current.CancellationToken);
 
         // Assert
         response.PageNumber.ShouldBe(3);

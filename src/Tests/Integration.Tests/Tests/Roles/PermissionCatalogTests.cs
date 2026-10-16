@@ -28,9 +28,9 @@ public sealed class PermissionCatalogTests
     [Fact]
     public async Task Catalog_Should_ReturnOk_When_CallerHasRolesView()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
-        var response = await client.GetAsync(CatalogPath);
+        var response = await client.GetAsync(CatalogPath, TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
@@ -38,9 +38,9 @@ public sealed class PermissionCatalogTests
     [Fact]
     public async Task Catalog_Should_ReturnEveryRegisteredAdminPermission_When_TenantIsRoot()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
-        var catalog = await client.GetFromJsonAsync<List<PermissionCatalogEntryDto>>(CatalogPath);
+        var catalog = await client.GetFromJsonAsync<List<PermissionCatalogEntryDto>>(CatalogPath, cancellationToken: TestContext.Current.CancellationToken);
 
         catalog.ShouldNotBeNull();
 
@@ -62,9 +62,9 @@ public sealed class PermissionCatalogTests
     [Fact]
     public async Task Catalog_Should_ShapeEachEntry_With_AllRequiredFields()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
-        var catalog = await client.GetFromJsonAsync<List<PermissionCatalogEntryDto>>(CatalogPath);
+        var catalog = await client.GetFromJsonAsync<List<PermissionCatalogEntryDto>>(CatalogPath, cancellationToken: TestContext.Current.CancellationToken);
 
         catalog.ShouldNotBeNull();
         catalog.ShouldNotBeEmpty();
@@ -86,7 +86,7 @@ public sealed class PermissionCatalogTests
         using var client = _factory.CreateClient();
         client.DefaultRequestHeaders.Add("tenant", TestConstants.RootTenantId);
 
-        var response = await client.GetAsync(CatalogPath);
+        var response = await client.GetAsync(CatalogPath, TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
     }

@@ -29,7 +29,7 @@ public sealed class UpdateUserCommandHandlerTests
         var command = _fixture.Create<UpdateUserCommand>();
 
         // Act
-        var result = await _sut.Handle(command, CancellationToken.None);
+        var result = await _sut.Handle(command, TestContext.Current.CancellationToken);
 
         // Assert
         result.ShouldBe(Unit.Value);
@@ -41,7 +41,8 @@ public sealed class UpdateUserCommandHandlerTests
             command.Image!,
             command.DeleteCurrentImage,
             command.Locale,
-            command.ExpectedConcurrencyStamps);
+            command.ExpectedConcurrencyStamps,
+            TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -54,7 +55,7 @@ public sealed class UpdateUserCommandHandlerTests
         command.ExpectedConcurrencyStamps = stamps;
 
         // Act
-        await _sut.Handle(command, CancellationToken.None);
+        await _sut.Handle(command, TestContext.Current.CancellationToken);
 
         // Assert
         await _userService.Received(1).UpdateAsync(
@@ -65,7 +66,8 @@ public sealed class UpdateUserCommandHandlerTests
             Arg.Any<FSH.Framework.Shared.Storage.FileUploadRequest>(),
             Arg.Any<bool>(),
             Arg.Any<string?>(),
-            Arg.Is<IReadOnlyList<string>?>(actual => actual != null && actual.SequenceEqual(stamps)));
+            Arg.Is<IReadOnlyList<string>?>(actual => actual != null && actual.SequenceEqual(stamps)),
+            TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -83,7 +85,7 @@ public sealed class UpdateUserCommandHandlerTests
         };
 
         // Act
-        await _sut.Handle(command, CancellationToken.None);
+        await _sut.Handle(command, TestContext.Current.CancellationToken);
 
         // Assert
         await _userService.Received(1).UpdateAsync(
@@ -94,7 +96,8 @@ public sealed class UpdateUserCommandHandlerTests
             null!,
             true,
             command.Locale,
-            null);
+            null,
+            TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -111,12 +114,12 @@ public sealed class UpdateUserCommandHandlerTests
         // Arrange
         var command = _fixture.Create<UpdateUserCommand>();
         var expectedExceptionMessage = "Update failed";
-        _userService.UpdateAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<FSH.Framework.Shared.Storage.FileUploadRequest>(), Arg.Any<bool>(), Arg.Any<string?>(), Arg.Any<IReadOnlyList<string>?>())
+        _userService.UpdateAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<FSH.Framework.Shared.Storage.FileUploadRequest>(), Arg.Any<bool>(), Arg.Any<string?>(), Arg.Any<IReadOnlyList<string>?>(), Arg.Any<CancellationToken>())
             .Returns(x => throw new InvalidOperationException(expectedExceptionMessage));
 
         // Act & Assert
         var exception = await Should.ThrowAsync<InvalidOperationException>(
-            async () => await _sut.Handle(command, CancellationToken.None));
+            async () => await _sut.Handle(command, TestContext.Current.CancellationToken));
 
         exception.Message.ShouldBe(expectedExceptionMessage);
     }

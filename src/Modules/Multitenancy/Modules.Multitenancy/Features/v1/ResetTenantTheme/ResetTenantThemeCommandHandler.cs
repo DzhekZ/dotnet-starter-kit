@@ -17,7 +17,7 @@ public sealed class ResetTenantThemeCommandHandler(
         var tenantId = tenantAccessor.MultiTenantContext?.TenantInfo?.Id
             ?? throw new InvalidOperationException("No tenant context available");
 
-        await themeService.ResetThemeAsync(tenantId, cancellationToken);
+        await themeService.ResetThemeAsync(tenantId, cancellationToken).ConfigureAwait(false);
 
         return Unit.Value;
     }

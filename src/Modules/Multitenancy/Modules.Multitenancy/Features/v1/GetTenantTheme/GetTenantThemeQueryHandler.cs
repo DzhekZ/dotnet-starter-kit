@@ -10,6 +10,6 @@ public sealed class GetTenantThemeQueryHandler(ITenantThemeService themeService)
 {
     public async ValueTask<TenantThemeDto> Handle(GetTenantThemeQuery query, CancellationToken cancellationToken)
     {
-        return await themeService.GetCurrentTenantThemeAsync(cancellationToken);
+        return await themeService.GetCurrentTenantThemeAsync(cancellationToken).ConfigureAwait(false);
     }
 }

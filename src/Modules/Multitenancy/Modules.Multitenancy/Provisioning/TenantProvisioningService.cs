@@ -33,7 +33,7 @@ public sealed class TenantProvisioningService : ITenantProvisioningService
         _logger = logger;
     }
 
-    public async Task<TenantProvisioning> StartAsync(string tenantId, CancellationToken cancellationToken)
+    public async Task<TenantProvisioning> StartAsync(string tenantId, CancellationToken cancellationToken = default)
     {
         var tenant = await _tenantStore.GetAsync(tenantId).ConfigureAwait(false)
             ?? throw new NotFoundException($"Tenant {tenantId} not found for provisioning.");
@@ -73,7 +73,7 @@ public sealed class TenantProvisioningService : ITenantProvisioningService
         return provisioning;
     }
 
-    public async Task<TenantProvisioning?> GetLatestAsync(string tenantId, CancellationToken cancellationToken)
+    public async Task<TenantProvisioning?> GetLatestAsync(string tenantId, CancellationToken cancellationToken = default)
     {
         return await _dbContext.Set<TenantProvisioning>()
             .Include(p => p.Steps)
@@ -83,7 +83,7 @@ public sealed class TenantProvisioningService : ITenantProvisioningService
             .ConfigureAwait(false);
     }
 
-    public async Task<TenantProvisioningStatusDto> GetStatusAsync(string tenantId, CancellationToken cancellationToken)
+    public async Task<TenantProvisioningStatusDto> GetStatusAsync(string tenantId, CancellationToken cancellationToken = default)
     {
         var provisioning = await GetLatestAsync(tenantId, cancellationToken).ConfigureAwait(false)
             ?? throw new NotFoundException($"Provisioning not found for tenant {tenantId}.");
@@ -91,7 +91,7 @@ public sealed class TenantProvisioningService : ITenantProvisioningService
         return ToDto(provisioning);
     }
 
-    public async Task EnsureCanActivateAsync(string tenantId, CancellationToken cancellationToken)
+    public async Task EnsureCanActivateAsync(string tenantId, CancellationToken cancellationToken = default)
     {
         var provisioning = await GetLatestAsync(tenantId, cancellationToken).ConfigureAwait(false);
         if (provisioning is null)
@@ -105,13 +105,13 @@ public sealed class TenantProvisioningService : ITenantProvisioningService
         }
     }
 
-    public async Task<string> RetryAsync(string tenantId, CancellationToken cancellationToken)
+    public async Task<string> RetryAsync(string tenantId, CancellationToken cancellationToken = default)
     {
         var provisioning = await StartAsync(tenantId, cancellationToken).ConfigureAwait(false);
         return provisioning.CorrelationId;
     }
 
-    public async Task<bool> MarkRunningAsync(string tenantId, string correlationId, TenantProvisioningStepName step, CancellationToken cancellationToken)
+    public async Task<bool> MarkRunningAsync(string tenantId, string correlationId, TenantProvisioningStepName step, CancellationToken cancellationToken = default)
     {
         var provisioning = await RequireAsync(tenantId, correlationId, cancellationToken).ConfigureAwait(false);
         var stepEntity = provisioning.Steps.First(s => s.Step == step);
@@ -128,7 +128,7 @@ public sealed class TenantProvisioningService : ITenantProvisioningService
         return true;
     }
 
-    public async Task MarkStepCompletedAsync(string tenantId, string correlationId, TenantProvisioningStepName step, CancellationToken cancellationToken)
+    public async Task MarkStepCompletedAsync(string tenantId, string correlationId, TenantProvisioningStepName step, CancellationToken cancellationToken = default)
     {
         var provisioning = await RequireAsync(tenantId, correlationId, cancellationToken).ConfigureAwait(false);
         var stepEntity = provisioning.Steps.First(s => s.Step == step);
@@ -142,7 +142,7 @@ public sealed class TenantProvisioningService : ITenantProvisioningService
         await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    public async Task MarkFailedAsync(string tenantId, string correlationId, TenantProvisioningStepName step, string error, CancellationToken cancellationToken)
+    public async Task MarkFailedAsync(string tenantId, string correlationId, TenantProvisioningStepName step, string error, CancellationToken cancellationToken = default)
     {
         var provisioning = await RequireAsync(tenantId, correlationId, cancellationToken).ConfigureAwait(false);
         provisioning.MarkFailed(step.ToString(), error);
@@ -153,7 +153,7 @@ public sealed class TenantProvisioningService : ITenantProvisioningService
         await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    public async Task MarkCompletedAsync(string tenantId, string correlationId, CancellationToken cancellationToken)
+    public async Task MarkCompletedAsync(string tenantId, string correlationId, CancellationToken cancellationToken = default)
     {
         var provisioning = await RequireAsync(tenantId, correlationId, cancellationToken).ConfigureAwait(false);
 

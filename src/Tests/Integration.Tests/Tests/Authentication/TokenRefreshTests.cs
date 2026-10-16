@@ -18,7 +18,7 @@ public sealed class TokenRefreshTests
     public async Task RefreshToken_Should_ReturnNewTokenPair_When_RefreshTokenIsValid()
     {
         // Arrange
-        var originalToken = await _auth.GetRootAdminTokenAsync();
+        var originalToken = await _auth.GetRootAdminTokenAsync(TestContext.Current.CancellationToken);
         using var client = _factory.CreateClient();
         var request = new HttpRequestMessage(HttpMethod.Post, $"{TestConstants.IdentityBasePath}/token/refresh");
         request.Headers.Add("tenant", TestConstants.RootTenantId);
@@ -29,11 +29,11 @@ public sealed class TokenRefreshTests
         });
 
         // Act
-        var response = await client.SendAsync(request);
+        var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var newToken = await response.Content.ReadFromJsonAsync<TokenRefreshResult>();
+        var newToken = await response.Content.ReadFromJsonAsync<TokenRefreshResult>(cancellationToken: TestContext.Current.CancellationToken);
         newToken.ShouldNotBeNull();
         newToken.Token.ShouldNotBeNullOrWhiteSpace();
         newToken.RefreshToken.ShouldNotBeNullOrWhiteSpace();
@@ -43,7 +43,7 @@ public sealed class TokenRefreshTests
     public async Task RefreshToken_Should_ReturnUnauthorized_When_RefreshTokenIsInvalid()
     {
         // Arrange
-        var originalToken = await _auth.GetRootAdminTokenAsync();
+        var originalToken = await _auth.GetRootAdminTokenAsync(TestContext.Current.CancellationToken);
         using var client = _factory.CreateClient();
         var request = new HttpRequestMessage(HttpMethod.Post, $"{TestConstants.IdentityBasePath}/token/refresh");
         request.Headers.Add("tenant", TestConstants.RootTenantId);
@@ -54,7 +54,7 @@ public sealed class TokenRefreshTests
         });
 
         // Act
-        var response = await client.SendAsync(request);
+        var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);

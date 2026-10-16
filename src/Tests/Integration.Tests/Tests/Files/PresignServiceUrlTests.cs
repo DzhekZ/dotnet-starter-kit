@@ -38,37 +38,37 @@ public sealed class PresignServiceUrlTests
         try
         {
             // Act — presigned PUT straight to the public host
-            var upload = await storage.GenerateUploadUrlAsync(key, ContentType, bytes.Length, TimeSpan.FromMinutes(5));
+            var upload = await storage.GenerateUploadUrlAsync(key, ContentType, bytes.Length, TimeSpan.FromMinutes(5), TestContext.Current.CancellationToken);
             upload.Url.Host.ShouldBe("localhost");
             upload.Url.Port.ShouldBe(port);
 
             using var raw = new HttpClient();
             using var body = new ByteArrayContent(bytes);
             body.Headers.ContentType = new MediaTypeHeaderValue(ContentType);
-            using var putResp = await raw.PutAsync(upload.Url, body);
+            using var putResp = await raw.PutAsync(upload.Url, body, TestContext.Current.CancellationToken);
 
             // Assert — the store accepted the signature, the API (on its own host) sees the object, and the
             // presigned GET on the public host serves the same bytes back.
             putResp.StatusCode.ShouldBe(HttpStatusCode.OK);
 
-            var head = await storage.HeadObjectAsync(key);
+            var head = await storage.HeadObjectAsync(key, TestContext.Current.CancellationToken);
             head.ShouldNotBeNull();
             head.SizeBytes.ShouldBe(bytes.Length);
 
-            var download = await storage.GenerateDownloadUrlAsync(key, TimeSpan.FromMinutes(5));
+            var download = await storage.GenerateDownloadUrlAsync(key, TimeSpan.FromMinutes(5), cancellationToken: TestContext.Current.CancellationToken);
             download.Host.ShouldBe("localhost");
             download.Port.ShouldBe(port);
 
-            using var getResp = await raw.GetAsync(download);
+            using var getResp = await raw.GetAsync(download, TestContext.Current.CancellationToken);
             getResp.StatusCode.ShouldBe(HttpStatusCode.OK);
-            (await getResp.Content.ReadAsByteArrayAsync()).ShouldBe(bytes);
+            (await getResp.Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken)).ShouldBe(bytes);
         }
         finally
         {
-            await storage.RemoveAsync(key);
+            await storage.RemoveAsync(key, TestContext.Current.CancellationToken);
         }
 
-        (await storage.HeadObjectAsync(key)).ShouldBeNull();
+        (await storage.HeadObjectAsync(key, TestContext.Current.CancellationToken)).ShouldBeNull();
     }
 
     #endregion

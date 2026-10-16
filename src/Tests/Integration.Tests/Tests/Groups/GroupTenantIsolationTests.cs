@@ -25,22 +25,20 @@ public sealed class GroupTenantIsolationTests
     public async Task GetGroupById_Should_Return404_When_OwnedByDifferentTenant()
     {
         // Arrange — tenant A (root) creates a group; tenant B is freshly provisioned.
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var uniqueId = Guid.NewGuid().ToString("N")[..8];
         using var otherClient = await ProvisionTenantClientAsync(rootClient, $"group-get-{uniqueId}");
 
         var groupId = await CreateGroupAsync(rootClient, $"RootOnly-{uniqueId}");
 
         // Act — tenant B tries to fetch tenant A's group.
-        using var crossGet = await otherClient.GetAsync(
-            $"{TestConstants.IdentityBasePath}/groups/{groupId}");
+        using var crossGet = await otherClient.GetAsync($"{TestConstants.IdentityBasePath}/groups/{groupId}", TestContext.Current.CancellationToken);
 
         // Assert — clean 404, never tenant A's data.
         crossGet.StatusCode.ShouldBe(HttpStatusCode.NotFound);
 
         // Sanity: tenant A still sees its own group.
-        using var ownGet = await rootClient.GetAsync(
-            $"{TestConstants.IdentityBasePath}/groups/{groupId}");
+        using var ownGet = await rootClient.GetAsync($"{TestConstants.IdentityBasePath}/groups/{groupId}", TestContext.Current.CancellationToken);
         ownGet.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
@@ -48,7 +46,7 @@ public sealed class GroupTenantIsolationTests
     public async Task ListGroups_Should_NotReturn_OtherTenants_Groups()
     {
         // Arrange.
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var uniqueId = Guid.NewGuid().ToString("N")[..8];
         using var otherClient = await ProvisionTenantClientAsync(rootClient, $"group-list-{uniqueId}");
 
@@ -56,11 +54,10 @@ public sealed class GroupTenantIsolationTests
         var groupId = await CreateGroupAsync(rootClient, rootName);
 
         // Act — tenant B lists groups (endpoint returns a plain array).
-        using var listResponse = await otherClient.GetAsync(
-            $"{TestConstants.IdentityBasePath}/groups");
+        using var listResponse = await otherClient.GetAsync($"{TestConstants.IdentityBasePath}/groups", TestContext.Current.CancellationToken);
         listResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var groups = await listResponse.DeserializeAsync<List<GroupDto>>();
-        var body = await otherClient.GetStringAsync($"{TestConstants.IdentityBasePath}/groups");
+        var groups = await listResponse.DeserializeAsync<List<GroupDto>>(ct: TestContext.Current.CancellationToken);
+        var body = await otherClient.GetStringAsync($"{TestConstants.IdentityBasePath}/groups", TestContext.Current.CancellationToken);
 
         // Assert — tenant A's group never appears in tenant B's listing.
         groups.ShouldNotContain(g => g.Id == groupId,
@@ -72,7 +69,7 @@ public sealed class GroupTenantIsolationTests
     public async Task UpdateGroup_Should_Return404_When_OwnedByDifferentTenant()
     {
         // Arrange.
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var uniqueId = Guid.NewGuid().ToString("N")[..8];
         using var otherClient = await ProvisionTenantClientAsync(rootClient, $"group-upd-{uniqueId}");
 
@@ -80,24 +77,21 @@ public sealed class GroupTenantIsolationTests
         var groupId = await CreateGroupAsync(rootClient, rootName);
 
         // Act — tenant B tries to mutate (update) tenant A's group.
-        using var crossUpdate = await otherClient.PutAsJsonAsync(
-            $"{TestConstants.IdentityBasePath}/groups/{groupId}",
-            new
+        using var crossUpdate = await otherClient.PutAsJsonAsync($"{TestConstants.IdentityBasePath}/groups/{groupId}", new
             {
                 name = $"Hijacked-{uniqueId}",
                 description = "should never apply",
                 isDefault = false,
                 roleIds = new List<string>()
-            });
+            }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert — 404: the mutation never reaches tenant A's row.
         crossUpdate.StatusCode.ShouldBe(HttpStatusCode.NotFound);
 
         // Sanity: tenant A's group is untouched — name unchanged.
-        using var ownGet = await rootClient.GetAsync(
-            $"{TestConstants.IdentityBasePath}/groups/{groupId}");
+        using var ownGet = await rootClient.GetAsync($"{TestConstants.IdentityBasePath}/groups/{groupId}", TestContext.Current.CancellationToken);
         ownGet.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var fetched = await ownGet.DeserializeAsync<GroupDto>();
+        var fetched = await ownGet.DeserializeAsync<GroupDto>(ct: TestContext.Current.CancellationToken);
         fetched.Name.ShouldBe(rootName);
     }
 
@@ -105,22 +99,20 @@ public sealed class GroupTenantIsolationTests
     public async Task DeleteGroup_Should_Return404_When_OwnedByDifferentTenant()
     {
         // Arrange.
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var uniqueId = Guid.NewGuid().ToString("N")[..8];
         using var otherClient = await ProvisionTenantClientAsync(rootClient, $"group-del-{uniqueId}");
 
         var groupId = await CreateGroupAsync(rootClient, $"RootOnly-{uniqueId}");
 
         // Act — tenant B tries to delete tenant A's group.
-        using var crossDelete = await otherClient.DeleteAsync(
-            $"{TestConstants.IdentityBasePath}/groups/{groupId}");
+        using var crossDelete = await otherClient.DeleteAsync($"{TestConstants.IdentityBasePath}/groups/{groupId}", TestContext.Current.CancellationToken);
 
         // Assert — 404 (not 204): the delete never reaches tenant A's row.
         crossDelete.StatusCode.ShouldBe(HttpStatusCode.NotFound);
 
         // Sanity: tenant A's group still exists.
-        using var ownGet = await rootClient.GetAsync(
-            $"{TestConstants.IdentityBasePath}/groups/{groupId}");
+        using var ownGet = await rootClient.GetAsync($"{TestConstants.IdentityBasePath}/groups/{groupId}", TestContext.Current.CancellationToken);
         ownGet.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 

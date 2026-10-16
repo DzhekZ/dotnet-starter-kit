@@ -31,7 +31,7 @@ public sealed class MentionAndNotificationTests
     [Fact]
     public async Task SendingMessage_With_AtMention_Should_Persist_Notification_For_Mentioned_User()
     {
-        using var adminClient = await _auth.CreateRootAdminClientAsync();
+        using var adminClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
         // Register a second user the admin can mention. The IMentionResolver looks them up via
         // IUserService.GetListAsync, so all that matters is that the row is active.
@@ -44,7 +44,7 @@ public sealed class MentionAndNotificationTests
         await SendMessageAsync(adminClient, channelId, $"hey @{alice.UserName} take a look");
 
         // Verify a notification row was written for Alice via her own /notifications list endpoint.
-        using var aliceClient = await _auth.CreateAuthenticatedClientAsync(alice.Email, alice.Password);
+        using var aliceClient = await _auth.CreateAuthenticatedClientAsync(alice.Email, alice.Password, ct: TestContext.Current.CancellationToken);
         var inbox = await ReadInboxAsync(aliceClient);
         var mention = inbox.FirstOrDefault(n => n.Type == "chat.mention");
         mention.ShouldNotBeNull("Expected a chat.mention notification to land in Alice's inbox");
@@ -58,7 +58,7 @@ public sealed class MentionAndNotificationTests
     [Fact]
     public async Task SendingMessage_With_AtMention_Should_Push_NotificationCreated_Over_SignalR()
     {
-        using var adminClient = await _auth.CreateRootAdminClientAsync();
+        using var adminClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var (bob, bobToken, _) = await RegisterUserAsync(adminClient, "bob");
 
         var channelId = await CreateChannelAsync(adminClient, $"chan-{Guid.NewGuid().ToString("N")[..8]}");
@@ -78,11 +78,11 @@ public sealed class MentionAndNotificationTests
     [Fact]
     public async Task SendingMessage_With_Self_Mention_Should_Not_Create_Notification()
     {
-        using var adminClient = await _auth.CreateRootAdminClientAsync();
+        using var adminClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
         // Get admin's own username via /identity/profile so the @-token resolves to admin's userId.
-        using var profileResponse = await adminClient.GetAsync($"{TestConstants.IdentityBasePath}/profile");
-        var profile = await profileResponse.DeserializeAsync<UserDto>();
+        using var profileResponse = await adminClient.GetAsync($"{TestConstants.IdentityBasePath}/profile", TestContext.Current.CancellationToken);
+        var profile = await profileResponse.DeserializeAsync<UserDto>(ct: TestContext.Current.CancellationToken);
 
         var channelId = await CreateChannelAsync(adminClient, $"chan-{Guid.NewGuid().ToString("N")[..8]}");
         await SendMessageAsync(adminClient, channelId, $"talking to myself @{profile.UserName}");

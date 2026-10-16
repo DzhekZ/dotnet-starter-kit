@@ -25,7 +25,7 @@ internal sealed class UserProfileService(
     IRequestContextService requestContext,
     IdentityErrorDescriber errorDescriber) : IUserProfileService
 {
-    public async Task<UserDto> GetAsync(string userId, CancellationToken cancellationToken)
+    public async Task<UserDto> GetAsync(string userId, CancellationToken cancellationToken = default)
     {
         // Relies on Finbuckle's tenant filter — callers can only ever read
         // their own user record, which is in the request's resolved tenant.
@@ -57,10 +57,10 @@ internal sealed class UserProfileService(
         };
     }
 
-    public Task<int> GetCountAsync(CancellationToken cancellationToken) =>
+    public Task<int> GetCountAsync(CancellationToken cancellationToken = default) =>
         userManager.Users.AsNoTracking().CountAsync(cancellationToken);
 
-    public async Task<List<UserDto>> GetListAsync(CancellationToken cancellationToken)
+    public async Task<List<UserDto>> GetListAsync(CancellationToken cancellationToken = default)
     {
         var users = await userManager.Users.AsNoTracking().ToListAsync(cancellationToken);
         var result = new List<UserDto>(users.Count);
@@ -105,16 +105,16 @@ internal sealed class UserProfileService(
         Uri imageUri = user.ImageUrl ?? null!;
         // image is optional: text-only edits forward a null FileUploadRequest, so guard before
         // dereferencing Data or the common no-image update path NREs.
-        if (image?.Data != null)
+        if (image?.Data is not null)
         {
             var imageString = await storageService.UploadAsync<FshUser>(image, FileType.Image, cancellationToken);
             user.ImageUrl = new Uri(imageString, UriKind.RelativeOrAbsolute);
-            if (deleteCurrentImage && imageUri != null)
+            if (deleteCurrentImage && imageUri is not null)
             {
                 replacedBlob = imageUri.ToString();
             }
         }
-        else if (deleteCurrentImage && imageUri != null)
+        else if (deleteCurrentImage && imageUri is not null)
         {
             replacedBlob = imageUri.ToString();
             user.ImageUrl = null;
@@ -208,7 +208,7 @@ internal sealed class UserProfileService(
             ResourceSource = typeof(IdentityResources),
         };
 
-    public async Task SetImageUrlAsync(string userId, string? imageUrl, CancellationToken cancellationToken)
+    public async Task SetImageUrlAsync(string userId, string? imageUrl, CancellationToken cancellationToken = default)
     {
         EnsureValidTenant();
         var user = await userManager.FindByIdAsync(userId)

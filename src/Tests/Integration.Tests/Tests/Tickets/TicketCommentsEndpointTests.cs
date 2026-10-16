@@ -29,20 +29,18 @@ public sealed class TicketCommentsEndpointTests
     public async Task AddComment_Should_Persist_And_BumpCommentCount_When_TicketExists()
     {
         #region Arrange
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var ticketId = await CreateTicketAsync(client, UniqueTitle("Commentable"));
         const string body = "First comment from integration test.";
         #endregion
 
         #region Act
-        var commentResponse = await client.PostAsJsonAsync(
-            $"{TestConstants.TicketsBasePath}/tickets/{ticketId}/comments",
-            new { body });
+        var commentResponse = await client.PostAsJsonAsync($"{TestConstants.TicketsBasePath}/tickets/{ticketId}/comments", new { body }, cancellationToken: TestContext.Current.CancellationToken);
         #endregion
 
         #region Assert
         commentResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var commentId = await commentResponse.DeserializeAsync<Guid>();
+        var commentId = await commentResponse.DeserializeAsync<Guid>(ct: TestContext.Current.CancellationToken);
         commentId.ShouldNotBe(Guid.Empty);
 
         var comments = await ListCommentsAsync(client, ticketId);
@@ -61,7 +59,7 @@ public sealed class TicketCommentsEndpointTests
     public async Task ListComments_Should_ReturnInChronologicalOrder_When_MultipleComments()
     {
         #region Arrange
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var ticketId = await CreateTicketAsync(client, UniqueTitle("MultiComment"));
         #endregion
 
@@ -88,7 +86,7 @@ public sealed class TicketCommentsEndpointTests
     public async Task ListComments_Should_ReturnEmpty_When_TicketHasNoComments()
     {
         #region Arrange
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var ticketId = await CreateTicketAsync(client, UniqueTitle("NoComments"));
         #endregion
 
@@ -107,15 +105,13 @@ public sealed class TicketCommentsEndpointTests
         // AddComment only rejects Closed tickets; Resolved still accepts comments.
         // No API path reaches Closed, so this covers the non-throwing branch.
         #region Arrange
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var ticketId = await CreateTicketAsync(client, UniqueTitle("ResolvedComment"));
         await ResolveAsync(client, ticketId, "done");
         #endregion
 
         #region Act
-        var response = await client.PostAsJsonAsync(
-            $"{TestConstants.TicketsBasePath}/tickets/{ticketId}/comments",
-            new { body = "follow-up after resolution" });
+        var response = await client.PostAsJsonAsync($"{TestConstants.TicketsBasePath}/tickets/{ticketId}/comments", new { body = "follow-up after resolution" }, cancellationToken: TestContext.Current.CancellationToken);
         #endregion
 
         #region Assert
@@ -131,14 +127,12 @@ public sealed class TicketCommentsEndpointTests
     public async Task AddComment_Should_Return400_When_BodyIsEmpty()
     {
         #region Arrange
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var ticketId = await CreateTicketAsync(client, UniqueTitle("EmptyBody"));
         #endregion
 
         #region Act
-        var response = await client.PostAsJsonAsync(
-            $"{TestConstants.TicketsBasePath}/tickets/{ticketId}/comments",
-            new { body = "" });
+        var response = await client.PostAsJsonAsync($"{TestConstants.TicketsBasePath}/tickets/{ticketId}/comments", new { body = "" }, cancellationToken: TestContext.Current.CancellationToken);
         #endregion
 
         #region Assert
@@ -150,13 +144,11 @@ public sealed class TicketCommentsEndpointTests
     public async Task AddComment_Should_Return404_When_TicketDoesNotExist()
     {
         #region Arrange
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         #endregion
 
         #region Act
-        var response = await client.PostAsJsonAsync(
-            $"{TestConstants.TicketsBasePath}/tickets/{Guid.NewGuid()}/comments",
-            new { body = "comment on a ghost" });
+        var response = await client.PostAsJsonAsync($"{TestConstants.TicketsBasePath}/tickets/{Guid.NewGuid()}/comments", new { body = "comment on a ghost" }, cancellationToken: TestContext.Current.CancellationToken);
         #endregion
 
         #region Assert
@@ -173,9 +165,7 @@ public sealed class TicketCommentsEndpointTests
         #endregion
 
         #region Act
-        var response = await client.PostAsJsonAsync(
-            $"{TestConstants.TicketsBasePath}/tickets/{Guid.NewGuid()}/comments",
-            new { body = "unauthenticated comment" });
+        var response = await client.PostAsJsonAsync($"{TestConstants.TicketsBasePath}/tickets/{Guid.NewGuid()}/comments", new { body = "unauthenticated comment" }, cancellationToken: TestContext.Current.CancellationToken);
         #endregion
 
         #region Assert

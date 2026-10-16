@@ -19,9 +19,7 @@ public sealed class MissingTenantTests
     {
         using var client = _factory.CreateClient(); // anonymous, NO tenant header
 
-        var response = await client.PostAsJsonAsync(
-            $"{TestConstants.IdentityBasePath}/forgot-password",
-            new { email = "nobody@example.com" });
+        var response = await client.PostAsJsonAsync($"{TestConstants.IdentityBasePath}/forgot-password", new { email = "nobody@example.com" }, cancellationToken: TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
@@ -31,9 +29,7 @@ public sealed class MissingTenantTests
     {
         using var client = _factory.CreateClient(); // anonymous, NO tenant header
 
-        var response = await client.PostAsJsonAsync(
-            $"{TestConstants.IdentityBasePath}/reset-password",
-            new { email = "nobody@example.com", token = "x", password = "Test@1234!" });
+        var response = await client.PostAsJsonAsync($"{TestConstants.IdentityBasePath}/reset-password", new { email = "nobody@example.com", token = "x", password = "Test@1234!" }, cancellationToken: TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
@@ -44,9 +40,7 @@ public sealed class MissingTenantTests
         using var client = _factory.CreateClient(); // anonymous, NO tenant header
         var uniqueId = Guid.NewGuid().ToString("N")[..8];
 
-        var response = await client.PostAsJsonAsync(
-            $"{TestConstants.IdentityBasePath}/self-register",
-            new
+        var response = await client.PostAsJsonAsync($"{TestConstants.IdentityBasePath}/self-register", new
             {
                 firstName = "Self",
                 lastName = "Reg",
@@ -54,7 +48,7 @@ public sealed class MissingTenantTests
                 userName = $"selfreg-{uniqueId}",
                 password = "Test@1234!",
                 confirmPassword = "Test@1234!"
-            });
+            }, cancellationToken: TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }

@@ -31,7 +31,7 @@ public sealed class RequirePermissionAllOfTests
         using var userClient = await CreateUserClientWithPermissionsAsync(
             "allof-first", TestPermissionEndpointStartupFilter.FirstPermission);
 
-        var response = await userClient.GetAsync(TestPermissionEndpointStartupFilter.TwoPermissionsPath);
+        var response = await userClient.GetAsync(TestPermissionEndpointStartupFilter.TwoPermissionsPath, TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.Forbidden,
             "Holding only the first of two required permissions must not open the gate.");
@@ -45,10 +45,10 @@ public sealed class RequirePermissionAllOfTests
             TestPermissionEndpointStartupFilter.FirstPermission,
             TestPermissionEndpointStartupFilter.SecondPermission);
 
-        var response = await userClient.GetAsync(TestPermissionEndpointStartupFilter.TwoPermissionsPath);
+        var response = await userClient.GetAsync(TestPermissionEndpointStartupFilter.TwoPermissionsPath, TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK,
-            $"Holding every required permission must open the gate: {await response.Content.ReadAsStringAsync()}");
+            $"Holding every required permission must open the gate: {await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)}");
     }
 
     // ─── helpers ─────────────────────────────────────────────────────

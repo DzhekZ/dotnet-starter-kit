@@ -25,8 +25,8 @@ public sealed class RealtimeEventsTests
     [Fact]
     public async Task SendingMessage_Should_Fire_ChatMessageCreated_To_Channel_Members()
     {
-        var token = await _auth.GetRootAdminTokenAsync();
-        using var client = await _auth.CreateRootAdminClientAsync();
+        var token = await _auth.GetRootAdminTokenAsync(TestContext.Current.CancellationToken);
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var channelId = await CreateChannelAsync(client, UniqueName("Realtime"));
 
         await using var hub = await ConnectAsync(token.AccessToken);
@@ -42,15 +42,15 @@ public sealed class RealtimeEventsTests
     [Fact]
     public async Task EditingMessage_Should_Fire_ChatMessageEdited()
     {
-        var token = await _auth.GetRootAdminTokenAsync();
-        using var client = await _auth.CreateRootAdminClientAsync();
+        var token = await _auth.GetRootAdminTokenAsync(TestContext.Current.CancellationToken);
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var channelId = await CreateChannelAsync(client, UniqueName("Edit"));
         var messageId = await SendMessageAsync(client, channelId, "before");
 
         await using var hub = await ConnectAsync(token.AccessToken);
         using var inbox = new EventInbox<MessageDto>(hub, "ChatMessageEdited");
 
-        using var edit = await client.PutAsJsonAsync($"{ChatBasePath}/messages/{messageId}", new { body = "after" });
+        using var edit = await client.PutAsJsonAsync($"{ChatBasePath}/messages/{messageId}", new { body = "after" }, cancellationToken: TestContext.Current.CancellationToken);
         edit.StatusCode.ShouldBe(System.Net.HttpStatusCode.NoContent);
 
         var received = await inbox.WaitForFirstAsync(m => m.Id == messageId, EventTimeout);
@@ -61,15 +61,15 @@ public sealed class RealtimeEventsTests
     [Fact]
     public async Task DeletingMessage_Should_Fire_ChatMessageDeleted()
     {
-        var token = await _auth.GetRootAdminTokenAsync();
-        using var client = await _auth.CreateRootAdminClientAsync();
+        var token = await _auth.GetRootAdminTokenAsync(TestContext.Current.CancellationToken);
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var channelId = await CreateChannelAsync(client, UniqueName("Del"));
         var messageId = await SendMessageAsync(client, channelId, "delete me");
 
         await using var hub = await ConnectAsync(token.AccessToken);
         using var inbox = new EventInbox<DeletedPayload>(hub, "ChatMessageDeleted");
 
-        using var del = await client.DeleteAsync($"{ChatBasePath}/messages/{messageId}");
+        using var del = await client.DeleteAsync($"{ChatBasePath}/messages/{messageId}", TestContext.Current.CancellationToken);
         del.StatusCode.ShouldBe(System.Net.HttpStatusCode.NoContent);
 
         var received = await inbox.WaitForFirstAsync(p => p.MessageId == messageId, EventTimeout);
@@ -80,15 +80,15 @@ public sealed class RealtimeEventsTests
     [Fact]
     public async Task MarkChannelRead_Should_Fire_ChatChannelRead_To_Self()
     {
-        var token = await _auth.GetRootAdminTokenAsync();
-        using var client = await _auth.CreateRootAdminClientAsync();
+        var token = await _auth.GetRootAdminTokenAsync(TestContext.Current.CancellationToken);
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var channelId = await CreateChannelAsync(client, UniqueName("Read"));
         var messageId = await SendMessageAsync(client, channelId, "ping");
 
         await using var hub = await ConnectAsync(token.AccessToken);
         using var inbox = new EventInbox<ReadPayload>(hub, "ChatChannelRead");
 
-        using var mark = await client.PostAsJsonAsync($"{ChatBasePath}/channels/{channelId}/read", new { messageId });
+        using var mark = await client.PostAsJsonAsync($"{ChatBasePath}/channels/{channelId}/read", new { messageId }, cancellationToken: TestContext.Current.CancellationToken);
         mark.StatusCode.ShouldBe(System.Net.HttpStatusCode.NoContent);
 
         var received = await inbox.WaitForFirstAsync(p => p.ChannelId == channelId, EventTimeout);

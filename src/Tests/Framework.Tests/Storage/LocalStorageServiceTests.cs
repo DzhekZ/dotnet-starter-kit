@@ -194,16 +194,16 @@ public sealed class LocalStorageServiceTests : IDisposable
     public async Task CopyAsync_Should_CopyBytesToTheDestinationKey_And_KeepTheSource()
     {
         // Arrange
-        var source = await _sut.UploadAsync<Probe>(PngRequest(), FileType.Image);
+        var source = await _sut.UploadAsync<Probe>(PngRequest(), FileType.Image, TestContext.Current.CancellationToken);
         const string destination = "public/tenants/t/probe/copied.png";
 
         // Act
-        await _sut.CopyAsync(source, destination);
+        await _sut.CopyAsync(source, destination, TestContext.Current.CancellationToken);
 
         // Assert
-        (await _sut.ExistsAsync(destination)).ShouldBeTrue();
-        (await _sut.GetSizeAsync(destination)).ShouldBe(4);
-        (await _sut.ExistsAsync(source)).ShouldBeTrue("a copy must leave the source for the caller to delete");
+        (await _sut.ExistsAsync(destination, TestContext.Current.CancellationToken)).ShouldBeTrue();
+        (await _sut.GetSizeAsync(destination, TestContext.Current.CancellationToken)).ShouldBe(4);
+        (await _sut.ExistsAsync(source, TestContext.Current.CancellationToken)).ShouldBeTrue("a copy must leave the source for the caller to delete");
     }
 
     [Fact]

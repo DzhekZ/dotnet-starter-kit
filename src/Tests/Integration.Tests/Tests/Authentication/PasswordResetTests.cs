@@ -42,16 +42,14 @@ public sealed class PasswordResetTests
         client.DefaultRequestHeaders.Add("tenant", TestConstants.RootTenantId);
 
         // Act
-        var response = await client.PostAsJsonAsync(
-            $"{TestConstants.IdentityBasePath}/reset-password",
-            new { email, password = newPassword, token = encodedToken });
+        var response = await client.PostAsJsonAsync($"{TestConstants.IdentityBasePath}/reset-password", new { email, password = newPassword, token = encodedToken }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
-        var body = await response.Content.ReadAsStringAsync();
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         response.StatusCode.ShouldBe(HttpStatusCode.OK, body);
 
         // The new password authenticates...
-        var token = await _auth.GetTokenAsync(email, newPassword, TestConstants.RootTenantId);
+        var token = await _auth.GetTokenAsync(email, newPassword, TestConstants.RootTenantId, TestContext.Current.CancellationToken);
         token.AccessToken.ShouldNotBeNullOrWhiteSpace();
 
         // ...and the old one no longer does.
@@ -76,13 +74,11 @@ public sealed class PasswordResetTests
         client.DefaultRequestHeaders.Add("tenant", TestConstants.RootTenantId);
 
         // Act
-        var response = await client.PostAsJsonAsync(
-            $"{TestConstants.IdentityBasePath}/reset-password",
-            new { email, password = "Whatever123!", token = garbageToken });
+        var response = await client.PostAsJsonAsync($"{TestConstants.IdentityBasePath}/reset-password", new { email, password = "Whatever123!", token = garbageToken }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert — request is rejected and, critically, nothing changed.
         ((int)response.StatusCode).ShouldBeGreaterThanOrEqualTo(400);
-        var token = await _auth.GetTokenAsync(email, oldPassword, TestConstants.RootTenantId);
+        var token = await _auth.GetTokenAsync(email, oldPassword, TestConstants.RootTenantId, TestContext.Current.CancellationToken);
         token.AccessToken.ShouldNotBeNullOrWhiteSpace();
     }
 
@@ -96,9 +92,7 @@ public sealed class PasswordResetTests
         client.DefaultRequestHeaders.Add("tenant", TestConstants.RootTenantId);
 
         // Act
-        var response = await client.PostAsJsonAsync(
-            $"{TestConstants.IdentityBasePath}/reset-password",
-            new { email = $"ghost_{Guid.NewGuid():N}@test.com", password = "Whatever123!", token = garbageToken });
+        var response = await client.PostAsJsonAsync($"{TestConstants.IdentityBasePath}/reset-password", new { email = $"ghost_{Guid.NewGuid():N}@test.com", password = "Whatever123!", token = garbageToken }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);

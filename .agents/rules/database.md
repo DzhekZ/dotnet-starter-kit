@@ -16,6 +16,7 @@ Read before touching entities, DbContexts, migrations, or query filters.
 - A subclass DbContext that overrides `OnModelCreating` **must call `base.OnModelCreating(modelBuilder)` LAST**, or the auto-applied filters are lost.
 - Cross-tenant reads use `IgnoreQueryFilters()` **plus an explicit re-filter** — never rely on the absence of the filter.
 - **Query-filter naming:** SoftDelete filter is *named*; the tenant filter stays *anonymous* (Finbuckle owns it). Don't rename the tenant filter.
+- **Trash views and restore handlers lift only the SoftDelete filter:** `IgnoreQueryFilters([QueryFilters.SoftDelete])` (see Catalog/Tickets). The unnamed `IgnoreQueryFilters()` also drops tenant scoping — in a shared database that lists/restores other tenants' rows (it was the Files `ListTrashed`/`Restore` and Chat `RestoreChannel` bug).
 
 ## AsNoTracking — and when NOT to
 

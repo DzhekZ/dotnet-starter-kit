@@ -20,58 +20,58 @@ public sealed class SoftDeleteAndRestoreTests
     [Fact]
     public async Task Delete_Should_Soft_Delete_And_Hide_From_GetMetadata()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var id = await UploadAndFinalizeAsync(client, "to-delete.pdf", "application/pdf", 256, "Document");
 
-        using var deleteResp = await client.DeleteAsync($"{FilesBasePath}/{id}");
+        using var deleteResp = await client.DeleteAsync($"{FilesBasePath}/{id}", TestContext.Current.CancellationToken);
         deleteResp.StatusCode.ShouldBe(HttpStatusCode.NoContent);
 
         // After soft-delete, GetMetadata should 404 because of the SoftDelete query filter.
-        using var getResp = await client.GetAsync($"{FilesBasePath}/{id}");
+        using var getResp = await client.GetAsync($"{FilesBasePath}/{id}", TestContext.Current.CancellationToken);
         getResp.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
 
     [Fact]
     public async Task ListTrashedFiles_Should_Include_SoftDeleted_File()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var id = await UploadAndFinalizeAsync(client, "trashed.pdf", "application/pdf", 256, "Document");
 
-        using var deleteResp = await client.DeleteAsync($"{FilesBasePath}/{id}");
+        using var deleteResp = await client.DeleteAsync($"{FilesBasePath}/{id}", TestContext.Current.CancellationToken);
         deleteResp.StatusCode.ShouldBe(HttpStatusCode.NoContent);
 
-        using var trashResp = await client.GetAsync($"{FilesBasePath}/trash");
+        using var trashResp = await client.GetAsync($"{FilesBasePath}/trash", TestContext.Current.CancellationToken);
         trashResp.StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        var trashed = await trashResp.DeserializeAsync<PagedResponse<FileAssetDto>>();
+        var trashed = await trashResp.DeserializeAsync<PagedResponse<FileAssetDto>>(ct: TestContext.Current.CancellationToken);
         trashed.Items.ShouldContain(f => f.Id == id);
     }
 
     [Fact]
     public async Task Restore_Should_Bring_File_Back_From_Trash()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var id = await UploadAndFinalizeAsync(client, "restorable.pdf", "application/pdf", 256, "Document");
 
-        using var deleteResp = await client.DeleteAsync($"{FilesBasePath}/{id}");
+        using var deleteResp = await client.DeleteAsync($"{FilesBasePath}/{id}", TestContext.Current.CancellationToken);
         deleteResp.StatusCode.ShouldBe(HttpStatusCode.NoContent);
 
-        using var restoreResp = await client.PostAsync($"{FilesBasePath}/{id}/restore", null);
+        using var restoreResp = await client.PostAsync($"{FilesBasePath}/{id}/restore", null, TestContext.Current.CancellationToken);
         restoreResp.StatusCode.ShouldBe(HttpStatusCode.NoContent);
 
         // After restore, GetMetadata should return the file again.
-        using var getResp = await client.GetAsync($"{FilesBasePath}/{id}");
+        using var getResp = await client.GetAsync($"{FilesBasePath}/{id}", TestContext.Current.CancellationToken);
         getResp.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var dto = await getResp.DeserializeAsync<FileAssetDto>();
+        var dto = await getResp.DeserializeAsync<FileAssetDto>(ct: TestContext.Current.CancellationToken);
         dto.Id.ShouldBe(id);
     }
 
     [Fact]
     public async Task Delete_Should_Return404_When_File_Does_Not_Exist()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
-        using var response = await client.DeleteAsync($"{FilesBasePath}/{Guid.NewGuid()}");
+        using var response = await client.DeleteAsync($"{FilesBasePath}/{Guid.NewGuid()}", TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
@@ -79,9 +79,9 @@ public sealed class SoftDeleteAndRestoreTests
     [Fact]
     public async Task Restore_Should_Return404_When_File_Does_Not_Exist()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
-        using var response = await client.PostAsync($"{FilesBasePath}/{Guid.NewGuid()}/restore", null);
+        using var response = await client.PostAsync($"{FilesBasePath}/{Guid.NewGuid()}/restore", null, TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }

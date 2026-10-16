@@ -29,7 +29,7 @@ public sealed class ChatChannelFileAccessTests
     [Fact]
     public async Task RequestUploadUrl_For_ChatChannel_Should_Succeed_For_Member()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var channelId = await CreateChannelAsync(client, Unique("AttachOk"));
 
         using var response = await client.PostAsJsonAsync($"{FilesBasePath}/upload-url", new
@@ -41,7 +41,7 @@ public sealed class ChatChannelFileAccessTests
             sizeBytes = 32,
             visibility = 1, // Private
             category = "Document",
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
@@ -49,11 +49,11 @@ public sealed class ChatChannelFileAccessTests
     [Fact]
     public async Task RequestUploadUrl_For_ChatChannel_Should_Return_403_For_NonMember()
     {
-        using var adminClient = await _auth.CreateRootAdminClientAsync();
+        using var adminClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var channelId = await CreateChannelAsync(adminClient, Unique("Forbidden"));
 
         var (bobEmail, bobPassword) = await RegisterAndConfirmAsync(adminClient, "bob");
-        using var bobClient = await _auth.CreateAuthenticatedClientAsync(bobEmail, bobPassword);
+        using var bobClient = await _auth.CreateAuthenticatedClientAsync(bobEmail, bobPassword, ct: TestContext.Current.CancellationToken);
 
         using var response = await bobClient.PostAsJsonAsync($"{FilesBasePath}/upload-url", new
         {
@@ -64,7 +64,7 @@ public sealed class ChatChannelFileAccessTests
             sizeBytes = 32,
             visibility = 1,
             category = "Document",
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
     }
@@ -73,7 +73,7 @@ public sealed class ChatChannelFileAccessTests
     public async Task RequestUploadUrl_For_ChatChannel_Should_Return_403_When_OwnerId_Missing()
     {
         // Policy requires a channel ownerId — without it CanAttachAsync returns false.
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
         using var response = await client.PostAsJsonAsync($"{FilesBasePath}/upload-url", new
         {
@@ -84,7 +84,7 @@ public sealed class ChatChannelFileAccessTests
             sizeBytes = 32,
             visibility = 1,
             category = "Document",
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
     }

@@ -43,7 +43,7 @@ public sealed class PurgeJobsTests
     {
         // Arrange — upload + finalize a real object, soft-delete it, then backdate DeletedOnUtc
         // past the retention window so the daily purge picks it up.
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var (id, storageKey) = await UploadFinalizeAndDeleteAsync(client, "purge-me.pdf", 256);
 
         await BackdateDeletedOnUtcAsync(id, DateTimeOffset.UtcNow.AddDays(-90));
@@ -63,7 +63,7 @@ public sealed class PurgeJobsTests
     public async Task PurgeDeletedFilesJob_Should_Leave_Recently_Deleted_File_Intact()
     {
         // A file soft-deleted just now (within retention) must survive the purge.
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var (id, _) = await UploadFinalizeAndDeleteAsync(client, "keep-me.pdf", 256);
 
         await RunJobAsync<PurgeDeletedFilesJob>(j => j.RunAsync(CancellationToken.None));
@@ -89,7 +89,7 @@ public sealed class PurgeJobsTests
     {
         // Arrange — request an upload URL and PUT bytes, but DON'T finalize. The row stays in
         // PendingUpload. Backdate UploadDeadline so the hourly orphan purge picks it up.
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var (id, storageKey) = await RequestUploadAndPutBytesAsync(client, "orphan.pdf", 256);
 
         (await ObjectExistsAsync(storageKey)).ShouldBeTrue("orphan bytes made it to storage");
@@ -108,7 +108,7 @@ public sealed class PurgeJobsTests
     public async Task PurgeOrphanedFilesJob_Should_Leave_Pending_File_With_Future_Deadline_Intact()
     {
         // A freshly-requested upload (deadline in the future) must not be purged.
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var (id, _) = await RequestUploadAndPutBytesAsync(client, "still-pending.pdf", 256);
 
         await RunJobAsync<PurgeOrphanedFilesJob>(j => j.RunAsync(CancellationToken.None));

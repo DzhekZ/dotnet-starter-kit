@@ -24,6 +24,6 @@ public sealed class RevokeAllSessionsCommandHandler : ICommandHandler<RevokeAllS
             userId,
             command.ExceptSessionId,
             "User requested logout from all devices",
-            cancellationToken);
+            cancellationToken).ConfigureAwait(false);
     }
 }

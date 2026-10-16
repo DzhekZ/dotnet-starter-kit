@@ -105,7 +105,8 @@ public sealed class StartImpersonationCommandHandler
         }
 
         var targetClaimsResult = await _identityService
-            .BuildClaimsForUserAsync(request.TargetUserId, request.TargetTenantId, cancellationToken);
+            .BuildClaimsForUserAsync(request.TargetUserId, request.TargetTenantId, cancellationToken)
+            .ConfigureAwait(false);
 
         if (targetClaimsResult is null)
         {
@@ -144,7 +145,7 @@ public sealed class StartImpersonationCommandHandler
 
         var startedAtUtc = _timeProvider.GetUtcNow().UtcDateTime;
         var (accessToken, expiresAt) = await _tokenService.IssueAccessOnlyAsync(
-            subject, impersonationClaims, lifetime, cancellationToken);
+            subject, impersonationClaims, lifetime, cancellationToken).ConfigureAwait(false);
 
         // Persist the grant AFTER issuance so a failed issue leaves no orphan grant. CreateAsync primes the
         // cache so the JWT validation hook sees status=Active on the next request without a DB hit.
@@ -161,7 +162,7 @@ public sealed class StartImpersonationCommandHandler
             ExpiresAtUtc: expiresAt,
             ClientId: _requestContext.ClientId,
             IpAddress: _requestContext.IpAddress,
-            UserAgent: _requestContext.UserAgent), cancellationToken);
+            UserAgent: _requestContext.UserAgent), cancellationToken).ConfigureAwait(false);
 
         await _securityAudit.ImpersonationStartedAsync(
             actorUserId: actorUserId,
@@ -172,7 +173,7 @@ public sealed class StartImpersonationCommandHandler
             ip: _requestContext.IpAddress ?? "unknown",
             userAgent: _requestContext.UserAgent ?? "unknown",
             reason: request.Reason ?? string.Empty,
-            ct: cancellationToken);
+            ct: cancellationToken).ConfigureAwait(false);
 
         _logger.LogWarning(
             "Impersonation started: actor {ActorUserId}@{ActorTenant} -> target {TargetUserId}@{TargetTenant} jti={Jti}",

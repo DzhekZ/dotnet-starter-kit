@@ -35,7 +35,7 @@ public sealed class GroupRolePermissionTests
     public async Task GetOwnPermissions_Should_IncludeGroupRolePermissions_When_UserHasNoDirectRoles()
     {
         // Arrange — custom role with the probe permission, attached to a GROUP (never to the user).
-        using var adminClient = await _auth.CreateRootAdminClientAsync();
+        using var adminClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var uniqueId = Guid.NewGuid().ToString("N")[..8];
 
         var role = await CreateRoleWithPermissionAsync(adminClient, $"GrpPermRole-{uniqueId}", ProbePermission);
@@ -44,13 +44,13 @@ public sealed class GroupRolePermissionTests
         var (email, password, userId) = await CreateActiveUserAsync($"grpperm-{uniqueId}");
         await AddUserToGroupAsync(adminClient, groupId, userId);
 
-        using var userClient = await _auth.CreateAuthenticatedClientAsync(email, password);
+        using var userClient = await _auth.CreateAuthenticatedClientAsync(email, password, ct: TestContext.Current.CancellationToken);
 
         // Act — read the user's own effective permissions (auth-only endpoint, backed by UserPermissionService).
-        var response = await userClient.GetAsync($"{TestConstants.IdentityBasePath}/permissions");
+        var response = await userClient.GetAsync($"{TestConstants.IdentityBasePath}/permissions", TestContext.Current.CancellationToken);
         response.StatusCode.ShouldBe(HttpStatusCode.OK,
-            $"Get current-user permissions failed: {await response.Content.ReadAsStringAsync()}");
-        var permissions = await response.DeserializeAsync<List<string>>();
+            $"Get current-user permissions failed: {await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)}");
+        var permissions = await response.DeserializeAsync<List<string>>(ct: TestContext.Current.CancellationToken);
 
         // Assert — the group-derived role's permission must be in the effective set.
         permissions.ShouldContain(ProbePermission,
@@ -63,7 +63,7 @@ public sealed class GroupRolePermissionTests
     {
         // Arrange — same setup, but probe through a real .RequirePermission() gate
         // (POST /groups requires Groups.Create), exercising the authorization handler path.
-        using var adminClient = await _auth.CreateRootAdminClientAsync();
+        using var adminClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var uniqueId = Guid.NewGuid().ToString("N")[..8];
 
         var role = await CreateRoleWithPermissionAsync(adminClient, $"GrpGateRole-{uniqueId}", ProbePermission);
@@ -72,7 +72,7 @@ public sealed class GroupRolePermissionTests
         var (email, password, userId) = await CreateActiveUserAsync($"grpgate-{uniqueId}");
         await AddUserToGroupAsync(adminClient, groupId, userId);
 
-        using var userClient = await _auth.CreateAuthenticatedClientAsync(email, password);
+        using var userClient = await _auth.CreateAuthenticatedClientAsync(email, password, ct: TestContext.Current.CancellationToken);
 
         // Act — hit the gated endpoint with the group-conferred permission.
         var response = await userClient.PostAsJsonAsync($"{TestConstants.IdentityBasePath}/groups", new
@@ -81,7 +81,7 @@ public sealed class GroupRolePermissionTests
             description = "created via group-derived permission",
             isDefault = false,
             roleIds = new List<string>()
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert — the gate must honor the group-derived role.
         response.StatusCode.ShouldNotBe(HttpStatusCode.Forbidden,

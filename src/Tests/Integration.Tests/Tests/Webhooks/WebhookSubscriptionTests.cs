@@ -18,15 +18,14 @@ public sealed class WebhookSubscriptionTests
     [Fact]
     public async Task CreateWebhookSubscription_Should_ReturnCreated_When_DataIsValid()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
-        var response = await client.PostAsJsonAsync(
-            $"{TestConstants.WebhooksBasePath}/subscriptions", new
+        var response = await client.PostAsJsonAsync($"{TestConstants.WebhooksBasePath}/subscriptions", new
             {
                 url = "https://example.com/webhook",
                 events = new[] { "user.created", "user.updated" },
                 secret = "test-webhook-secret-123"
-            });
+            }, cancellationToken: TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.Created);
     }
@@ -34,7 +33,7 @@ public sealed class WebhookSubscriptionTests
     [Fact]
     public async Task GetWebhookSubscriptions_Should_ReturnOk_When_SubscriptionsExist()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
         // Create a subscription first
         await client.PostAsJsonAsync($"{TestConstants.WebhooksBasePath}/subscriptions", new
@@ -42,10 +41,9 @@ public sealed class WebhookSubscriptionTests
             url = "https://example.com/webhook-list",
             events = new[] { "tenant.created" },
             secret = "list-secret-123"
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
 
-        var response = await client.GetAsync(
-            $"{TestConstants.WebhooksBasePath}/subscriptions?pageNumber=1&pageSize=10");
+        var response = await client.GetAsync($"{TestConstants.WebhooksBasePath}/subscriptions?pageNumber=1&pageSize=10", TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
@@ -53,21 +51,19 @@ public sealed class WebhookSubscriptionTests
     [Fact]
     public async Task DeleteWebhookSubscription_Should_ReturnNoContent_When_SubscriptionExists()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
-        var createResponse = await client.PostAsJsonAsync(
-            $"{TestConstants.WebhooksBasePath}/subscriptions", new
+        var createResponse = await client.PostAsJsonAsync($"{TestConstants.WebhooksBasePath}/subscriptions", new
             {
                 url = "https://example.com/webhook-delete",
                 events = new[] { "user.deleted" },
                 secret = "delete-secret-123"
-            });
+            }, cancellationToken: TestContext.Current.CancellationToken);
         createResponse.StatusCode.ShouldBe(HttpStatusCode.Created);
 
-        var subscriptionId = await createResponse.Content.ReadFromJsonAsync<Guid>();
+        var subscriptionId = await createResponse.Content.ReadFromJsonAsync<Guid>(cancellationToken: TestContext.Current.CancellationToken);
 
-        var response = await client.DeleteAsync(
-            $"{TestConstants.WebhooksBasePath}/subscriptions/{subscriptionId}");
+        var response = await client.DeleteAsync($"{TestConstants.WebhooksBasePath}/subscriptions/{subscriptionId}", TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.NoContent);
     }
@@ -75,12 +71,11 @@ public sealed class WebhookSubscriptionTests
     [Fact]
     public async Task GetWebhookSubscriptions_Should_Return400_When_PageSizeIsZero()
     {
-        using var client = await _auth.CreateRootAdminClientAsync();
+        using var client = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
 
         // PageSize=0 previously reached Math.Ceiling(total / (double)0) -> 500. The validator
         // now rejects it with a clean 400.
-        var response = await client.GetAsync(
-            $"{TestConstants.WebhooksBasePath}/subscriptions?pageNumber=1&pageSize=0");
+        var response = await client.GetAsync($"{TestConstants.WebhooksBasePath}/subscriptions?pageNumber=1&pageSize=0", TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
@@ -91,13 +86,12 @@ public sealed class WebhookSubscriptionTests
         using var client = _factory.CreateClient();
         client.DefaultRequestHeaders.Add("tenant", TestConstants.RootTenantId);
 
-        var response = await client.PostAsJsonAsync(
-            $"{TestConstants.WebhooksBasePath}/subscriptions", new
+        var response = await client.PostAsJsonAsync($"{TestConstants.WebhooksBasePath}/subscriptions", new
             {
                 url = "https://example.com/noauth-webhook",
                 events = new[] { "user.created" },
                 secret = "noauth-secret"
-            });
+            }, cancellationToken: TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
     }

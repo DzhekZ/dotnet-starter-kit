@@ -28,10 +28,10 @@ public sealed class SelfRegistrationTests
             userName = $"selfreg-{uniqueId}",
             password = "Test@1234!",
             confirmPassword = "Test@1234!"
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.Created);
-        var result = await response.DeserializeAsync<RegisterResult>();
+        var result = await response.DeserializeAsync<RegisterResult>(ct: TestContext.Current.CancellationToken);
         result.UserId.ShouldNotBeNullOrWhiteSpace();
     }
 
@@ -49,7 +49,7 @@ public sealed class SelfRegistrationTests
             userName = "",
             password = "weak",
             confirmPassword = "weak"
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
 
         response.IsSuccessStatusCode.ShouldBeFalse();
     }
@@ -70,13 +70,10 @@ public sealed class SelfRegistrationTests
             confirmPassword = "Test@1234!"
         };
 
-        var firstResponse = await client.PostAsJsonAsync(
-            $"{TestConstants.IdentityBasePath}/self-register", payload);
+        var firstResponse = await client.PostAsJsonAsync($"{TestConstants.IdentityBasePath}/self-register", payload, cancellationToken: TestContext.Current.CancellationToken);
         firstResponse.StatusCode.ShouldBe(HttpStatusCode.Created);
 
-        var secondResponse = await client.PostAsJsonAsync(
-            $"{TestConstants.IdentityBasePath}/self-register",
-            payload with { userName = $"selfdup2-{uniqueId}" });
+        var secondResponse = await client.PostAsJsonAsync($"{TestConstants.IdentityBasePath}/self-register", payload with { userName = $"selfdup2-{uniqueId}" }, cancellationToken: TestContext.Current.CancellationToken);
 
         secondResponse.IsSuccessStatusCode.ShouldBeFalse();
     }

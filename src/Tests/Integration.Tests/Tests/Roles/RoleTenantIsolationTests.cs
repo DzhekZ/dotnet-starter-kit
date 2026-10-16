@@ -24,7 +24,7 @@ public sealed class RoleTenantIsolationTests
     {
         // Arrange — a fresh tenant B with its own admin, and a custom role created in
         // the root tenant (tenant A).
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var uniqueId = Guid.NewGuid().ToString("N")[..8];
         var otherTenantId = $"role-iso-{uniqueId}";
         var otherAdminEmail = $"role-iso-admin-{uniqueId}@tenant.com";
@@ -38,21 +38,19 @@ public sealed class RoleTenantIsolationTests
             otherAdminEmail, TestConstants.DefaultPassword, otherTenantId);
 
         // Act — list roles as tenant B's admin.
-        var otherRolesResponse = await otherClient.GetAsync(
-            $"{TestConstants.IdentityBasePath}/roles?pageNumber=1&pageSize=200");
+        var otherRolesResponse = await otherClient.GetAsync($"{TestConstants.IdentityBasePath}/roles?pageNumber=1&pageSize=200", TestContext.Current.CancellationToken);
 
         // Assert — tenant B never sees the role created in tenant A.
         otherRolesResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var otherRoles = await otherRolesResponse.DeserializeAsync<PagedResponse<RoleDto>>();
+        var otherRoles = await otherRolesResponse.DeserializeAsync<PagedResponse<RoleDto>>(ct: TestContext.Current.CancellationToken);
         otherRoles.Items.ShouldNotContain(r => r.Name == rootRoleName,
             "A role created in the root tenant leaked into another tenant's role list.");
         otherRoles.Items.ShouldNotContain(r => r.Id == rootRole.Id,
             "A role id created in the root tenant leaked into another tenant's role list.");
 
         // Sanity: the role IS visible to the tenant that created it.
-        var rootRolesResponse = await rootClient.GetAsync(
-            $"{TestConstants.IdentityBasePath}/roles?pageNumber=1&pageSize=200");
-        var rootRoles = await rootRolesResponse.DeserializeAsync<PagedResponse<RoleDto>>();
+        var rootRolesResponse = await rootClient.GetAsync($"{TestConstants.IdentityBasePath}/roles?pageNumber=1&pageSize=200", TestContext.Current.CancellationToken);
+        var rootRoles = await rootRolesResponse.DeserializeAsync<PagedResponse<RoleDto>>(ct: TestContext.Current.CancellationToken);
         rootRoles.Items.ShouldContain(r => r.Name == rootRoleName,
             "The role must remain visible to the tenant that owns it.");
     }
@@ -61,7 +59,7 @@ public sealed class RoleTenantIsolationTests
     public async Task GetRoleById_Should_Return404_When_RoleBelongsToAnotherTenant()
     {
         // Arrange — role created in root tenant, fresh tenant B provisioned.
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var uniqueId = Guid.NewGuid().ToString("N")[..8];
         var otherTenantId = $"role-byid-{uniqueId}";
         var otherAdminEmail = $"role-byid-admin-{uniqueId}@tenant.com";
@@ -74,16 +72,14 @@ public sealed class RoleTenantIsolationTests
             otherAdminEmail, TestConstants.DefaultPassword, otherTenantId);
 
         // Act — tenant B attempts to read tenant A's role by id.
-        var crossLookup = await otherClient.GetAsync(
-            $"{TestConstants.IdentityBasePath}/roles/{rootRole.Id}");
+        var crossLookup = await otherClient.GetAsync($"{TestConstants.IdentityBasePath}/roles/{rootRole.Id}", TestContext.Current.CancellationToken);
 
         // Assert — the role is not found in tenant B's scope.
         crossLookup.StatusCode.ShouldBe(HttpStatusCode.NotFound,
             "Tenant B was able to read a role that belongs to the root tenant.");
 
         // Sanity: the owning tenant can read it.
-        var ownLookup = await rootClient.GetAsync(
-            $"{TestConstants.IdentityBasePath}/roles/{rootRole.Id}");
+        var ownLookup = await rootClient.GetAsync($"{TestConstants.IdentityBasePath}/roles/{rootRole.Id}", TestContext.Current.CancellationToken);
         ownLookup.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 

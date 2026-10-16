@@ -23,6 +23,6 @@ public sealed class AdminRevokeAllSessionsCommandHandler : ICommandHandler<Admin
             command.UserId.ToString(),
             adminId,
             command.Reason ?? "Revoked by administrator",
-            cancellationToken);
+            cancellationToken).ConfigureAwait(false);
     }
 }

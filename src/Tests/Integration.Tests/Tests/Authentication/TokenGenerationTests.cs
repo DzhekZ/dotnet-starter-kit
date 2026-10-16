@@ -18,7 +18,7 @@ public sealed class TokenGenerationTests
     [Fact]
     public async Task GenerateToken_Should_ReturnAccessAndRefreshToken_When_CredentialsAreValid()
     {
-        var token = await _auth.GetRootAdminTokenAsync();
+        var token = await _auth.GetRootAdminTokenAsync(TestContext.Current.CancellationToken);
 
         token.ShouldNotBeNull();
         token.AccessToken.ShouldNotBeNullOrWhiteSpace();
@@ -39,7 +39,7 @@ public sealed class TokenGenerationTests
             password = "WrongPassword123!"
         });
 
-        var response = await client.SendAsync(request);
+        var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
     }
@@ -56,7 +56,7 @@ public sealed class TokenGenerationTests
             password = TestConstants.DefaultPassword
         });
 
-        var response = await client.SendAsync(request);
+        var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
     }
@@ -73,7 +73,7 @@ public sealed class TokenGenerationTests
             password = TestConstants.DefaultPassword
         });
 
-        var response = await client.SendAsync(request);
+        var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
@@ -81,7 +81,7 @@ public sealed class TokenGenerationTests
     [Fact]
     public async Task GenerateToken_Should_IncludeCorrectClaimsInJwt_When_LoginSucceeds()
     {
-        var token = await _auth.GetRootAdminTokenAsync();
+        var token = await _auth.GetRootAdminTokenAsync(TestContext.Current.CancellationToken);
 
         var handler = new JwtSecurityTokenHandler();
         var jwt = handler.ReadJwtToken(token.AccessToken);
@@ -106,7 +106,7 @@ public sealed class TokenGenerationTests
             password = TestConstants.DefaultPassword
         });
 
-        var response = await client.SendAsync(request);
+        var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
 
         response.IsSuccessStatusCode.ShouldBeFalse();
     }

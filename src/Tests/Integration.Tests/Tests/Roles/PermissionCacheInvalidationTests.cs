@@ -41,7 +41,7 @@ public sealed class PermissionCacheInvalidationTests
     public async Task UpdateRolePermissions_Should_EvictCachedPermissions_When_PermissionRemovedFromRole()
     {
         // Arrange — custom role with the probe permission, assigned to a fresh active user.
-        using var adminClient = await _auth.CreateRootAdminClientAsync();
+        using var adminClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var uniqueId = Guid.NewGuid().ToString("N")[..8];
 
         var role = await CreateRoleAsync(adminClient, $"CacheRole-{uniqueId}");
@@ -50,7 +50,7 @@ public sealed class PermissionCacheInvalidationTests
         var (email, password, userId) = await CreateActiveUserAsync($"cacheuser-{uniqueId}");
         await AssignRoleAsync(adminClient, userId, role.Name);
 
-        using var userClient = await _auth.CreateAuthenticatedClientAsync(email, password);
+        using var userClient = await _auth.CreateAuthenticatedClientAsync(email, password, ct: TestContext.Current.CancellationToken);
 
         // Warm the cache: this populates the user's HybridCache permission entry.
         var warmed = await GetOwnPermissionsAsync(userClient);
@@ -72,7 +72,7 @@ public sealed class PermissionCacheInvalidationTests
     public async Task UpdateRolePermissions_Should_EvictCachedPermissions_When_PermissionAddedToRole()
     {
         // Arrange — custom role that starts with NO probe permission.
-        using var adminClient = await _auth.CreateRootAdminClientAsync();
+        using var adminClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var uniqueId = Guid.NewGuid().ToString("N")[..8];
 
         var role = await CreateRoleAsync(adminClient, $"CacheAddRole-{uniqueId}");
@@ -81,7 +81,7 @@ public sealed class PermissionCacheInvalidationTests
         var (email, password, userId) = await CreateActiveUserAsync($"cacheadd-{uniqueId}");
         await AssignRoleAsync(adminClient, userId, role.Name);
 
-        using var userClient = await _auth.CreateAuthenticatedClientAsync(email, password);
+        using var userClient = await _auth.CreateAuthenticatedClientAsync(email, password, ct: TestContext.Current.CancellationToken);
 
         // Warm the cache WITHOUT the probe permission present.
         var warmed = await GetOwnPermissionsAsync(userClient);
@@ -103,7 +103,7 @@ public sealed class PermissionCacheInvalidationTests
         // The strongest end-to-end signal: the authorization handler itself reads
         // through the cached HasPermissionAsync path. Prove a gated endpoint flips from
         // 403 -> 200 the instant the role grant is added — no stale deny served.
-        using var adminClient = await _auth.CreateRootAdminClientAsync();
+        using var adminClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var uniqueId = Guid.NewGuid().ToString("N")[..8];
 
         var role = await CreateRoleAsync(adminClient, $"GateRole-{uniqueId}");
@@ -113,13 +113,11 @@ public sealed class PermissionCacheInvalidationTests
         var (email, password, userId) = await CreateActiveUserAsync($"gateuser-{uniqueId}");
         await AssignRoleAsync(adminClient, userId, role.Name);
 
-        using var userClient = await _auth.CreateAuthenticatedClientAsync(email, password);
+        using var userClient = await _auth.CreateAuthenticatedClientAsync(email, password, ct: TestContext.Current.CancellationToken);
 
         // Warm the cache via the gated endpoint while the user LACKS Groups.Create.
         // CreateGroup is gated by IdentityPermissions.Groups.Create.
-        var beforeGrant = await userClient.PostAsJsonAsync(
-            $"{TestConstants.IdentityBasePath}/groups",
-            new { name = $"grp-before-{uniqueId}", description = "should be forbidden" });
+        var beforeGrant = await userClient.PostAsJsonAsync($"{TestConstants.IdentityBasePath}/groups", new { name = $"grp-before-{uniqueId}", description = "should be forbidden" }, cancellationToken: TestContext.Current.CancellationToken);
         beforeGrant.StatusCode.ShouldBe(HttpStatusCode.Forbidden,
             "Pre-condition: the gated endpoint must reject the user before the permission is granted.");
 
@@ -127,9 +125,7 @@ public sealed class PermissionCacheInvalidationTests
         await SetRolePermissionsAsync(adminClient, role.Id, IdentityPermissions.Groups.View, IdentityPermissions.Groups.Create);
 
         // Assert — the gate opens on the next request. A stale cached deny would keep it at 403.
-        var afterGrant = await userClient.PostAsJsonAsync(
-            $"{TestConstants.IdentityBasePath}/groups",
-            new { name = $"grp-after-{uniqueId}", description = "should be allowed" });
+        var afterGrant = await userClient.PostAsJsonAsync($"{TestConstants.IdentityBasePath}/groups", new { name = $"grp-after-{uniqueId}", description = "should be allowed" }, cancellationToken: TestContext.Current.CancellationToken);
         afterGrant.StatusCode.ShouldNotBe(HttpStatusCode.Forbidden,
             "Cache was NOT invalidated: the authorization handler is still serving a stale deny for a newly granted permission.");
         afterGrant.StatusCode.ShouldBe(HttpStatusCode.Created);
@@ -143,7 +139,7 @@ public sealed class PermissionCacheInvalidationTests
     public async Task AssignUserRoles_Should_EvictCachedPermissions_When_RoleRemovedFromUser()
     {
         // Arrange — user holds a custom role granting the probe permission; warm cache.
-        using var adminClient = await _auth.CreateRootAdminClientAsync();
+        using var adminClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var uniqueId = Guid.NewGuid().ToString("N")[..8];
 
         var role = await CreateRoleAsync(adminClient, $"UnassignRole-{uniqueId}");
@@ -152,7 +148,7 @@ public sealed class PermissionCacheInvalidationTests
         var (email, password, userId) = await CreateActiveUserAsync($"unassign-{uniqueId}");
         await AssignRoleAsync(adminClient, userId, role.Name);
 
-        using var userClient = await _auth.CreateAuthenticatedClientAsync(email, password);
+        using var userClient = await _auth.CreateAuthenticatedClientAsync(email, password, ct: TestContext.Current.CancellationToken);
 
         var warmed = await GetOwnPermissionsAsync(userClient);
         warmed.ShouldContain(ProbePermission,

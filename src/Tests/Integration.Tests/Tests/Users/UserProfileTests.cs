@@ -27,24 +27,23 @@ public sealed class UserProfileTests
     public async Task UpdateProfile_Should_PersistChanges_When_AuthenticatedUserUpdatesOwnProfile()
     {
         // Arrange
-        using var adminClient = await _auth.CreateRootAdminClientAsync();
+        using var adminClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var user = await IdentityUserSeeder.CreateLoginableUserAsync(_factory, adminClient, "upd-profile");
-        using var userClient = await _auth.CreateAuthenticatedClientAsync(user.Email, user.Password);
+        using var userClient = await _auth.CreateAuthenticatedClientAsync(user.Email, user.Password, ct: TestContext.Current.CancellationToken);
 
         // Act
-        var response = await userClient.PutAsJsonAsync(
-            $"{TestConstants.IdentityBasePath}/profile", new
+        var response = await userClient.PutAsJsonAsync($"{TestConstants.IdentityBasePath}/profile", new
             {
                 firstName = "Updated",
                 lastName = "Name",
                 phoneNumber = "1234567890"
-            });
+            }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        var profile = await userClient.GetAsync($"{TestConstants.IdentityBasePath}/profile");
-        var dto = await profile.DeserializeAsync<UserDto>();
+        var profile = await userClient.GetAsync($"{TestConstants.IdentityBasePath}/profile", TestContext.Current.CancellationToken);
+        var dto = await profile.DeserializeAsync<UserDto>(ct: TestContext.Current.CancellationToken);
         dto.FirstName.ShouldBe("Updated");
         dto.LastName.ShouldBe("Name");
         dto.PhoneNumber.ShouldBe("1234567890");
@@ -55,25 +54,23 @@ public sealed class UserProfileTests
     {
         // Arrange — the endpoint forces request.Id to the caller, so supplying another
         // user's id must NOT update that other user.
-        using var adminClient = await _auth.CreateRootAdminClientAsync();
+        using var adminClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var caller = await IdentityUserSeeder.CreateLoginableUserAsync(_factory, adminClient, "upd-self");
         var victim = await IdentityUserSeeder.CreateLoginableUserAsync(_factory, adminClient, "upd-victim");
-        using var callerClient = await _auth.CreateAuthenticatedClientAsync(caller.Email, caller.Password);
+        using var callerClient = await _auth.CreateAuthenticatedClientAsync(caller.Email, caller.Password, ct: TestContext.Current.CancellationToken);
 
         // Act — caller tries to update the victim by passing victim's id in the body.
-        var response = await callerClient.PutAsJsonAsync(
-            $"{TestConstants.IdentityBasePath}/profile", new
+        var response = await callerClient.PutAsJsonAsync($"{TestConstants.IdentityBasePath}/profile", new
             {
                 id = victim.UserId,
                 firstName = "Hijacked"
-            });
+            }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert — request succeeds but only the caller's own profile is touched.
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        var victimRecord = await adminClient.GetAsync(
-            $"{TestConstants.IdentityBasePath}/users/{victim.UserId}");
-        var victimDto = await victimRecord.DeserializeAsync<UserDto>();
+        var victimRecord = await adminClient.GetAsync($"{TestConstants.IdentityBasePath}/users/{victim.UserId}", TestContext.Current.CancellationToken);
+        var victimDto = await victimRecord.DeserializeAsync<UserDto>(ct: TestContext.Current.CancellationToken);
         victimDto.FirstName.ShouldNotBe("Hijacked");
     }
 
@@ -85,8 +82,7 @@ public sealed class UserProfileTests
         client.DefaultRequestHeaders.Add("tenant", TestConstants.RootTenantId);
 
         // Act
-        var response = await client.PutAsJsonAsync(
-            $"{TestConstants.IdentityBasePath}/profile", new { firstName = "Nope" });
+        var response = await client.PutAsJsonAsync($"{TestConstants.IdentityBasePath}/profile", new { firstName = "Nope" }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
@@ -96,16 +92,15 @@ public sealed class UserProfileTests
     public async Task UpdateProfile_Should_Return400_When_PhoneNumberExceedsMaxLength()
     {
         // Arrange
-        using var adminClient = await _auth.CreateRootAdminClientAsync();
+        using var adminClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var user = await IdentityUserSeeder.CreateLoginableUserAsync(_factory, adminClient, "upd-invalid");
-        using var userClient = await _auth.CreateAuthenticatedClientAsync(user.Email, user.Password);
+        using var userClient = await _auth.CreateAuthenticatedClientAsync(user.Email, user.Password, ct: TestContext.Current.CancellationToken);
 
         // Act — phone number max length is 15.
-        var response = await userClient.PutAsJsonAsync(
-            $"{TestConstants.IdentityBasePath}/profile", new
+        var response = await userClient.PutAsJsonAsync($"{TestConstants.IdentityBasePath}/profile", new
             {
                 phoneNumber = new string('9', 30)
-            });
+            }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
@@ -117,33 +112,31 @@ public sealed class UserProfileTests
         // Arrange — the validator reads an empty locale as "not provided" (its rule is
         // guarded by .When(!IsNullOrWhiteSpace)), so an edit that serialises the field as
         // "" must leave the language the user already picked alone.
-        using var adminClient = await _auth.CreateRootAdminClientAsync();
+        using var adminClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var user = await IdentityUserSeeder.CreateLoginableUserAsync(_factory, adminClient, "upd-locale");
-        using var userClient = await _auth.CreateAuthenticatedClientAsync(user.Email, user.Password);
+        using var userClient = await _auth.CreateAuthenticatedClientAsync(user.Email, user.Password, ct: TestContext.Current.CancellationToken);
 
-        var chosen = await userClient.PutAsJsonAsync(
-            $"{TestConstants.IdentityBasePath}/profile", new
+        var chosen = await userClient.PutAsJsonAsync($"{TestConstants.IdentityBasePath}/profile", new
             {
                 firstName = "Ana",
                 lastName = "Souza",
                 locale = "pt-BR"
-            });
+            }, cancellationToken: TestContext.Current.CancellationToken);
         chosen.StatusCode.ShouldBe(HttpStatusCode.OK);
 
         // Act — a text-only edit whose form serialises the untouched locale field as "".
-        var response = await userClient.PutAsJsonAsync(
-            $"{TestConstants.IdentityBasePath}/profile", new
+        var response = await userClient.PutAsJsonAsync($"{TestConstants.IdentityBasePath}/profile", new
             {
                 firstName = "Ana Maria",
                 lastName = "Souza",
                 locale = ""
-            });
+            }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        var profile = await userClient.GetAsync($"{TestConstants.IdentityBasePath}/profile");
-        var dto = await profile.DeserializeAsync<UserDto>();
+        var profile = await userClient.GetAsync($"{TestConstants.IdentityBasePath}/profile", TestContext.Current.CancellationToken);
+        var dto = await profile.DeserializeAsync<UserDto>(ct: TestContext.Current.CancellationToken);
         dto.FirstName.ShouldBe("Ana Maria");
         dto.Locale.ShouldBe("pt-BR");
     }
@@ -156,12 +149,12 @@ public sealed class UserProfileTests
     public async Task GetProfile_Should_ReturnStrongETag_When_ProfileIsRead()
     {
         // Arrange
-        using var adminClient = await _auth.CreateRootAdminClientAsync();
+        using var adminClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var user = await IdentityUserSeeder.CreateLoginableUserAsync(_factory, adminClient, "etag-read");
-        using var userClient = await _auth.CreateAuthenticatedClientAsync(user.Email, user.Password);
+        using var userClient = await _auth.CreateAuthenticatedClientAsync(user.Email, user.Password, ct: TestContext.Current.CancellationToken);
 
         // Act
-        var response = await userClient.GetAsync($"{TestConstants.IdentityBasePath}/profile");
+        var response = await userClient.GetAsync($"{TestConstants.IdentityBasePath}/profile", TestContext.Current.CancellationToken);
 
         // Assert — If-Match mandates strong comparison, so the tag must not be weak.
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
@@ -176,23 +169,23 @@ public sealed class UserProfileTests
     {
         // Arrange — the tag goes out in a header, so it must not be a bare hash of the profile:
         // that would let anyone holding a logged tag confirm a guessed name and phone offline.
-        using var adminClient = await _auth.CreateRootAdminClientAsync();
+        using var adminClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var first = await IdentityUserSeeder.CreateLoginableUserAsync(_factory, adminClient, "etag-key-a");
         var second = await IdentityUserSeeder.CreateLoginableUserAsync(_factory, adminClient, "etag-key-b");
-        using var firstClient = await _auth.CreateAuthenticatedClientAsync(first.Email, first.Password);
-        using var secondClient = await _auth.CreateAuthenticatedClientAsync(second.Email, second.Password);
+        using var firstClient = await _auth.CreateAuthenticatedClientAsync(first.Email, first.Password, ct: TestContext.Current.CancellationToken);
+        using var secondClient = await _auth.CreateAuthenticatedClientAsync(second.Email, second.Password, ct: TestContext.Current.CancellationToken);
 
         var sameValues = new { firstName = "Same", lastName = "Person", phoneNumber = "5550002222" };
         (await PutProfileAsync(firstClient, sameValues, ifMatch: null)).StatusCode.ShouldBe(HttpStatusCode.OK);
         (await PutProfileAsync(secondClient, sameValues, ifMatch: null)).StatusCode.ShouldBe(HttpStatusCode.OK);
 
         // Act
-        var firstRead = await firstClient.GetAsync($"{TestConstants.IdentityBasePath}/profile");
-        var secondRead = await secondClient.GetAsync($"{TestConstants.IdentityBasePath}/profile");
+        var firstRead = await firstClient.GetAsync($"{TestConstants.IdentityBasePath}/profile", TestContext.Current.CancellationToken);
+        var secondRead = await secondClient.GetAsync($"{TestConstants.IdentityBasePath}/profile", TestContext.Current.CancellationToken);
 
         // Assert
-        var firstDto = await firstRead.DeserializeAsync<UserDto>();
-        var secondDto = await secondRead.DeserializeAsync<UserDto>();
+        var firstDto = await firstRead.DeserializeAsync<UserDto>(ct: TestContext.Current.CancellationToken);
+        var secondDto = await secondRead.DeserializeAsync<UserDto>(ct: TestContext.Current.CancellationToken);
         (firstDto.FirstName, firstDto.LastName, firstDto.PhoneNumber, firstDto.ImageUrl)
             .ShouldBe((secondDto.FirstName, secondDto.LastName, secondDto.PhoneNumber, secondDto.ImageUrl));
         firstRead.Headers.ETag!.ToString().ShouldNotBe(secondRead.Headers.ETag!.ToString());
@@ -202,9 +195,9 @@ public sealed class UserProfileTests
     public async Task UpdateProfile_Should_PersistAndRotateETag_When_IfMatchMatches()
     {
         // Arrange
-        using var adminClient = await _auth.CreateRootAdminClientAsync();
+        using var adminClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var user = await IdentityUserSeeder.CreateLoginableUserAsync(_factory, adminClient, "etag-match");
-        using var userClient = await _auth.CreateAuthenticatedClientAsync(user.Email, user.Password);
+        using var userClient = await _auth.CreateAuthenticatedClientAsync(user.Email, user.Password, ct: TestContext.Current.CancellationToken);
         var etag = await ReadProfileETagAsync(userClient);
 
         // Act
@@ -213,8 +206,8 @@ public sealed class UserProfileTests
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        var reread = await userClient.GetAsync($"{TestConstants.IdentityBasePath}/profile");
-        var dto = await reread.DeserializeAsync<UserDto>();
+        var reread = await userClient.GetAsync($"{TestConstants.IdentityBasePath}/profile", TestContext.Current.CancellationToken);
+        var dto = await reread.DeserializeAsync<UserDto>(ct: TestContext.Current.CancellationToken);
         dto.FirstName.ShouldBe("Matched");
 
         // The token has to move, or a second save built from the same snapshot would be accepted.
@@ -228,9 +221,9 @@ public sealed class UserProfileTests
     {
         // Arrange — the lost update itself: a caller reads, someone else writes, and the caller's
         // full-representation PUT would otherwise echo every old value back over that write.
-        using var adminClient = await _auth.CreateRootAdminClientAsync();
+        using var adminClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var user = await IdentityUserSeeder.CreateLoginableUserAsync(_factory, adminClient, "etag-stale");
-        using var userClient = await _auth.CreateAuthenticatedClientAsync(user.Email, user.Password);
+        using var userClient = await _auth.CreateAuthenticatedClientAsync(user.Email, user.Password, ct: TestContext.Current.CancellationToken);
 
         var staleETag = await ReadProfileETagAsync(userClient);
 
@@ -250,8 +243,8 @@ public sealed class UserProfileTests
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.PreconditionFailed);
 
-        var profile = await userClient.GetAsync($"{TestConstants.IdentityBasePath}/profile");
-        var dto = await profile.DeserializeAsync<UserDto>();
+        var profile = await userClient.GetAsync($"{TestConstants.IdentityBasePath}/profile", TestContext.Current.CancellationToken);
+        var dto = await profile.DeserializeAsync<UserDto>(ct: TestContext.Current.CancellationToken);
         dto.FirstName.ShouldBe("Concurrent");
         dto.LastName.ShouldBe("Winner");
         dto.PhoneNumber.ShouldBe("5550001111");
@@ -262,9 +255,9 @@ public sealed class UserProfileTests
     {
         // Arrange — PUT /profile writes the locale too, so a language switch in another tab must
         // move the tag, or a stale form would save over it.
-        using var adminClient = await _auth.CreateRootAdminClientAsync();
+        using var adminClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var user = await IdentityUserSeeder.CreateLoginableUserAsync(_factory, adminClient, "etag-locale");
-        using var userClient = await _auth.CreateAuthenticatedClientAsync(user.Email, user.Password);
+        using var userClient = await _auth.CreateAuthenticatedClientAsync(user.Email, user.Password, ct: TestContext.Current.CancellationToken);
 
         var profile = new { firstName = "Same", lastName = "Person" };
         (await PutProfileAsync(userClient, profile, ifMatch: null)).StatusCode.ShouldBe(HttpStatusCode.OK);
@@ -289,9 +282,9 @@ public sealed class UserProfileTests
         // Arrange — a wrong password bumps AccessFailedCount and the next good sign-in resets it.
         // Both write the user row, but neither touches the profile, so neither may turn the
         // caller's open form into a 412.
-        using var adminClient = await _auth.CreateRootAdminClientAsync();
+        using var adminClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var user = await IdentityUserSeeder.CreateLoginableUserAsync(_factory, adminClient, "etag-signin");
-        using var userClient = await _auth.CreateAuthenticatedClientAsync(user.Email, user.Password);
+        using var userClient = await _auth.CreateAuthenticatedClientAsync(user.Email, user.Password, ct: TestContext.Current.CancellationToken);
         var etag = await ReadProfileETagAsync(userClient);
 
         var failedSignIn = await AttemptSignInAsync(user.Email, "Wrong-Password-1!");
@@ -308,8 +301,8 @@ public sealed class UserProfileTests
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        var profile = await userClient.GetAsync($"{TestConstants.IdentityBasePath}/profile");
-        var dto = await profile.DeserializeAsync<UserDto>();
+        var profile = await userClient.GetAsync($"{TestConstants.IdentityBasePath}/profile", TestContext.Current.CancellationToken);
+        var dto = await profile.DeserializeAsync<UserDto>(ct: TestContext.Current.CancellationToken);
         dto.FirstName.ShouldBe("AfterSignIn");
     }
 
@@ -318,14 +311,13 @@ public sealed class UserProfileTests
     {
         // Arrange — the avatar has its own endpoint, but PUT /profile writes it too, so a change
         // made there must still invalidate a form loaded before it.
-        using var adminClient = await _auth.CreateRootAdminClientAsync();
+        using var adminClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var user = await IdentityUserSeeder.CreateLoginableUserAsync(_factory, adminClient, "etag-avatar");
-        using var userClient = await _auth.CreateAuthenticatedClientAsync(user.Email, user.Password);
+        using var userClient = await _auth.CreateAuthenticatedClientAsync(user.Email, user.Password, ct: TestContext.Current.CancellationToken);
         var staleETag = await ReadProfileETagAsync(userClient);
 
         const string imageUrl = "https://cdn.example.com/avatars/set-elsewhere.png";
-        var setImage = await userClient.PutAsJsonAsync(
-            $"{TestConstants.IdentityBasePath}/profile/image", new { imageUrl });
+        var setImage = await userClient.PutAsJsonAsync($"{TestConstants.IdentityBasePath}/profile/image", new { imageUrl }, cancellationToken: TestContext.Current.CancellationToken);
         setImage.StatusCode.ShouldBe(HttpStatusCode.NoContent);
 
         // Act
@@ -334,8 +326,8 @@ public sealed class UserProfileTests
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.PreconditionFailed);
 
-        var profile = await userClient.GetAsync($"{TestConstants.IdentityBasePath}/profile");
-        var dto = await profile.DeserializeAsync<UserDto>();
+        var profile = await userClient.GetAsync($"{TestConstants.IdentityBasePath}/profile", TestContext.Current.CancellationToken);
+        var dto = await profile.DeserializeAsync<UserDto>(ct: TestContext.Current.CancellationToken);
         dto.ImageUrl.ShouldBe(imageUrl);
     }
 
@@ -343,9 +335,9 @@ public sealed class UserProfileTests
     public async Task UpdateProfile_Should_Succeed_When_IfMatchIsAny()
     {
         // Arrange — `*` asks only that the resource exist, so it must not block the update.
-        using var adminClient = await _auth.CreateRootAdminClientAsync();
+        using var adminClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var user = await IdentityUserSeeder.CreateLoginableUserAsync(_factory, adminClient, "etag-any");
-        using var userClient = await _auth.CreateAuthenticatedClientAsync(user.Email, user.Password);
+        using var userClient = await _auth.CreateAuthenticatedClientAsync(user.Email, user.Password, ct: TestContext.Current.CancellationToken);
 
         // Act
         var response = await PutProfileAsync(userClient, new { firstName = "Wildcard" }, "*");
@@ -353,8 +345,8 @@ public sealed class UserProfileTests
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        var profile = await userClient.GetAsync($"{TestConstants.IdentityBasePath}/profile");
-        var dto = await profile.DeserializeAsync<UserDto>();
+        var profile = await userClient.GetAsync($"{TestConstants.IdentityBasePath}/profile", TestContext.Current.CancellationToken);
+        var dto = await profile.DeserializeAsync<UserDto>(ct: TestContext.Current.CancellationToken);
         dto.FirstName.ShouldBe("Wildcard");
     }
 
@@ -363,9 +355,9 @@ public sealed class UserProfileTests
     {
         // Arrange — a weak validator can never satisfy the strong comparison If-Match requires,
         // even when the tag it carries is the current one.
-        using var adminClient = await _auth.CreateRootAdminClientAsync();
+        using var adminClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var user = await IdentityUserSeeder.CreateLoginableUserAsync(_factory, adminClient, "etag-weak");
-        using var userClient = await _auth.CreateAuthenticatedClientAsync(user.Email, user.Password);
+        using var userClient = await _auth.CreateAuthenticatedClientAsync(user.Email, user.Password, ct: TestContext.Current.CancellationToken);
         var etag = await ReadProfileETagAsync(userClient);
 
         // Act
@@ -374,8 +366,8 @@ public sealed class UserProfileTests
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.PreconditionFailed);
 
-        var profile = await userClient.GetAsync($"{TestConstants.IdentityBasePath}/profile");
-        var dto = await profile.DeserializeAsync<UserDto>();
+        var profile = await userClient.GetAsync($"{TestConstants.IdentityBasePath}/profile", TestContext.Current.CancellationToken);
+        var dto = await profile.DeserializeAsync<UserDto>(ct: TestContext.Current.CancellationToken);
         dto.FirstName.ShouldNotBe("Weak");
     }
 
@@ -386,9 +378,9 @@ public sealed class UserProfileTests
     {
         // Arrange — a malformed header is the client's own bug. 412 would send it into a
         // refetch-and-retry loop it can never win, so the request is rejected as a bad request.
-        using var adminClient = await _auth.CreateRootAdminClientAsync();
+        using var adminClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var user = await IdentityUserSeeder.CreateLoginableUserAsync(_factory, adminClient, "etag-bad");
-        using var userClient = await _auth.CreateAuthenticatedClientAsync(user.Email, user.Password);
+        using var userClient = await _auth.CreateAuthenticatedClientAsync(user.Email, user.Password, ct: TestContext.Current.CancellationToken);
 
         // Act
         var response = await PutProfileAsync(userClient, new { firstName = "Malformed" }, ifMatch);
@@ -401,9 +393,9 @@ public sealed class UserProfileTests
     public async Task UpdateProfile_Should_Succeed_When_IfMatchListContainsCurrentETag()
     {
         // Arrange — If-Match takes a list; matching any entry is enough.
-        using var adminClient = await _auth.CreateRootAdminClientAsync();
+        using var adminClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var user = await IdentityUserSeeder.CreateLoginableUserAsync(_factory, adminClient, "etag-list");
-        using var userClient = await _auth.CreateAuthenticatedClientAsync(user.Email, user.Password);
+        using var userClient = await _auth.CreateAuthenticatedClientAsync(user.Email, user.Password, ct: TestContext.Current.CancellationToken);
         var etag = await ReadProfileETagAsync(userClient);
 
         // Act
@@ -412,8 +404,8 @@ public sealed class UserProfileTests
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        var profile = await userClient.GetAsync($"{TestConstants.IdentityBasePath}/profile");
-        var dto = await profile.DeserializeAsync<UserDto>();
+        var profile = await userClient.GetAsync($"{TestConstants.IdentityBasePath}/profile", TestContext.Current.CancellationToken);
+        var dto = await profile.DeserializeAsync<UserDto>(ct: TestContext.Current.CancellationToken);
         dto.FirstName.ShouldBe("Listed");
     }
 
@@ -424,13 +416,12 @@ public sealed class UserProfileTests
         // The precondition runs as the first statement after the user is loaded, ahead of the
         // storage calls and of SetPhoneNumberAsync (which persists on its own), so a 412 cannot
         // leave a half-applied update behind.
-        using var adminClient = await _auth.CreateRootAdminClientAsync();
+        using var adminClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var user = await IdentityUserSeeder.CreateLoginableUserAsync(_factory, adminClient, "etag-image");
-        using var userClient = await _auth.CreateAuthenticatedClientAsync(user.Email, user.Password);
+        using var userClient = await _auth.CreateAuthenticatedClientAsync(user.Email, user.Password, ct: TestContext.Current.CancellationToken);
 
         const string imageUrl = "https://cdn.example.com/avatars/keep-me.png";
-        var setImage = await userClient.PutAsJsonAsync(
-            $"{TestConstants.IdentityBasePath}/profile/image", new { imageUrl });
+        var setImage = await userClient.PutAsJsonAsync($"{TestConstants.IdentityBasePath}/profile/image", new { imageUrl }, cancellationToken: TestContext.Current.CancellationToken);
         setImage.StatusCode.ShouldBe(HttpStatusCode.NoContent);
 
         var staleETag = await ReadProfileETagAsync(userClient);
@@ -446,8 +437,8 @@ public sealed class UserProfileTests
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.PreconditionFailed);
 
-        var profile = await userClient.GetAsync($"{TestConstants.IdentityBasePath}/profile");
-        var dto = await profile.DeserializeAsync<UserDto>();
+        var profile = await userClient.GetAsync($"{TestConstants.IdentityBasePath}/profile", TestContext.Current.CancellationToken);
+        var dto = await profile.DeserializeAsync<UserDto>(ct: TestContext.Current.CancellationToken);
         dto.ImageUrl.ShouldBe(imageUrl);
         dto.FirstName.ShouldBe("Concurrent");
     }
@@ -459,15 +450,15 @@ public sealed class UserProfileTests
         // front-end if the server also lists it in Access-Control-Expose-Headers. Asserted here
         // rather than left as a comment: the front-end specs mock the header, so nothing else in
         // the suite notices when the server stops sending it.
-        using var adminClient = await _auth.CreateRootAdminClientAsync();
+        using var adminClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var user = await IdentityUserSeeder.CreateLoginableUserAsync(_factory, adminClient, "etag-cors");
-        using var userClient = await _auth.CreateAuthenticatedClientAsync(user.Email, user.Password);
+        using var userClient = await _auth.CreateAuthenticatedClientAsync(user.Email, user.Password, ct: TestContext.Current.CancellationToken);
 
         using var request = new HttpRequestMessage(HttpMethod.Get, $"{TestConstants.IdentityBasePath}/profile");
         request.Headers.TryAddWithoutValidation("Origin", "http://localhost:5174");
 
         // Act
-        var response = await userClient.SendAsync(request);
+        var response = await userClient.SendAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
@@ -522,20 +513,19 @@ public sealed class UserProfileTests
     public async Task SetProfileImage_Should_PersistImageUrl_When_AuthenticatedUserSetsAvatar()
     {
         // Arrange
-        using var adminClient = await _auth.CreateRootAdminClientAsync();
+        using var adminClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var user = await IdentityUserSeeder.CreateLoginableUserAsync(_factory, adminClient, "img-set");
-        using var userClient = await _auth.CreateAuthenticatedClientAsync(user.Email, user.Password);
+        using var userClient = await _auth.CreateAuthenticatedClientAsync(user.Email, user.Password, ct: TestContext.Current.CancellationToken);
         const string imageUrl = "https://cdn.example.com/avatars/me.png";
 
         // Act
-        var response = await userClient.PutAsJsonAsync(
-            $"{TestConstants.IdentityBasePath}/profile/image", new { imageUrl });
+        var response = await userClient.PutAsJsonAsync($"{TestConstants.IdentityBasePath}/profile/image", new { imageUrl }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.NoContent);
 
-        var profile = await userClient.GetAsync($"{TestConstants.IdentityBasePath}/profile");
-        var dto = await profile.DeserializeAsync<UserDto>();
+        var profile = await userClient.GetAsync($"{TestConstants.IdentityBasePath}/profile", TestContext.Current.CancellationToken);
+        var dto = await profile.DeserializeAsync<UserDto>(ct: TestContext.Current.CancellationToken);
         dto.ImageUrl.ShouldBe(imageUrl);
     }
 
@@ -543,23 +533,20 @@ public sealed class UserProfileTests
     public async Task SetProfileImage_Should_ClearImage_When_NullUrlProvided()
     {
         // Arrange — set then clear.
-        using var adminClient = await _auth.CreateRootAdminClientAsync();
+        using var adminClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var user = await IdentityUserSeeder.CreateLoginableUserAsync(_factory, adminClient, "img-clear");
-        using var userClient = await _auth.CreateAuthenticatedClientAsync(user.Email, user.Password);
+        using var userClient = await _auth.CreateAuthenticatedClientAsync(user.Email, user.Password, ct: TestContext.Current.CancellationToken);
 
-        await userClient.PutAsJsonAsync(
-            $"{TestConstants.IdentityBasePath}/profile/image",
-            new { imageUrl = "https://cdn.example.com/avatars/temp.png" });
+        await userClient.PutAsJsonAsync($"{TestConstants.IdentityBasePath}/profile/image", new { imageUrl = "https://cdn.example.com/avatars/temp.png" }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Act
-        var clear = await userClient.PutAsJsonAsync(
-            $"{TestConstants.IdentityBasePath}/profile/image", new { imageUrl = (string?)null });
+        var clear = await userClient.PutAsJsonAsync($"{TestConstants.IdentityBasePath}/profile/image", new { imageUrl = (string?)null }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         clear.StatusCode.ShouldBe(HttpStatusCode.NoContent);
 
-        var profile = await userClient.GetAsync($"{TestConstants.IdentityBasePath}/profile");
-        var dto = await profile.DeserializeAsync<UserDto>();
+        var profile = await userClient.GetAsync($"{TestConstants.IdentityBasePath}/profile", TestContext.Current.CancellationToken);
+        var dto = await profile.DeserializeAsync<UserDto>(ct: TestContext.Current.CancellationToken);
         dto.ImageUrl.ShouldBeNull();
     }
 
@@ -571,9 +558,7 @@ public sealed class UserProfileTests
         client.DefaultRequestHeaders.Add("tenant", TestConstants.RootTenantId);
 
         // Act
-        var response = await client.PutAsJsonAsync(
-            $"{TestConstants.IdentityBasePath}/profile/image",
-            new { imageUrl = "https://cdn.example.com/x.png" });
+        var response = await client.PutAsJsonAsync($"{TestConstants.IdentityBasePath}/profile/image", new { imageUrl = "https://cdn.example.com/x.png" }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);

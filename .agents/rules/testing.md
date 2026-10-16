@@ -12,6 +12,12 @@ xUnit · Shouldly (`result.ShouldBe(...)`) · NSubstitute (`Substitute.For<IServ
 - Arrange-Act-Assert, grouped with `#region` (Happy Path / Exception / Edge Cases).
 - Assert on observable behavior. When verifying a forwarded `CancellationToken`, assert the **specific** token (`Received(1).XAsync(arg, ct)`), not the implicit default — NSubstitute fills optional params with `default`, so `Received(1).XAsync(arg)` silently asserts `CancellationToken.None`.
 
+## xUnit v3
+
+- The test projects reference **`xunit.v3.mtp-off`** (not `xunit.v3`) so `dotnet test` stays on VSTest: `--collect "XPlat Code Coverage"`, `--settings` and `--logger trx` (CI, `coverage.runsettings`) keep working. The default `xunit.v3` flavour is a Microsoft.Testing.Platform app, which the .NET 10 SDK refuses to run through VSTest unless `dotnet test` is opted into MTP in `global.json`.
+- Analyzer `xUnit1051` is a build error: pass **`TestContext.Current.CancellationToken`** to every call that accepts a token. When a mock verifies the forwarded token, invoke the SUT with that same token and assert it — mixing `CancellationToken.None` and `TestContext.Current.CancellationToken` makes `Received(...)` fail (or, worse, a stub silently never match).
+- `IAsyncLifetime` members return `ValueTask`. A `WebApplicationFactory<T>` fixture overrides `public override async ValueTask DisposeAsync()` — a `new Task DisposeAsync()` only hides the base method and the fixture's containers are never released through `IAsyncDisposable`.
+
 ## Test projects (`src/Tests/`)
 
 | Project | Scope | Docker? |

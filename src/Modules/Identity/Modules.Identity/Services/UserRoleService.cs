@@ -21,7 +21,7 @@ internal sealed class UserRoleService(
     ICurrentUser currentUser,
     IUserPermissionService userPermissionService) : IUserRoleService
 {
-    public async Task<string> AssignRolesAsync(string userId, List<UserRoleDto> userRoles, CancellationToken cancellationToken)
+    public async Task<string> AssignRolesAsync(string userId, List<UserRoleDto> userRoles, CancellationToken cancellationToken = default)
     {
         var user = await userManager.Users
             .Where(u => u.Id == userId)
@@ -41,7 +41,7 @@ internal sealed class UserRoleService(
         return "User Roles Updated Successfully.";
     }
 
-    public async Task<List<UserRoleDto>> GetUserRolesAsync(string userId, CancellationToken cancellationToken)
+    public async Task<List<UserRoleDto>> GetUserRolesAsync(string userId, CancellationToken cancellationToken = default)
     {
         var user = await userManager.FindByIdAsync(userId)
             ?? throw new NotFoundException("user not found");

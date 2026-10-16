@@ -15,7 +15,7 @@ public sealed class TenantIsolationTests
     [Fact]
     public async Task TenantIsolation_Should_NotLeakUsers_When_QueryingAcrossTenants()
     {
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var uniqueId = Guid.NewGuid().ToString("N")[..8];
 
         // Create and provision a new tenant
@@ -28,8 +28,7 @@ public sealed class TenantIsolationTests
         using var tenantClient = await CreateTenantAdminClientWithRetryAsync(
             tenantAdminEmail, TestConstants.DefaultPassword, tenantId);
 
-        var registerResponse = await tenantClient.PostAsJsonAsync(
-            $"{TestConstants.IdentityBasePath}/register", new
+        var registerResponse = await tenantClient.PostAsJsonAsync($"{TestConstants.IdentityBasePath}/register", new
             {
                 firstName = "Isolated",
                 lastName = "User",
@@ -37,22 +36,21 @@ public sealed class TenantIsolationTests
                 userName = $"isolateduser-{uniqueId}",
                 password = "Test@1234!",
                 confirmPassword = "Test@1234!"
-            });
+            }, cancellationToken: TestContext.Current.CancellationToken);
         registerResponse.StatusCode.ShouldBe(HttpStatusCode.Created);
 
         // Query users from root tenant — isolated user must NOT appear
-        var rootUsersResponse = await rootClient.GetAsync(
-            $"{TestConstants.IdentityBasePath}/users/search?pageNumber=1&pageSize=100");
+        var rootUsersResponse = await rootClient.GetAsync($"{TestConstants.IdentityBasePath}/users/search?pageNumber=1&pageSize=100", TestContext.Current.CancellationToken);
         rootUsersResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        var rootUsersContent = await rootUsersResponse.Content.ReadAsStringAsync();
+        var rootUsersContent = await rootUsersResponse.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         rootUsersContent.ShouldNotContain($"isolated-{uniqueId}@example.com");
     }
 
     [Fact]
     public async Task TenantIsolation_Should_AllowSameEmailInDifferentTenants()
     {
-        using var rootClient = await _auth.CreateRootAdminClientAsync();
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
         var uniqueId = Guid.NewGuid().ToString("N")[..8];
         string sharedEmail = $"shared-{uniqueId}@example.com";
 
@@ -74,7 +72,7 @@ public sealed class TenantIsolationTests
         {
             firstName = "Shared", lastName = "Email", email = sharedEmail,
             userName = $"shared1-{uniqueId}", password = "Test@1234!", confirmPassword = "Test@1234!"
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
         register1.StatusCode.ShouldBe(HttpStatusCode.Created);
 
         // Register same email in tenant 2 — should succeed
@@ -84,7 +82,7 @@ public sealed class TenantIsolationTests
         {
             firstName = "Shared", lastName = "Email", email = sharedEmail,
             userName = $"shared2-{uniqueId}", password = "Test@1234!", confirmPassword = "Test@1234!"
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
 
         register2.StatusCode.ShouldBe(HttpStatusCode.Created);
     }
