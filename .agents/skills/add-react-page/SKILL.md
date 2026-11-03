@@ -91,7 +91,7 @@ const {Resource}ListPage = lazyNamed(() => import("@/pages/{area}/list"), "{Reso
 
 ## Step 5 — (admin only) mirror the permission
 
-Add the constant to `src/lib/permissions.ts` (`{Module}Permissions.{Resources}.View` = `"Permissions.{Resources}.View"`), and a `PERMISSION_CATALOG` entry if it belongs in the Role editor. See `add-permission`.
+Add the constant to `src/lib/permissions.ts` (`{Module}Permissions.{Resources}.View` = `"Permissions.{Resources}.View"`). The Role editor reads the server catalog, so it needs no entry. See `add-permission`.
 
 ## Step 6 — Playwright test (`tests/{area}/{resource}.spec.ts`)
 

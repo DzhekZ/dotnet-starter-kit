@@ -105,6 +105,9 @@ export function UserDetailPage() {
     queryKey: ["identity", "users", userId, "roles"],
     queryFn: () => getUserRoles(userId),
     enabled: !!userId,
+    // The role catalog changes elsewhere (Roles page); never show a cached
+    // assignment list that predates a newly created role.
+    staleTime: 0,
   });
 
   const user = userQuery.data;

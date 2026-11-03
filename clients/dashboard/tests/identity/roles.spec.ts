@@ -50,7 +50,7 @@ test.describe("identity/roles — list", () => {
   test.beforeEach(async ({ page }) => {
     await seedAuthedSession(page, TEST_USER);
     await installShellMocks(page);
-    await mockJsonResponse(page, "**/api/v1/identity/roles", ROLES);
+    await mockJsonResponse(page, "**/api/v1/identity/roles?**", ROLES);
   });
 
   test("renders the heading and a role row from the mock data", async ({ page }) => {
@@ -65,6 +65,27 @@ test.describe("identity/roles — list", () => {
     // and visible at the default (lg) viewport.
     await expect(page.getByText("Editor", { exact: true }).last()).toBeVisible();
     await expect(page.getByText("Can edit catalog content").last()).toBeVisible();
+  });
+
+  test("loads every page of roles, not just the first", async ({ page }) => {
+    const requested: string[] = [];
+    await page.route("**/api/v1/identity/roles?**", async (route) => {
+      const url = new URL(route.request().url());
+      const pageNumber = Number(url.searchParams.get("PageNumber"));
+      requested.push(`${pageNumber}:${url.searchParams.get("PageSize")}`);
+      const items =
+        pageNumber === 1
+          ? [ROLES[0]]
+          : [{ id: "44444444-4444-4444-4444-444444444444", name: "Zeta reviewer" }];
+      await route.fulfill({
+        json: { items, pageNumber, pageSize: 1, totalCount: 2, totalPages: 2 },
+      });
+    });
+
+    await page.goto("/identity/roles");
+
+    await expect(page.getByText("Zeta reviewer", { exact: true }).last()).toBeVisible();
+    expect(requested).toEqual(["1:200", "2:200"]);
   });
 
   test("client-side search filters the list to the empty state", async ({ page }) => {

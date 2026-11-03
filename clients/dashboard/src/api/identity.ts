@@ -157,10 +157,24 @@ export async function registerUser(input: RegisterUserInput): Promise<RegisterUs
 // Roles
 // -----------------------------
 
+// The API pages roles (default page = 20, sorted by name, max 200 per page), so
+// a bare GET silently drops everything past the first page. Walk all pages.
+const ROLES_PAGE_SIZE = 200;
+
 export async function listRoles(): Promise<RoleDto[]> {
-  const result = await apiFetch<RoleDto[] | { items?: RoleDto[] }>(`/api/v1/identity/roles`);
-  if (Array.isArray(result)) return result;
-  return result.items ?? [];
+  const roles: RoleDto[] = [];
+  for (let pageNumber = 1; ; pageNumber++) {
+    const query = new URLSearchParams({
+      PageNumber: String(pageNumber),
+      PageSize: String(ROLES_PAGE_SIZE),
+    });
+    const result = await apiFetch<
+      RoleDto[] | { items?: RoleDto[]; totalPages?: number }
+    >(`/api/v1/identity/roles?${query.toString()}`);
+    if (Array.isArray(result)) return result;
+    roles.push(...(result.items ?? []));
+    if (pageNumber >= (result.totalPages ?? 1)) return roles;
+  }
 }
 
 export async function getRoleWithPermissions(id: string): Promise<RoleDto> {

@@ -37,6 +37,8 @@ public static class IdentityPermissions
         public const string Create = $"Permissions.{Resource}.Create";
         public const string Update = $"Permissions.{Resource}.Update";
         public const string Delete = $"Permissions.{Resource}.Delete";
+        /// <summary>Root tenant only: copy a custom role into the other tenants.</summary>
+        public const string CopyToTenants = $"Permissions.{Resource}.CopyToTenants";
     }
 
     public static class RoleClaims
@@ -93,6 +95,7 @@ public static class IdentityPermissions
         new("Create Roles",        ActionConstants.Create, Roles.Resource),
         new("Update Roles",        ActionConstants.Update, Roles.Resource),
         new("Delete Roles",        ActionConstants.Delete, Roles.Resource),
+        new("Copy Roles To Tenants", "CopyToTenants",      Roles.Resource, IsRoot: true),
 
         new("View Role Claims",    ActionConstants.View,   RoleClaims.Resource, IsBasic: true),
         new("Update Role Claims",  ActionConstants.Update, RoleClaims.Resource),

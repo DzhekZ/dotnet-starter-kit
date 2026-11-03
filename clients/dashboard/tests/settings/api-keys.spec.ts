@@ -41,7 +41,9 @@ test.describe("settings/api-keys — placeholder", () => {
     const popupPromise = context.waitForEvent("page");
     await page.getByRole("button", { name: /view roadmap/i }).click();
     const popup = await popupPromise;
-    expect(popup.url()).toContain("github.com/fullstackhero/dotnet-starter-kit");
+    // The popup opens blank and navigates afterwards — wait for the URL
+    // instead of reading it at the moment the page event fires.
+    await expect(popup).toHaveURL(/github\.com\/fullstackhero\/dotnet-starter-kit/);
     await popup.close();
   });
 });

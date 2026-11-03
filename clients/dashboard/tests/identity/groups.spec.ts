@@ -101,7 +101,7 @@ test.describe("identity/groups/:groupId — detail", () => {
   test.beforeEach(async ({ page }) => {
     await seedAuthedSession(page, TEST_USER);
     await installShellMocks(page);
-    await mockJsonResponse(page, "**/api/v1/identity/roles", ROLES);
+    await mockJsonResponse(page, "**/api/v1/identity/roles?**", ROLES);
     // user search only fires once the Add members dialog is open.
     await mockJsonResponse(page, "**/api/v1/identity/users/search**", paged([]));
     await mockJsonResponse(page, `**/api/v1/identity/groups/${GROUP_ID}/members`, MEMBERS);

@@ -20,7 +20,8 @@ Form layout primitives live in `src/components/list/` (`PageHeader`, `Field`, `F
 - The JWT carries only role names. Admin fetches the permission set separately: `GET /api/v1/identity/permissions` (`getMyPermissions`), cached under `fsh.admin.permissions`.
 - `AuthProvider` hydrates them in an effect keyed on subject change and exposes `permissionsHydrated` to avoid a 403 flash on first paint.
 - **Route gating:** wrap gated route elements in `<RouteGuard perms={[IdentityPermissions.Users.View]}>…</RouteGuard>`. It renders a "Resolving permissions" state while `!permissionsHydrated`, else `<ForbiddenView missing={…}/>`. (`ProtectedRoute` also accepts a `permissions?` prop.)
-- **Mirror server permissions by hand** in `src/lib/permissions.ts` (`IdentityPermissions`, `MultitenancyPermissions`, … frozen objects + `PERMISSION_CATALOG` driving the role editor). There is intentionally **no** runtime catalog fetch — when the server adds a permission, mirror the constant here.
+- **Constants for guards** live in `src/lib/permissions.ts` (`IdentityPermissions`, `MultitenancyPermissions`, … frozen objects). Mirror a server permission there only when a route guard or nav item references it.
+- **The role editor is driven by the server catalog**: `GET /api/v1/identity/permissions/catalog` (`getPermissionsCatalog` in `src/api/roles.ts`), grouped into one card per resource by `groupPermissions`. A permission a module registers shows up in the editor without any change here. The footer's "N of M granted" counts only grants present in the catalog.
 
 ## Routing & realtime
 
@@ -34,5 +35,5 @@ Cool-cast neutrals (hue 240, small non-zero chroma — **not** chroma 0), a sing
 ## Add-a-page deltas (on top of shared steps)
 
 - Use RHF + zod for any form.
-- If the endpoint requires a permission, mirror the constant in `src/lib/permissions.ts` (and `PERMISSION_CATALOG` if it belongs in the role editor) and wrap the route in `<RouteGuard perms={[…]}>`.
+- If the endpoint requires a permission, mirror the constant in `src/lib/permissions.ts` (the role editor needs nothing: it reads the server catalog) and wrap the route in `<RouteGuard perms={[…]}>`.
 - Playwright: `seedAuthedSession` here also pre-seeds `fsh.admin.permissions` so `RouteGuard` passes on first paint.

@@ -4,10 +4,12 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { ArrowLeft, Lock, Shield, ShieldCheck, Trash2 } from "lucide-react";
+import { ArrowLeft, Copy, Lock, Shield, ShieldCheck, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import {
+  copyRoleToTenants,
   deleteRole,
+  getPermissionsCatalog,
   getRoleWithPermissions,
   updateRolePermissions,
   upsertRole,
@@ -16,6 +18,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
   EntityPageHeader,
   ErrorBand,
@@ -23,14 +26,18 @@ import {
   LoadingRow,
   SettingsSection,
 } from "@/components/list";
+import { useAuth } from "@/auth/use-auth";
 import {
-  PERMISSION_CATALOG,
+  formatResource,
+  groupPermissions,
+  IdentityPermissions,
   type PermissionGroup,
 } from "@/lib/permissions";
 import { ApiRequestError } from "@/lib/api-client";
 import { cn } from "@/lib/cn";
 
 const SYSTEM_ROLE_NAMES = new Set(["Admin", "Basic"]);
+const ROOT_TENANT = "root";
 
 const profileSchema = z.object({
   name: z.string().trim().min(2, "At least 2 characters.").max(64),
@@ -49,8 +56,14 @@ export function RoleDetailPage() {
     enabled: Boolean(id),
   });
 
+  const { user } = useAuth();
   const role = query.data;
   const isSystem = role ? SYSTEM_ROLE_NAMES.has(role.name) : false;
+  // Built-in roles already exist in every tenant, so only a custom role of the root tenant can be copied.
+  const canCopyToTenants =
+    !isSystem &&
+    user?.tenant === ROOT_TENANT &&
+    (user.permissions ?? []).includes(IdentityPermissions.Roles.CopyToTenants);
 
   return (
     <div className="space-y-6">
@@ -117,7 +130,7 @@ export function RoleDetailPage() {
 
       {role && (
         <>
-          <ProfileSection role={role} disabled={isSystem} />
+          <ProfileSection role={role} disabled={isSystem} canCopyToTenants={canCopyToTenants} />
           <PermissionEditor role={role} disabled={false} />
           {!isSystem && (
             <DangerZone
@@ -136,8 +149,17 @@ export function RoleDetailPage() {
 
 // ─── Profile section ────────────────────────────────────────────────────
 
-function ProfileSection({ role, disabled }: { role: RoleDto; disabled: boolean }) {
+function ProfileSection({
+  role,
+  disabled,
+  canCopyToTenants,
+}: {
+  role: RoleDto;
+  disabled: boolean;
+  canCopyToTenants: boolean;
+}) {
   const queryClient = useQueryClient();
+  const [copyConfirmOpen, setCopyConfirmOpen] = useState(false);
   const {
     register,
     handleSubmit,
@@ -177,6 +199,33 @@ function ProfileSection({ role, disabled }: { role: RoleDto; disabled: boolean }
     },
   });
 
+  // The role id rides through mutate(arg), not through state the callbacks close over.
+  const copyMutation = useMutation({
+    mutationFn: (roleId: string) => copyRoleToTenants(roleId),
+    onSuccess: ({ results }) => {
+      setCopyConfirmOpen(false);
+      const created = results.filter((r) => r.status === "Created").length;
+      const skipped = results.filter((r) => r.status === "Skipped").length;
+      const failed = results.filter((r) => r.status === "Failed");
+      const summary = `${created} created, ${skipped} already had it`;
+      if (failed.length === 0) {
+        toast.success("Role copied to tenants", { description: summary });
+        return;
+      }
+      toast.error(`Copy failed for ${failed.length} tenant${failed.length === 1 ? "" : "s"}`, {
+        description: `${summary}. ${failed.map((r) => `${r.tenantId}: ${r.error ?? "unknown error"}`).join("; ")}`,
+      });
+    },
+    onError: (err) => {
+      setCopyConfirmOpen(false);
+      const detail =
+        err instanceof ApiRequestError
+          ? err.problem?.detail ?? err.problem?.title ?? err.message
+          : (err as Error).message;
+      toast.error("Copy failed", { description: detail });
+    },
+  });
+
   const submitting = isSubmitting || mutation.isPending;
 
   return (
@@ -207,6 +256,20 @@ function ProfileSection({ role, disabled }: { role: RoleDto; disabled: boolean }
             >
               Reset
             </Button>
+            {canCopyToTenants && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setCopyConfirmOpen(true)}
+                // Copying sends the saved role, so unsaved edits would be silently left out.
+                disabled={isDirty || submitting || copyMutation.isPending}
+                title={isDirty ? "Save the profile first" : undefined}
+                className="h-9 rounded-lg px-4 text-[13px]"
+              >
+                <Copy className="mr-1.5 h-3.5 w-3.5" />
+                Copy to Tenants
+              </Button>
+            )}
           </div>
         }
       >
@@ -228,6 +291,24 @@ function ProfileSection({ role, disabled }: { role: RoleDto; disabled: boolean }
           </Field>
         </div>
       </SettingsSection>
+      {canCopyToTenants && (
+        <ConfirmDialog
+          open={copyConfirmOpen}
+          onOpenChange={setCopyConfirmOpen}
+          title="Copy role to tenants?"
+          description={
+            <>
+              <strong className="text-[var(--color-foreground)]">{role.name}</strong> and its
+              permissions will be created in every tenant that does not have a role of that name.
+              Tenants that already have it are left untouched, and root-only permissions are not
+              copied.
+            </>
+          }
+          confirmLabel="Copy to Tenants"
+          pending={copyMutation.isPending}
+          onConfirm={() => copyMutation.mutate(role.id)}
+        />
+      )}
     </form>
   );
 }
@@ -240,6 +321,16 @@ function PermissionEditor({ role, disabled }: { role: RoleDto; disabled: boolean
   const [selected, setSelected] = useState<Set<string>>(initial);
 
   useEffect(() => setSelected(new Set(role.permissions ?? [])), [role.permissions]);
+
+  // The server owns the catalog: every module registers its permissions there, so
+  // new permissions show up in the editor without touching this app.
+  const catalogQuery = useQuery({
+    queryKey: ["permissions", "catalog"],
+    queryFn: getPermissionsCatalog,
+    staleTime: 5 * 60_000,
+  });
+  const catalog = catalogQuery.data;
+  const groups = useMemo(() => groupPermissions(catalog ?? []), [catalog]);
 
   const mutation = useMutation({
     mutationFn: () =>
@@ -260,10 +351,15 @@ function PermissionEditor({ role, disabled }: { role: RoleDto; disabled: boolean
     },
   });
 
-  const total = useMemo(
-    () => PERMISSION_CATALOG.reduce((sum, g) => sum + g.entries.length, 0),
-    [],
-  );
+  const total = catalog?.length ?? 0;
+  // Count only what the editor can show: a role may hold grants outside this
+  // tenant's catalog (e.g. root-only ones) and they must not inflate "N of M".
+  const grantedCount = useMemo(() => {
+    const names = new Set((catalog ?? []).map((p) => p.name));
+    let count = 0;
+    for (const name of selected) if (names.has(name)) count++;
+    return count;
+  }, [catalog, selected]);
   const dirty = useMemo(() => !sameSet(selected, initial), [selected, initial]);
 
   const toggle = (name: string) => {
@@ -298,12 +394,12 @@ function PermissionEditor({ role, disabled }: { role: RoleDto; disabled: boolean
               {dirty ? (
                 <span className="inline-flex items-center gap-1.5 text-[var(--color-warning)]">
                   <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--color-warning)]" />
-                  Unsaved changes · {String(selected.size).padStart(2, "0")} of{" "}
+                  Unsaved changes · {String(grantedCount).padStart(2, "0")} of{" "}
                   {String(total).padStart(2, "0")} granted
                 </span>
               ) : (
                 <span>
-                  All changes saved · {String(selected.size).padStart(2, "0")} of{" "}
+                  All changes saved · {String(grantedCount).padStart(2, "0")} of{" "}
                   {String(total).padStart(2, "0")} granted
                 </span>
               )}
@@ -334,29 +430,37 @@ function PermissionEditor({ role, disabled }: { role: RoleDto; disabled: boolean
         ) : undefined
       }
     >
+      {catalogQuery.isError && (
+        <ErrorBand
+          message={
+            catalogQuery.error instanceof ApiRequestError
+              ? catalogQuery.error.problem?.detail ?? catalogQuery.error.message
+              : "Failed to load the permission catalog."
+          }
+        />
+      )}
+      {catalogQuery.isLoading && <LoadingRow label="Loading permissions" />}
+
       <div className="space-y-4">
-        {PERMISSION_CATALOG.map((group) => {
+        {groups.map((group) => {
           const groupCount = group.entries.filter((e) => selected.has(e.name)).length;
           const allOn = groupCount === group.entries.length;
           const someOn = groupCount > 0 && groupCount < group.entries.length;
           return (
             <div
-              key={group.category}
+              key={group.resource}
               className="overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-card)]"
             >
               <div className="flex flex-wrap items-baseline justify-between gap-3 border-b border-[var(--color-border)] bg-[var(--color-muted)]/40 px-4 py-3">
                 <div className="min-w-0">
                   <div className="flex items-baseline gap-3">
                     <h3 className="text-[13px] font-semibold tracking-tight text-[var(--color-foreground)]">
-                      {group.category}
+                      {formatResource(group.resource)}
                     </h3>
                     <span className="font-mono text-[11px] tabular-nums text-[var(--color-muted-foreground)]">
                       {String(groupCount).padStart(2, "0")} / {String(group.entries.length).padStart(2, "0")}
                     </span>
                   </div>
-                  <p className="mt-0.5 text-[11.5px] text-[var(--color-muted-foreground)]">
-                    {group.blurb}
-                  </p>
                 </div>
                 <button
                   type="button"
@@ -383,7 +487,10 @@ function PermissionEditor({ role, disabled }: { role: RoleDto; disabled: boolean
                     >
                       <label
                         className={cn(
-                          "flex cursor-pointer items-start gap-3 px-4 py-3 text-[12.5px] transition-colors",
+                          // `relative` anchors the sr-only checkbox inside the card; without it the
+                          // absolutely positioned input resolves against the viewport and makes the
+                          // document scroll next to <main>.
+                          "relative flex cursor-pointer items-start gap-3 px-4 py-3 text-[12.5px] transition-colors",
                           disabled && "cursor-not-allowed opacity-60",
                           !disabled && checked && "bg-[oklch(from_var(--color-primary)_l_c_h_/_0.04)] hover:bg-[oklch(from_var(--color-primary)_l_c_h_/_0.07)]",
                           !disabled && !checked && "hover:bg-[var(--color-accent)]",
@@ -420,12 +527,12 @@ function PermissionEditor({ role, disabled }: { role: RoleDto; disabled: boolean
                             >
                               {entry.description}
                             </span>
-                            {entry.root && (
+                            {entry.isRoot && (
                               <span className="rounded-full bg-[oklch(from_var(--color-warning)_l_c_h_/_0.16)] px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.12em] text-[var(--color-warning)]">
                                 root
                               </span>
                             )}
-                            {entry.basic && (
+                            {entry.isBasic && (
                               <span className="rounded-full bg-[oklch(from_var(--color-info)_l_c_h_/_0.16)] px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.12em] text-[var(--color-info)]">
                                 basic
                               </span>
