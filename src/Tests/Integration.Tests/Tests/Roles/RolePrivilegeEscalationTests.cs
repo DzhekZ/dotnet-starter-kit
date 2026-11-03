@@ -73,9 +73,9 @@ public sealed class RolePrivilegeEscalationTests
         using var tenantAdmin = await CreateTenantAdminClientWithRetryAsync(
             adminEmail, TestConstants.DefaultPassword, tenantId);
 
-        var response = await tenantAdmin.GetAsync($"{TestConstants.IdentityBasePath}/permissions");
-        response.StatusCode.ShouldBe(HttpStatusCode.OK, await response.Content.ReadAsStringAsync());
-        var effective = await response.DeserializeAsync<List<string>>();
+        var response = await tenantAdmin.GetAsync($"{TestConstants.IdentityBasePath}/permissions", TestContext.Current.CancellationToken);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK, await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        var effective = await response.DeserializeAsync<List<string>>(ct: TestContext.Current.CancellationToken);
 
         effective.ShouldNotContain(RootPermission,
             "a root-only claim on a non-root tenant's role must not take effect");

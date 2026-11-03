@@ -113,5 +113,11 @@ public enum AuditTag
     RetainedLong = 1 << 3,
     HealthCheck = 1 << 4,
     Authentication = 1 << 5,
-    Authorization = 1 << 6
+    Authorization = 1 << 6,
+    /// <summary>
+    /// The event must not be lost: the publisher sends it by the lane that waits for room instead of dropping the oldest events when the
+    /// queue is full (the lane of the security events), whatever its type. For events that are the record itself, such as the question and
+    /// the answer of a user to the model.
+    /// </summary>
+    Guaranteed = 1 << 7
 }

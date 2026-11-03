@@ -13,7 +13,7 @@ namespace FSH.Modules.Notifications.IntegrationEventHandlers;
 /// <summary>
 /// Subscribes to <see cref="RoleCopiedToTenantsIntegrationEvent"/>: the operator of the root tenant copied a custom role into the other tenants.
 /// They get a row in the inbox («Копирование роли завершено») and a <c>NotificationCreated</c> push to their SignalR group, the way the user who
-/// deleted a file is told (<see cref="DocumentDeletedIntegrationEventHandler"/>). An event without <c>RequestedBy</c> tells nobody. The tenant of
+/// deleted a file is told (<see cref="RoleCopiedToTenantsIntegrationEvent"/>). An event without <c>RequestedBy</c> tells nobody. The tenant of
 /// the event is the ambient tenant here, as the event bus sets it before handlers are resolved.
 /// <para>
 /// The row of the inbox is what counts: the push is best effort. A failing push must not fail the handler, or the dispatcher would retry it and the

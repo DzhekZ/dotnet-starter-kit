@@ -128,8 +128,8 @@ public sealed class CopyRoleToTenantsCommandHandlerTests
 
         // Assert
         result.Results.ShouldBe([new CopyRoleToTenantResult("acme", CopyRoleStatuses.Skipped)]);
-        await _tenantRoles.DidNotReceiveWithAnyArgs().CreateOrUpdateRoleAsync(default!, default!, default!, default);
-        await _tenantRoles.DidNotReceiveWithAnyArgs().UpdatePermissionsAsync(default!, default!, default);
+        await _tenantRoles.DidNotReceiveWithAnyArgs().CreateOrUpdateRoleAsync(default!, default!, default!, TestContext.Current.CancellationToken);
+        await _tenantRoles.DidNotReceiveWithAnyArgs().UpdatePermissionsAsync(default!, default!, TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -145,7 +145,7 @@ public sealed class CopyRoleToTenantsCommandHandlerTests
 
         // Assert
         result.Results.Single().Status.ShouldBe(CopyRoleStatuses.Created);
-        await _tenantRoles.DidNotReceiveWithAnyArgs().UpdatePermissionsAsync(default!, default!, default);
+        await _tenantRoles.DidNotReceiveWithAnyArgs().UpdatePermissionsAsync(default!, default!, TestContext.Current.CancellationToken);
     }
 
     #endregion
@@ -251,9 +251,9 @@ public sealed class CopyRoleToTenantsCommandHandlerTests
         // Act & Assert
         await Should.ThrowAsync<ForbiddenException>(
             () => _sut.Handle(new CopyRoleToTenantsCommand(RoleId), TestContext.Current.CancellationToken).AsTask());
-        await _rootRoles.DidNotReceiveWithAnyArgs().GetWithPermissionsAsync(default!, default);
+        await _rootRoles.DidNotReceiveWithAnyArgs().GetWithPermissionsAsync(default!, TestContext.Current.CancellationToken);
         _audited.ShouldBeEmpty();
-        await _outbox.DidNotReceiveWithAnyArgs().AddAsync(default!, default);
+        await _outbox.DidNotReceiveWithAnyArgs().AddAsync(default!, TestContext.Current.CancellationToken);
     }
 
     [Theory]
@@ -271,7 +271,7 @@ public sealed class CopyRoleToTenantsCommandHandlerTests
 
         // Assert
         ex.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
-        await _tenantRoles.DidNotReceiveWithAnyArgs().CreateOrUpdateRoleAsync(default!, default!, default!, default);
+        await _tenantRoles.DidNotReceiveWithAnyArgs().CreateOrUpdateRoleAsync(default!, default!, default!, TestContext.Current.CancellationToken);
     }
 
     [Fact]
