@@ -64,6 +64,7 @@ export function RolesPage() {
   const query = useQuery({
     queryKey: ["identity", "roles"],
     queryFn: listRoles,
+    staleTime: 0,
   });
 
   const roles = useMemo(() => query.data ?? [], [query.data]);

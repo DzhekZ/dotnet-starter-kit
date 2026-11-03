@@ -161,6 +161,18 @@ test.describe("roles create form", () => {
   });
 });
 
+// GET /identity/permissions/catalog — the editor renders exactly what the server returns.
+// Norms stands in for a module the admin app has no constants for.
+const CATALOG = [
+  { name: "Permissions.Users.View", description: "View users", resource: "Users", action: "View", isBasic: true, isRoot: false },
+  { name: "Permissions.Users.Create", description: "Create users", resource: "Users", action: "Create", isBasic: false, isRoot: false },
+  { name: "Permissions.Roles.View", description: "View roles", resource: "Roles", action: "View", isBasic: true, isRoot: false },
+  { name: "Permissions.Sessions.View", description: "View my sessions", resource: "Sessions", action: "View", isBasic: true, isRoot: false },
+  { name: "Permissions.Norms.View", description: "View norms", resource: "Norms", action: "View", isBasic: true, isRoot: false },
+  { name: "Permissions.Norms.Upload", description: "Upload norms", resource: "Norms", action: "Upload", isBasic: false, isRoot: false },
+  { name: "Permissions.AuditTrails.ViewCrossTenant", description: "View audit trails across tenants", resource: "AuditTrails", action: "ViewCrossTenant", isBasic: false, isRoot: true },
+];
+
 test.describe("role detail permission matrix", () => {
   const ROLE = {
     id: "role-manager",
@@ -168,6 +180,10 @@ test.describe("role detail permission matrix", () => {
     description: "Manages a team",
     permissions: ["Permissions.Users.View", "Permissions.Roles.View"],
   };
+
+  test.beforeEach(async ({ page }) => {
+    await mockJsonResponse(page, "**/api/v1/identity/permissions/catalog", CATALOG);
+  });
 
   test("loads the role and renders the profile + permission catalog groups", async ({ page }) => {
     // NOTE: path is /identity/{id}/permissions — NO /roles/ segment.
@@ -222,5 +238,186 @@ test.describe("role detail permission matrix", () => {
     expect(body.permissions).toContain("Permissions.Users.Create");
     // Pre-existing grants are preserved.
     expect(body.permissions).toContain("Permissions.Users.View");
+  });
+
+  test("renders a card per catalog resource, including modules unknown to the admin app", async ({ page }) => {
+    await mockJsonResponse(page, `**/api/v1/identity/${ROLE.id}/permissions`, ROLE);
+
+    await page.goto(`/roles/${ROLE.id}`);
+    const main = page.getByRole("main");
+
+    await expect(main.getByRole("heading", { name: "Norms", exact: true })).toBeVisible({
+      timeout: 10_000,
+    });
+    await expect(main.getByText("Permissions.Norms.Upload", { exact: true })).toBeVisible();
+    // PascalCase resource names are split into words.
+    await expect(main.getByRole("heading", { name: "Audit Trails", exact: true })).toBeVisible();
+  });
+
+  test("the footer counts only granted permissions that exist in the catalog", async ({ page }) => {
+    // Two grants the catalog does not know (renamed or root-only elsewhere) must not
+    // inflate the figure: 2 of 7, not 4 of 7.
+    await mockJsonResponse(page, `**/api/v1/identity/${ROLE.id}/permissions`, {
+      ...ROLE,
+      permissions: [...ROLE.permissions, "Permissions.Legacy.Gone", "Permissions.Other.Gone"],
+    });
+
+    await page.goto(`/roles/${ROLE.id}`);
+    const main = page.getByRole("main");
+
+    await expect(main.getByText("All changes saved · 02 of 07 granted")).toBeVisible({
+      timeout: 10_000,
+    });
+  });
+
+  test("selecting a whole module card and saving PUTs its permissions", async ({ page }) => {
+    await mockJsonResponse(page, `**/api/v1/identity/${ROLE.id}/permissions`, ROLE);
+
+    await page.goto(`/roles/${ROLE.id}`);
+    const main = page.getByRole("main");
+    const card = main.locator("div.overflow-hidden", {
+      has: page.getByRole("heading", { name: "Norms", exact: true }),
+    });
+
+    await card.getByRole("button", { name: "Select all" }).click();
+    await expect(main.getByText(/Unsaved changes · 04 of 07 granted/)).toBeVisible();
+
+    const reqPromise = page.waitForRequest(
+      (r) =>
+        r.url().endsWith(`/api/v1/identity/${ROLE.id}/permissions`) && r.method() === "PUT",
+      { timeout: 5_000 },
+    );
+    await main.getByRole("button", { name: /save permissions/i }).click();
+    const body = JSON.parse((await reqPromise).postData() ?? "{}");
+
+    expect(body.permissions).toEqual(
+      expect.arrayContaining(["Permissions.Norms.View", "Permissions.Norms.Upload", "Permissions.Users.View"]),
+    );
+  });
+
+  test("only <main> scrolls: the document itself never gets a second scrollbar", async ({ page }) => {
+    // A short window forces <main> to scroll. The permission checkboxes are visually
+    // hidden (sr-only, absolutely positioned); when they were not anchored to their card
+    // they extended the document's own scroll height as well.
+    await page.setViewportSize({ width: 1333, height: 449 });
+    await mockJsonResponse(page, `**/api/v1/identity/${ROLE.id}/permissions`, ROLE);
+
+    await page.goto(`/roles/${ROLE.id}`);
+    await expect(page.getByRole("main").getByText("Permissions.Norms.Upload", { exact: true })).toBeVisible({
+      timeout: 10_000,
+    });
+
+    const doc = await page.evaluate(() => ({
+      scrollHeight: document.documentElement.scrollHeight,
+      clientHeight: document.documentElement.clientHeight,
+    }));
+    expect(doc.scrollHeight).toBe(doc.clientHeight);
+  });
+});
+
+test.describe("role detail: Copy to Tenants", () => {
+  const ROLE = {
+    id: "role-manager",
+    name: "Manager",
+    description: "Manages a team",
+    permissions: ["Permissions.Users.View"],
+  };
+
+  const copyButton = (page: import("@playwright/test").Page) =>
+    page.getByRole("main").getByRole("button", { name: "Copy to Tenants", exact: true });
+
+  test.beforeEach(async ({ page }) => {
+    await mockJsonResponse(page, "**/api/v1/identity/permissions/catalog", CATALOG);
+    await mockJsonResponse(page, `**/api/v1/identity/${ROLE.id}/permissions`, ROLE);
+  });
+
+  test("confirming POSTs to the copy endpoint and reports the outcome", async ({ page }) => {
+    await mockJsonResponse(
+      page,
+      `**/api/v1/identity/roles/${ROLE.id}/copy-to-tenants`,
+      {
+        results: [
+          { tenantId: "acme", status: "Created" },
+          { tenantId: "beta", status: "Skipped" },
+        ],
+      },
+      { method: "POST" },
+    );
+
+    await page.goto(`/roles/${ROLE.id}`);
+    await expect(copyButton(page)).toBeVisible({ timeout: 10_000 });
+    await copyButton(page).click();
+
+    const dialog = page.getByRole("dialog");
+    await expect(dialog.getByRole("heading", { name: "Copy role to tenants?" })).toBeVisible();
+
+    const reqPromise = page.waitForRequest(
+      (r) => r.url().endsWith(`/api/v1/identity/roles/${ROLE.id}/copy-to-tenants`) && r.method() === "POST",
+      { timeout: 5_000 },
+    );
+    await dialog.getByRole("button", { name: "Copy to Tenants", exact: true }).click();
+    await reqPromise;
+
+    await expect(page.getByText("Role copied to tenants")).toBeVisible();
+    await expect(page.getByText("1 created, 1 already had it")).toBeVisible();
+  });
+
+  test("lists the tenants the copy failed for", async ({ page }) => {
+    await mockJsonResponse(
+      page,
+      `**/api/v1/identity/roles/${ROLE.id}/copy-to-tenants`,
+      { results: [{ tenantId: "acme", status: "Failed", error: "permission store is down" }] },
+      { method: "POST" },
+    );
+
+    await page.goto(`/roles/${ROLE.id}`);
+    await copyButton(page).click();
+    await page.getByRole("dialog").getByRole("button", { name: "Copy to Tenants", exact: true }).click();
+
+    await expect(page.getByText("Copy failed for 1 tenant")).toBeVisible();
+    await expect(page.getByText(/acme: permission store is down/)).toBeVisible();
+  });
+
+  test("is hidden for a built-in role", async ({ page }) => {
+    await mockJsonResponse(page, "**/api/v1/identity/role-admin/permissions", {
+      id: "role-admin",
+      name: "Admin",
+      permissions: [],
+    });
+
+    await page.goto("/roles/role-admin");
+    await expect(page.getByRole("main").getByLabel(/^Name/)).toHaveValue("Admin", { timeout: 10_000 });
+
+    await expect(copyButton(page)).toHaveCount(0);
+  });
+
+  test("is hidden outside the root tenant", async ({ page }) => {
+    await seedAuthedSession(page, { ...TEST_USER, tenant: "acme", permissions: [...ADMIN_PERMS] });
+
+    await page.goto(`/roles/${ROLE.id}`);
+    await expect(page.getByRole("main").getByLabel(/^Name/)).toHaveValue("Manager", { timeout: 10_000 });
+
+    await expect(copyButton(page)).toHaveCount(0);
+  });
+
+  test("is hidden without the CopyToTenants permission", async ({ page }) => {
+    const perms = ADMIN_PERMS.filter((p) => p !== "Permissions.Roles.CopyToTenants");
+    await seedAuthedSession(page, { ...TEST_USER, permissions: perms });
+    await mockJsonResponse(page, "**/api/v1/identity/permissions", perms);
+
+    await page.goto(`/roles/${ROLE.id}`);
+    await expect(page.getByRole("main").getByLabel(/^Name/)).toHaveValue("Manager", { timeout: 10_000 });
+
+    await expect(copyButton(page)).toHaveCount(0);
+  });
+
+  test("is disabled while the profile has unsaved edits", async ({ page }) => {
+    await page.goto(`/roles/${ROLE.id}`);
+    const name = page.getByRole("main").getByLabel(/^Name/);
+    await expect(name).toHaveValue("Manager", { timeout: 10_000 });
+
+    await name.fill("Manager 2");
+
+    await expect(copyButton(page)).toBeDisabled();
   });
 });

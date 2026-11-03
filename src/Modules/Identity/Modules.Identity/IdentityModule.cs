@@ -26,6 +26,7 @@ using FSH.Modules.Identity.Features.v1.Impersonation.RevokeImpersonationGrant;
 using FSH.Modules.Identity.Features.v1.Impersonation.StartImpersonation;
 using FSH.Modules.Identity.Features.v1.Permissions.GetPermissionCatalog;
 using FSH.Modules.Identity.Features.v1.Roles;
+using FSH.Modules.Identity.Features.v1.Roles.CopyRoleToTenants;
 using FSH.Modules.Identity.Features.v1.Roles.DeleteRole;
 using FSH.Modules.Identity.Features.v1.Roles.GetRoleById;
 using FSH.Modules.Identity.Features.v1.Roles.GetRoles;
@@ -197,6 +198,7 @@ public class IdentityModule : IModule
         group.MapGetRolePermissionsEndpoint();
         group.MapUpdateRolePermissionsEndpoint();
         group.MapCreateOrUpdateRoleEndpoint();
+        group.MapCopyRoleToTenantsEndpoint();
 
         // permission catalog — every permission registered with the host,
         // filtered to the caller's tenant context (root vs admin set)

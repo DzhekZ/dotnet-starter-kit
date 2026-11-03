@@ -1,6 +1,14 @@
+using Finbuckle.MultiTenant;
+using Finbuckle.MultiTenant.Abstractions;
+using FSH.Framework.Shared.Constants;
+using FSH.Framework.Shared.Identity.Claims;
+using FSH.Framework.Shared.Multitenancy;
 using FSH.Modules.Identity.Contracts.Authorization;
+using FSH.Modules.Identity.Data;
+using FSH.Modules.Identity.Domain;
 using Integration.Tests.Infrastructure;
 using Integration.Tests.Infrastructure.Extensions;
+using Microsoft.EntityFrameworkCore;
 
 namespace Integration.Tests.Tests.Roles;
 
@@ -19,11 +27,60 @@ public sealed class RolePrivilegeEscalationTests
     private const string RootPermission = "Permissions.Tenants.Update";
     private const string AllowedPermission = IdentityPermissions.Groups.View;
 
+    private readonly FshWebApplicationFactory _factory;
     private readonly AuthHelper _auth;
 
     public RolePrivilegeEscalationTests(FshWebApplicationFactory factory)
     {
+        _factory = factory;
         _auth = new AuthHelper(factory);
+    }
+
+    [Fact]
+    public async Task GetPermissions_Should_OmitRootPermission_When_ClaimPlantedOnNonRootTenantRole()
+    {
+        // A root-only claim that reached a non-root tenant's Admin role outside the API (direct SQL, restored
+        // backup) must not take effect: the effective permission set drops it.
+        using var rootClient = await _auth.CreateRootAdminClientAsync(TestContext.Current.CancellationToken);
+        var unique = Guid.NewGuid().ToString("N")[..8];
+        var tenantId = $"esc-{unique}";
+        var adminEmail = $"esc-admin-{unique}@tenant.com";
+        await CreateTenantAsync(rootClient, tenantId, adminEmail);
+        await TenantProvisioningWait.WaitForProvisioningAsync(rootClient, tenantId);
+
+        // Planted BEFORE the tenant admin's first permission read, so the cache cannot predate the claim.
+        // The Finbuckle tenant context is set inline: it is AsyncLocal and an awaited helper would lose it.
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var tenant = await scope.ServiceProvider
+                .GetRequiredService<IMultiTenantStore<AppTenantInfo>>()
+                .GetAsync(tenantId);
+            scope.ServiceProvider.GetRequiredService<IMultiTenantContextSetter>()
+                .MultiTenantContext = new MultiTenantContext<AppTenantInfo>(tenant!);
+
+            var db = scope.ServiceProvider.GetRequiredService<IdentityDbContext>();
+            var adminRole = await db.Roles.SingleAsync(r => r.Name == RoleConstants.Admin, TestContext.Current.CancellationToken);
+            db.RoleClaims.Add(new FshRoleClaim
+            {
+                RoleId = adminRole.Id,
+                ClaimType = ClaimConstants.Permission,
+                ClaimValue = RootPermission,
+                CreatedBy = "test",
+            });
+            await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        using var tenantAdmin = await CreateTenantAdminClientWithRetryAsync(
+            adminEmail, TestConstants.DefaultPassword, tenantId);
+
+        var response = await tenantAdmin.GetAsync($"{TestConstants.IdentityBasePath}/permissions");
+        response.StatusCode.ShouldBe(HttpStatusCode.OK, await response.Content.ReadAsStringAsync());
+        var effective = await response.DeserializeAsync<List<string>>();
+
+        effective.ShouldNotContain(RootPermission,
+            "a root-only claim on a non-root tenant's role must not take effect");
+        effective.ShouldContain(AllowedPermission,
+            "the tenant admin's ordinary permissions must be unaffected");
     }
 
     [Fact]

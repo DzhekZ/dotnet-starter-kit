@@ -19,6 +19,14 @@
 		<ProjectReference Include="..\..\Chat\Modules.Chat.Contracts\Modules.Chat.Contracts.csproj" />
 		<ProjectReference Include="..\..\Multitenancy\Modules.Multitenancy.Contracts\Modules.Multitenancy.Contracts.csproj" />
 		<ProjectReference Include="..\..\Billing\Modules.Billing.Contracts\Modules.Billing.Contracts.csproj" />
+		<!-- A norm that the findings of a tenant cite was replaced or cancelled (stage 12): the event of the base of norms. -->
+		<ProjectReference Include="..\..\Norms\Modules.Norms.Contracts\Modules.Norms.Contracts.csproj" />
+		<!-- A document a user uploaded for a chat of the assistant was parsed, or failed to be: the line in their bell. -->
+		<ProjectReference Include="..\..\Assistant\Modules.Assistant.Contracts\Modules.Assistant.Contracts.csproj" />
+		<!-- A file deleted from a project of checks: the line in the bell of the user who deleted it. -->
+		<ProjectReference Include="..\..\Documents\Modules.Documents.Contracts\Modules.Documents.Contracts.csproj" />
+		<!-- A custom role of the root tenant was copied into the other tenants: the line in the bell of the operator who did it. -->
+		<ProjectReference Include="..\..\Identity\Modules.Identity.Contracts\Modules.Identity.Contracts.csproj" />
 	</ItemGroup>
 
 	<ItemGroup>

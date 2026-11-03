@@ -35,3 +35,9 @@ Login `POST /api/v1/identity/token/issue` (header `X-FSH-App` enforces the opera
 ## Tests
 
 `Identity.Tests` is the largest unit suite. When asserting a forwarded `CancellationToken`, assert the specific token (see `testing.md`).
+
+## Copy a role to the tenants (`POST /roles/{id}/copy-to-tenants`)
+
+Root tenant only (`Permissions.Roles.CopyToTenants`, flagged `IsRoot`; the handler also refuses a request whose resolved tenant is not root). The seeder, `RolePermissionSyncer` and the DbMigrator touch only the built-in `Admin`/`Basic`, so a custom role of the root tenant exists nowhere else until it is copied. `CopyRoleToTenantsCommandHandler` walks the tenants (not root) and, in a scope per tenant built like `RolePermissionSyncHostedService` builds it, reuses `IRoleService`: a tenant with a role of that name is `Skipped`, otherwise the role is created and `UpdatePermissionsAsync` grants the permissions (root-only ones are stripped there, as for any non-root tenant). A role left without permissions by a failure is deleted again; one tenant failing is reported (`Failed`) and does not stop the rest. Built-in roles are refused (400).
+
+Audit: the HTTP audit records the request, `AuditingSaveChangesInterceptor` the role and claims written in each tenant, and the handler adds an `Activity`/`Command` event `role.copy-to-tenant` per tenant plus `role.copy-to-tenants` in the root tenant, published through `IAuditPublisher` with the tenant and the operator named on the envelope and `AuditTag.Guaranteed` (the lane that waits). Bell: it queues `RoleCopiedToTenantsIntegrationEvent` through the outbox for the operator (`modules/notifications.md`). Audit and bell are best effort: a failure is logged and never undoes the copy.

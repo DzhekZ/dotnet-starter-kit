@@ -9,6 +9,7 @@ export const ADMIN_PERMS = [
   "Permissions.Tenants.ViewTheme",
   "Permissions.Tenants.UpdateTheme",
   "Permissions.Tenants.UpgradeSubscription",
+  "Permissions.Roles.CopyToTenants",
   "Permissions.Users.View",
   "Permissions.Users.Search",
   "Permissions.Users.Create",

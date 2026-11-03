@@ -36,7 +36,7 @@ test.describe("identity/users — list", () => {
     await seedAuthedSession(page, TEST_USER);
     await installShellMocks(page);
     // The role filter combobox loads the role list on mount.
-    await mockJsonResponse(page, "**/api/v1/identity/roles", ROLES);
+    await mockJsonResponse(page, "**/api/v1/identity/roles?**", ROLES);
   });
 
   test("renders the heading and a user row from the mock data", async ({ page }) => {

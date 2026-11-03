@@ -38,7 +38,7 @@ The module already calls `PermissionConstants.Register({X}Permissions.All)` in `
 
 ## Step 3 — (admin only) mirror it
 
-`clients/admin/src/lib/permissions.ts` — add the matching string to the frozen tree (no runtime catalog endpoint exists; mirror by hand):
+`clients/admin/src/lib/permissions.ts` — add the matching string to the frozen tree (only needed when a route guard or nav item references it):
 
 ```ts
 export const {Module}Permissions = Object.freeze({
@@ -46,7 +46,7 @@ export const {Module}Permissions = Object.freeze({
 } as const);
 ```
 
-If it should appear in the Role editor UI, add a `PERMISSION_CATALOG` entry (`{ name, description, root?, basic? }` under the right category group).
+The Role editor needs nothing: it renders the server catalog (`GET /api/v1/identity/permissions/catalog`), so the permission appears there once it is in the server's `All` collection.
 
 ## Step 4 — (admin only) gate the route
 
@@ -67,6 +67,6 @@ No mirror, no `RouteGuard`. The JWT carries only role names — the app fetches 
 
 - [ ] Server constant added to `{X}Permissions` **and** its `All` collection
 - [ ] Endpoint gated with `.RequirePermission(...)`; no duplicate `IRequiredPermissionMetadata`
-- [ ] (admin) mirrored in `lib/permissions.ts` (+ `PERMISSION_CATALOG` if role-editor-visible)
+- [ ] (admin) mirrored in `lib/permissions.ts` (only if a guard or nav item uses it; the role editor reads the server catalog)
 - [ ] (admin) route wrapped in `<RouteGuard perms={[…]}>`; permission added to `ADMIN_PERMS` test seed
 - [ ] Build green; admin `test:e2e` green

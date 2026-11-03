@@ -61,7 +61,14 @@ internal sealed class UserPermissionService(
     {
         // Stateless factory overload — the factory is a static method group, so the runtime
         // reuses a cached delegate and no closure is allocated per call (including L1 hits).
-        var state = new FactoryState(userManager, roleManager, db, CallerTenantOtherThanResolved(userId), scopeFactory, userId);
+        var state = new FactoryState(
+            userManager,
+            roleManager,
+            db,
+            CallerTenantOtherThanResolved(userId),
+            tenantAccessor.MultiTenantContext?.TenantInfo?.Id,
+            scopeFactory,
+            userId);
 
         return cache.GetOrCreateAsync(
             CacheKeys.UserPermissions(userId),
@@ -95,7 +102,7 @@ internal sealed class UserPermissionService(
     {
         if (s.HomeTenantId is not { } homeTenantId)
         {
-            return await LoadInCurrentTenantAsync(s.UserManager, s.RoleManager, s.Db, s.UserId, ct).ConfigureAwait(false);
+            return await LoadInCurrentTenantAsync(s.UserManager, s.RoleManager, s.Db, s.UserId, s.ResolvedTenantId, ct).ConfigureAwait(false);
         }
 
         await using var scope = s.ScopeFactory.CreateAsyncScope();
@@ -111,6 +118,7 @@ internal sealed class UserPermissionService(
             services.GetRequiredService<RoleManager<FshRole>>(),
             services.GetRequiredService<IdentityDbContext>(),
             s.UserId,
+            homeTenant.Id,
             ct).ConfigureAwait(false);
     }
 
@@ -119,6 +127,7 @@ internal sealed class UserPermissionService(
         RoleManager<FshRole> roleManager,
         IdentityDbContext db,
         string userId,
+        string? tenantId,
         CancellationToken ct)
     {
         var user = await userManager.FindByIdAsync(userId).ConfigureAwait(false);
@@ -157,9 +166,31 @@ internal sealed class UserPermissionService(
             .Distinct()
             .ToListAsync(ct).ConfigureAwait(false);
 
+        perms = WithoutRootOnlyPermissions(perms, tenantId);
+
         return perms.Count == 0
             ? PermissionSet.Empty
             : new PermissionSet([.. perms]);
+    }
+
+    // Root-only permissions (IsRoot in the registry) are valid in the root tenant alone. The write path
+    // (RoleService.FilterRootPermissions, the syncer, the seeder) never puts them on a non-root role, but a
+    // claim that got there another way (direct SQL, restored backup) must not take effect, so the effective
+    // set drops them here. An unknown tenant counts as non-root. The registry is filled at startup, hence
+    // it is read per load, not cached in a static.
+    internal static List<string> WithoutRootOnlyPermissions(List<string> permissions, string? tenantId)
+    {
+        ArgumentNullException.ThrowIfNull(permissions);
+
+        if (string.Equals(tenantId, MultitenancyConstants.Root.Id, StringComparison.Ordinal))
+        {
+            return permissions;
+        }
+
+        var rootOnly = PermissionConstants.Root.Select(p => p.Name).ToHashSet(StringComparer.Ordinal);
+        return rootOnly.Count == 0
+            ? permissions
+            : [.. permissions.Where(p => !rootOnly.Contains(p))];
     }
 
     // Struct state flows through HybridCache's TState parameter — avoids closure allocation.
@@ -168,6 +199,7 @@ internal sealed class UserPermissionService(
         RoleManager<FshRole> RoleManager,
         IdentityDbContext Db,
         string? HomeTenantId,
+        string? ResolvedTenantId,
         IServiceScopeFactory ScopeFactory,
         string UserId);
 }
