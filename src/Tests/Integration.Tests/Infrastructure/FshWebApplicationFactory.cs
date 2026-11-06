@@ -13,7 +13,6 @@ using System.Text;
 using FSH.Modules.Auditing;
 using FSH.Modules.Multitenancy.Data;
 using FSH.Framework.Web.Modules;
-using FSH.Modules.Auditing;
 using Hangfire;
 using Hangfire.InMemory;
 using Microsoft.AspNetCore.Authentication.JwtBearer;

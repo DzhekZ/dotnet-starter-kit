@@ -18,7 +18,6 @@
 		<PackageReference Include="xunit.runner.visualstudio" />
 		<PackageReference Include="coverlet.collector" />
 		<PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" />
-		<PackageReference Include="xunit.v3.mtp-off" />
 	</ItemGroup>
 
 	<ItemGroup>
