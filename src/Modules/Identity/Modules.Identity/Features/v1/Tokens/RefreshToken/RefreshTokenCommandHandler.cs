@@ -3,6 +3,7 @@ using FSH.Modules.Auditing.Contracts;
 using FSH.Modules.Identity.Contracts.Services;
 using FSH.Framework.Core.Exceptions;
 using FSH.Modules.Identity.Contracts.v1.Tokens.RefreshToken;
+using FSH.Modules.Identity.Localization;
 using Mediator;
 using Microsoft.Extensions.Logging;
 using System.IdentityModel.Tokens.Jwt;
@@ -52,7 +53,8 @@ public sealed class RefreshTokenCommandHandler
         if (validated is null)
         {
             await _securityAudit.TokenRevokedAsync("unknown", clientId, "InvalidRefreshToken", cancellationToken).ConfigureAwait(false);
-            throw new UnauthorizedException("Invalid refresh token.");
+            throw new UnauthorizedException("Invalid refresh token.")
+                .Localized<IdentityResources>("Identity.InvalidRefreshToken");
         }
 
         var (subject, claims) = validated.Value;
@@ -62,7 +64,7 @@ public sealed class RefreshTokenCommandHandler
         var isSessionValid = await _sessionService.ValidateSessionAsync(refreshTokenHash, cancellationToken).ConfigureAwait(false);
         if (!isSessionValid)
         {
-            await _securityAudit.TokenRevokedAsync(subject, clientId, "SessionRevoked", cancellationToken).ConfigureAwait(false);
+            await _securityAudit.TokenRevokedAsync(subject, clientId, "SessionRevoked", cancellationToken);
             throw new UnauthorizedException("Session has been revoked.");
         }
 
@@ -87,7 +89,7 @@ public sealed class RefreshTokenCommandHandler
             if (!string.IsNullOrEmpty(accessTokenSubject) &&
                 !string.Equals(accessTokenSubject, subject, StringComparison.Ordinal))
             {
-                await _securityAudit.TokenRevokedAsync(subject, clientId, "RefreshTokenSubjectMismatch", cancellationToken).ConfigureAwait(false);
+                await _securityAudit.TokenRevokedAsync(subject, clientId, "RefreshTokenSubjectMismatch", cancellationToken);
                 throw new UnauthorizedException("Access token subject mismatch.");
             }
         }

@@ -13,6 +13,7 @@ using System.Text;
 using FSH.Modules.Auditing;
 using FSH.Modules.Multitenancy.Data;
 using FSH.Framework.Web.Modules;
+using FSH.Modules.Auditing;
 using Hangfire;
 using Hangfire.InMemory;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -34,9 +35,15 @@ public sealed class FshWebApplicationFactory : WebApplicationFactory<Program>, I
     internal const string S3SecretKey = "rustfsadmin";
     internal const string S3Bucket = "fsh-integration-test-uploads";
 
+    /// <summary>The shared host's Hangfire storage; see <see cref="PrimaryHostStaticsRestorer"/>.</summary>
+    internal static JobStorage? PrimaryJobStorage { get; private set; }
+
+    /// <summary>The shared host's audit configurator; see <see cref="PrimaryHostStaticsRestorer"/>.</summary>
+    internal static AuditingConfigurator? PrimaryAuditingConfigurator { get; private set; }
+
     private static readonly SemaphoreSlim _migrationLock = new(1, 1);
     private JobStorage? _primaryJobStorage;
-    private readonly PostgreSqlContainer _postgres = new PostgreSqlBuilder("postgres:17-alpine")
+    private readonly PostgreSqlContainer _postgres = new PostgreSqlBuilder("postgres:18-alpine")
         .WithDatabase("fsh_integration_tests")
         .WithUsername("postgres")
         .WithPassword("integration_test_pwd")
@@ -46,7 +53,7 @@ public sealed class FshWebApplicationFactory : WebApplicationFactory<Program>, I
 
     // RustFS (S3-compatible) replaces MinIO, whose images were withdrawn from Docker Hub and quay.io.
     private const int S3Port = 9000;
-    private readonly IContainer _s3 = new ContainerBuilder("rustfs/rustfs:1.0.0")
+    private readonly IContainer _s3 = new ContainerBuilder("rustfs/rustfs:1.0.4")
         .WithPortBinding(S3Port, true)
         .WithEnvironment("RUSTFS_ACCESS_KEY", S3AccessKey)
         .WithEnvironment("RUSTFS_SECRET_KEY", S3SecretKey)
@@ -62,6 +69,8 @@ public sealed class FshWebApplicationFactory : WebApplicationFactory<Program>, I
 
         // Force host creation via the Server property (no leaked HttpClient)
         _ = Server;
+        PrimaryJobStorage = Services.GetRequiredService<JobStorage>();
+        PrimaryAuditingConfigurator = Services.GetServices<IHostedService>().OfType<AuditingConfigurator>().Single();
 
         // Migrate + seed the root tenant. The semaphore stops test classes sharing the DB
         // from migrating simultaneously.
@@ -82,6 +91,22 @@ public sealed class FshWebApplicationFactory : WebApplicationFactory<Program>, I
         await _postgres.DisposeAsync();
         await _s3.DisposeAsync();
         GC.SuppressFinalize(this);
+    }
+
+    /// <summary>
+    /// Removes tenants a test created from the shared tenant store. Use it for tenants that point at an
+    /// unreachable database: later tests that walk every tenant (the legacy public-key migration job, for
+    /// one) would otherwise count them as failures. Test order is not guaranteed, so clean up after yourself.
+    /// </summary>
+    public async Task RemoveTenantsAsync(IEnumerable<string> tenantIds)
+    {
+        ArgumentNullException.ThrowIfNull(tenantIds);
+        using var scope = Services.CreateScope();
+        var store = scope.ServiceProvider.GetRequiredService<IMultiTenantStore<AppTenantInfo>>();
+        foreach (var tenantId in tenantIds)
+        {
+            await store.RemoveAsync(tenantId);
+        }
     }
 
     /// <summary>The S3 (RustFS) endpoint URL exposed to the host configuration; useful for tests that need to PUT bytes directly.</summary>
@@ -212,6 +237,7 @@ public sealed class FshWebApplicationFactory : WebApplicationFactory<Program>, I
             }
 
             services.AddHangfire(config => config.UseInMemoryStorage());
+            services.AddHostedService<PrimaryHostStaticsRestorer>();
             services.AddHangfireServer(options =>
             {
                 options.SchedulePollingInterval = TimeSpan.FromSeconds(1);

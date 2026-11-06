@@ -85,9 +85,14 @@ export const WebhooksPermissions = Object.freeze({
 // (`getPermissionsCatalog` in `@/api/roles`), so there is no static copy to keep in sync.
 
 export type PermissionGroup = {
-  /** Server-side resource name, e.g. "Users" or "AuditTrails". */
-  resource: string;
-  entries: PermissionCatalogEntryDto[];
+  /** Stable catalog key. The English `category`/`blurb`/`description` below stay as the
+   *  fallback, so an untranslated group still reads. */
+  key: string;
+  /** UI-facing category name. */
+  category: string;
+  /** Section blurb shown under the heading. */
+  blurb: string;
+    entries: PermissionCatalogEntryDto[];
 };
 
 /**

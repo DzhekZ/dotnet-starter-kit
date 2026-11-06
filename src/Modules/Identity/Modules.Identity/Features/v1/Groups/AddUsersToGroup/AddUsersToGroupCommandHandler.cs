@@ -4,6 +4,7 @@ using FSH.Modules.Identity.Contracts.Services;
 using FSH.Modules.Identity.Contracts.v1.Groups.AddUsersToGroup;
 using FSH.Modules.Identity.Data;
 using FSH.Modules.Identity.Domain;
+using FSH.Modules.Identity.Localization;
 using Mediator;
 using Microsoft.EntityFrameworkCore;
 
@@ -33,7 +34,8 @@ public sealed class AddUsersToGroupCommandHandler : ICommandHandler<AddUsersToGr
 
         if (!groupExists)
         {
-            throw new NotFoundException($"Group with ID '{command.GroupId}' not found.");
+            throw new NotFoundException($"Group with ID '{command.GroupId}' not found.")
+                .Localized<IdentityResources>("Identity.GroupNotFound", command.GroupId);
         }
 
         // Validate user IDs exist
@@ -46,7 +48,8 @@ public sealed class AddUsersToGroupCommandHandler : ICommandHandler<AddUsersToGr
         var invalidUserIds = command.UserIds.Except(existingUserIds).ToList();
         if (invalidUserIds.Count > 0)
         {
-            throw new NotFoundException($"Users not found: {string.Join(", ", invalidUserIds)}");
+            throw new NotFoundException($"Users not found: {string.Join(", ", invalidUserIds)}")
+                .Localized<IdentityResources>("Identity.UsersNotFound", string.Join(", ", invalidUserIds));
         }
 
         // Get existing memberships

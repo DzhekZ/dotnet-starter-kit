@@ -2,6 +2,7 @@ using FSH.Framework.Core.Exceptions;
 using FSH.Modules.Identity.Contracts.DTOs;
 using FSH.Modules.Identity.Contracts.v1.Groups.GetGroupMembers;
 using FSH.Modules.Identity.Data;
+using FSH.Modules.Identity.Localization;
 using Mediator;
 using Microsoft.EntityFrameworkCore;
 
@@ -26,7 +27,8 @@ public sealed class GetGroupMembersQueryHandler : IQueryHandler<GetGroupMembersQ
 
         if (!groupExists)
         {
-            throw new NotFoundException($"Group with ID '{query.GroupId}' not found.");
+            throw new NotFoundException($"Group with ID '{query.GroupId}' not found.")
+                .Localized<IdentityResources>("Identity.GroupNotFound", query.GroupId);
         }
 
         // Get memberships with user info
