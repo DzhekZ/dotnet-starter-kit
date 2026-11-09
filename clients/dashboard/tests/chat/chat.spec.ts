@@ -110,7 +110,7 @@ test.describe("chat — channel rail", () => {
     await page.goto("/chat");
 
     // The rail's brand mark.
-    await expect(page.getByText("Chat", { exact: true })).toBeVisible();
+    await expect(page.locator("#main").getByText("Chat", { exact: true })).toBeVisible();
     // The channel row label. The rail and (after auto-select) the header both
     // print "engineering" — assert at least one is visible.
     await expect(page.getByText("engineering").first()).toBeVisible();

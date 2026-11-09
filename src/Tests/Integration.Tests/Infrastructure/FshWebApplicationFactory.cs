@@ -236,7 +236,6 @@ public sealed class FshWebApplicationFactory : WebApplicationFactory<Program>, I
             }
 
             services.AddHangfire(config => config.UseInMemoryStorage());
-            services.AddHostedService<PrimaryHostStaticsRestorer>();
             services.AddHangfireServer(options =>
             {
                 options.SchedulePollingInterval = TimeSpan.FromSeconds(1);

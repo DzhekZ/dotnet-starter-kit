@@ -83,44 +83,21 @@ test("a status the server added after this build has no key, so the badge shows 
   expect(statusKey(IMPERSONATION_STATUS_KEYS, "Active")).toBe("status.active");
 });
 
-// The permission matrix is the other place keys are built at run time, and the largest: eight
-// groups and thirty-plus entries, rendered on the role detail screen. The English text stays in
-// permissions.ts as the fallback, so a missing key degrades rather than showing "perm.entry.x" —
-// but degrading means an English row in a Portuguese table, which is what this catches.
+// The permission matrix is the other place keys are built at run time: the role detail screen
+// renders whatever GET /identity/permissions/catalog returns, looking each resource up as
+// `perm.resource.<Resource>` and each entry as `perm.entry.<Permission>`, with the server's own text
+// as the fallback. The catalog is no longer in the source, so the keys cannot be enumerated from it;
+// what this guards is that every override one locale carries, the other carries too, so a
+// translated row never degrades to English in a Portuguese table (or the reverse).
 test.describe("permission catalog keys", () => {
-  test("every group and entry has a label in both locales", () => {
-    const source = readFileSync(path.resolve("src/lib/permissions.ts"), "utf8");
-    const groups = [...source.matchAll(/key: "([^"]+)",/g)].map((m) => m[1]);
-    // The catalog holds the permission VALUE at run time ("Permissions.Users.Create"), not the
-    // identifier it is written with, so resolve the constants the same way the app does.
-    const values = new Map<string, string>();
-    for (const constant of source.matchAll(
-      /export const (\w+) = Object\.freeze\(\{([\s\S]*?)\r?\n\} as const\);/g,
-    )) {
-      for (const group of constant[2].matchAll(/(\w+): \{([^}]*)\}/g)) {
-        for (const entry of group[2].matchAll(/(\w+): "([^"]+)"/g)) {
-          values.set(`${constant[1]}.${group[1]}.${entry[1]}`, entry[2]);
-        }
-      }
-      for (const entry of constant[2].matchAll(/^ {2}(\w+): "([^"]+)",/gm)) {
-        values.set(`${constant[1]}.${entry[1]}`, entry[2]);
-      }
-    }
-    const entries = [...source.matchAll(/name: ([A-Za-z.]+),\s*description:/g)].map((m) => {
-      const value = values.get(m[1]);
-      expect(value, `${m[1]} does not resolve to a permission string`).toBeDefined();
-      return value!;
-    });
-    expect(groups.length).toBeGreaterThan(0);
-    expect(entries.length).toBeGreaterThan(0);
-
+  test("every permission label override exists in both locales", () => {
     const en = readCatalog("en-US", "roles");
     const pt = readCatalog("pt-BR", "roles");
-    const expected = [
-      ...groups.flatMap((key) => [`perm.group.${key}`, `perm.blurb.${key}`]),
-      ...entries.map((name) => `perm.entry.${name}`),
-    ];
+    const permKeys = (catalog: Record<string, string>) =>
+      Object.keys(catalog).filter((key) => key.startsWith("perm."));
 
-    expect(expected.filter((key) => !(key in en) || !(key in pt))).toEqual([]);
+    expect(permKeys(en).length).toBeGreaterThan(0);
+    expect(permKeys(en).filter((key) => !(key in pt))).toEqual([]);
+    expect(permKeys(pt).filter((key) => !(key in en))).toEqual([]);
   });
 });

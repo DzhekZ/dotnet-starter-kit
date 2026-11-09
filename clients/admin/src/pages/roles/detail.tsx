@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useTranslation } from "react-i18next";
+import { Trans, useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
@@ -161,8 +161,8 @@ function ProfileSection({
   role: RoleDto;
   disabled: boolean;
   canCopyToTenants: boolean;
-    }) {
-    const { t } = useTranslation("roles");
+}) {
+  const { t } = useTranslation("roles");
   const queryClient = useQueryClient();
   const [copyConfirmOpen, setCopyConfirmOpen] = useState(false);
   const profileSchema = useMemo(() => makeProfileSchema(t), [t]);
@@ -213,13 +213,16 @@ function ProfileSection({
       const created = results.filter((r) => r.status === "Created").length;
       const skipped = results.filter((r) => r.status === "Skipped").length;
       const failed = results.filter((r) => r.status === "Failed");
-      const summary = `${created} created, ${skipped} already had it`;
+      const summary = t("detail.copy.summary", { created, skipped });
       if (failed.length === 0) {
-        toast.success("Role copied to tenants", { description: summary });
+        toast.success(t("detail.copy.copied"), { description: summary });
         return;
       }
-      toast.error(`Copy failed for ${failed.length} tenant${failed.length === 1 ? "" : "s"}`, {
-        description: `${summary}. ${failed.map((r) => `${r.tenantId}: ${r.error ?? "unknown error"}`).join("; ")}`,
+      const failures = failed
+        .map((r) => `${r.tenantId}: ${r.error ?? t("detail.copy.unknownError")}`)
+        .join("; ");
+      toast.error(t("detail.copy.failedTenants", { count: failed.length }), {
+        description: `${summary}. ${failures}`,
       });
     },
     onError: (err) => {
@@ -228,7 +231,7 @@ function ProfileSection({
         err instanceof ApiRequestError
           ? err.problem?.detail ?? err.problem?.title ?? err.message
           : (err as Error).message;
-      toast.error("Copy failed", { description: detail });
+      toast.error(t("detail.copy.failed"), { description: detail });
     },
   });
 
@@ -269,11 +272,11 @@ function ProfileSection({
                 onClick={() => setCopyConfirmOpen(true)}
                 // Copying sends the saved role, so unsaved edits would be silently left out.
                 disabled={isDirty || submitting || copyMutation.isPending}
-                title={isDirty ? "Save the profile first" : undefined}
+                title={isDirty ? t("detail.copy.saveFirst") : undefined}
                 className="h-9 rounded-lg px-4 text-[13px]"
               >
                 <Copy className="mr-1.5 h-3.5 w-3.5" />
-                Copy to Tenants
+                {t("detail.copy.button")}
               </Button>
             )}
           </div>
@@ -301,16 +304,16 @@ function ProfileSection({
         <ConfirmDialog
           open={copyConfirmOpen}
           onOpenChange={setCopyConfirmOpen}
-          title="Copy role to tenants?"
+          title={t("detail.copy.confirmTitle")}
           description={
-            <>
-              <strong className="text-[var(--color-foreground)]">{role.name}</strong> and its
-              permissions will be created in every tenant that does not have a role of that name.
-              Tenants that already have it are left untouched, and root-only permissions are not
-              copied.
-            </>
+            <Trans
+              t={t}
+              i18nKey="detail.copy.confirmBody"
+              values={{ name: role.name }}
+              components={{ name: <strong className="text-[var(--color-foreground)]" /> }}
+            />
           }
-          confirmLabel="Copy to Tenants"
+          confirmLabel={t("detail.copy.button")}
           pending={copyMutation.isPending}
           onConfirm={() => copyMutation.mutate(role.id)}
         />
@@ -408,14 +411,14 @@ function PermissionEditor({ role, disabled }: { role: RoleDto; disabled: boolean
                 <span className="inline-flex items-center gap-1.5 text-[var(--color-warning)]">
                   <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--color-warning)]" />
                   {t("detail.perm.unsaved", {
-                    granted: String(selected.size).padStart(2, "0"),
+                    granted: String(grantedCount).padStart(2, "0"),
                     total: String(total).padStart(2, "0"),
                   })}
                 </span>
               ) : (
                 <span>
                   {t("detail.perm.allSaved", {
-                    granted: String(selected.size).padStart(2, "0"),
+                    granted: String(grantedCount).padStart(2, "0"),
                     total: String(total).padStart(2, "0"),
                   })}
                 </span>
@@ -465,22 +468,19 @@ function PermissionEditor({ role, disabled }: { role: RoleDto; disabled: boolean
           const someOn = groupCount > 0 && groupCount < group.entries.length;
           return (
             <div
-              key={t(`perm.group.${group.key}`, { defaultValue: group.category })}
+              key={group.resource}
               className="overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-card)]"
             >
               <div className="flex flex-wrap items-baseline justify-between gap-3 border-b border-[var(--color-border)] bg-[var(--color-muted)]/40 px-4 py-3">
                 <div className="min-w-0">
                   <div className="flex items-baseline gap-3">
                     <h3 className="text-[13px] font-semibold tracking-tight text-[var(--color-foreground)]">
-                      {formatResource(group.resource)}
+                      {t(`perm.resource.${group.resource}`, { defaultValue: formatResource(group.resource) })}
                     </h3>
                     <span className="font-mono text-[11px] tabular-nums text-[var(--color-muted-foreground)]">
                       {String(groupCount).padStart(2, "0")} / {String(group.entries.length).padStart(2, "0")}
                     </span>
                   </div>
-                  <p className="mt-0.5 text-[11.5px] text-[var(--color-muted-foreground)]">
-                    {t(`perm.blurb.${group.key}`, { defaultValue: group.blurb })}
-                  </p>
                 </div>
                 <button
                   type="button"
