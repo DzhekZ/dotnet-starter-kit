@@ -3,10 +3,12 @@ import { createBrowserRouter, Navigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { AppShell } from "@/components/layout/app-shell";
 import { ProtectedRoute } from "@/auth/protected-route";
+import { RouteGuard } from "@/auth/route-guard";
 import { RouteError } from "@/components/route-error";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/cn";
 import { loadNamespaces, type LazyNamespace } from "@/i18n";
+import { ROUTE_GATES, type PermissionGate } from "@/lib/route-permissions";
 
 // ─────────────────────────────────────────────────────────────────────────
 // Lazy route boundaries
@@ -126,6 +128,17 @@ function withSuspense(node: React.ReactNode) {
   return <Suspense fallback={<RouteFallback />}>{node}</Suspense>;
 }
 
+/**
+ * Wrap a permission-gated route: the guard renders Access Denied (inside the
+ * AppShell) when the user lacks the gate, so typing the URL of a page hidden
+ * from the sidebar no longer opens it. The guard sits outside Suspense so a
+ * denied user never downloads the page chunk. Gates live in ROUTE_GATES,
+ * shared with nav-data.ts.
+ */
+function guarded(gate: PermissionGate, node: React.ReactNode) {
+  return <RouteGuard gate={gate}>{withSuspense(node)}</RouteGuard>;
+}
+
 export const router = createBrowserRouter([
   {
     path: "/login",
@@ -175,34 +188,34 @@ export const router = createBrowserRouter([
         errorElement: <RouteError />,
         children: [
           { index: true, element: withSuspense(<OverviewPage />) },
-          { path: "activity", element: withSuspense(<ActivityPage />) },
-          { path: "subscription", element: withSuspense(<SubscriptionPage />) },
-          { path: "wallet", element: withSuspense(<WalletPage />) },
-          { path: "invoices", element: withSuspense(<InvoicesPage />) },
-          { path: "invoices/:id", element: withSuspense(<InvoiceDetailPage />) },
-          { path: "system/health", element: withSuspense(<HealthPage />) },
-          { path: "system/audits", element: withSuspense(<AuditsPage />) },
-          { path: "system/trash", element: withSuspense(<TrashPage />) },
-          { path: "system/sessions", element: withSuspense(<SessionsPage />) },
-          { path: "files", element: withSuspense(<MyFilesPage />) },
-          { path: "chat", element: withSuspense(<ChatPage />) },
-          { path: "chat/:channelId", element: withSuspense(<ChatPage />) },
-          { path: "tickets", element: withSuspense(<TicketsPage />) },
-          { path: "tickets/:ticketId", element: withSuspense(<TicketDetailPage />) },
+          { path: "activity", element: guarded(ROUTE_GATES.activity, <ActivityPage />) },
+          { path: "subscription", element: guarded(ROUTE_GATES.billing, <SubscriptionPage />) },
+          { path: "wallet", element: guarded(ROUTE_GATES.billing, <WalletPage />) },
+          { path: "invoices", element: guarded(ROUTE_GATES.billing, <InvoicesPage />) },
+          { path: "invoices/:id", element: guarded(ROUTE_GATES.billing, <InvoiceDetailPage />) },
+          { path: "system/health", element: guarded(ROUTE_GATES.health, <HealthPage />) },
+          { path: "system/audits", element: guarded(ROUTE_GATES.audits, <AuditsPage />) },
+          { path: "system/trash", element: guarded(ROUTE_GATES.trash, <TrashPage />) },
+          { path: "system/sessions", element: guarded(ROUTE_GATES.sessions, <SessionsPage />) },
+          { path: "files", element: guarded(ROUTE_GATES.files, <MyFilesPage />) },
+          { path: "chat", element: guarded(ROUTE_GATES.chat, <ChatPage />) },
+          { path: "chat/:channelId", element: guarded(ROUTE_GATES.chat, <ChatPage />) },
+          { path: "tickets", element: guarded(ROUTE_GATES.tickets, <TicketsPage />) },
+          { path: "tickets/:ticketId", element: guarded(ROUTE_GATES.tickets, <TicketDetailPage />) },
           { path: "identity", element: <Navigate to="/identity/users" replace /> },
-          { path: "identity/users", element: withSuspense(<UsersPage />) },
-          { path: "identity/users/:userId", element: withSuspense(<UserDetailPage />) },
-          { path: "identity/roles", element: withSuspense(<RolesPage />) },
-          { path: "identity/roles/:roleId", element: withSuspense(<RoleDetailPage />) },
-          { path: "identity/groups", element: withSuspense(<GroupsPage />) },
-          { path: "identity/groups/:groupId", element: withSuspense(<GroupDetailPage />) },
+          { path: "identity/users", element: guarded(ROUTE_GATES.users, <UsersPage />) },
+          { path: "identity/users/:userId", element: guarded(ROUTE_GATES.users, <UserDetailPage />) },
+          { path: "identity/roles", element: guarded(ROUTE_GATES.roles, <RolesPage />) },
+          { path: "identity/roles/:roleId", element: guarded(ROUTE_GATES.roles, <RoleDetailPage />) },
+          { path: "identity/groups", element: guarded(ROUTE_GATES.groups, <GroupsPage />) },
+          { path: "identity/groups/:groupId", element: guarded(ROUTE_GATES.groups, <GroupDetailPage />) },
           { path: "catalog", element: <Navigate to="/catalog/brands" replace /> },
-          { path: "catalog/brands", element: withSuspense(<BrandsPage />) },
-          { path: "catalog/categories", element: withSuspense(<CategoriesPage />) },
-          { path: "catalog/products", element: withSuspense(<ProductsPage />) },
+          { path: "catalog/brands", element: guarded(ROUTE_GATES.brands, <BrandsPage />) },
+          { path: "catalog/categories", element: guarded(ROUTE_GATES.categories, <CategoriesPage />) },
+          { path: "catalog/products", element: guarded(ROUTE_GATES.products, <ProductsPage />) },
           {
             path: "catalog/products/:productId",
-            element: withSuspense(<ProductDetailPage />),
+            element: guarded(ROUTE_GATES.products, <ProductDetailPage />),
           },
           {
             path: "settings",
@@ -212,7 +225,7 @@ export const router = createBrowserRouter([
               { path: "profile", element: withSuspense(<ProfileSettings />) },
               { path: "security", element: withSuspense(<SecuritySettings />) },
               { path: "appearance", element: withSuspense(<AppearanceSettings />) },
-              { path: "branding", element: withSuspense(<BrandingSettings />) },
+              { path: "branding", element: guarded(ROUTE_GATES.branding, <BrandingSettings />) },
               { path: "notifications", element: withSuspense(<NotificationsSettings />) },
               { path: "api-keys", element: withSuspense(<ApiKeysSettings />) },
             ],

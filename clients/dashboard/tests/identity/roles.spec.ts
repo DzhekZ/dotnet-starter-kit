@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { mockJsonResponse } from "../helpers/api-mocks";
 import { seedAuthedSession, TEST_USER } from "../helpers/auth-seed";
-import { installShellMocks } from "../helpers/shell-mocks";
+import { grantPermissions, installShellMocks } from "../helpers/shell-mocks";
 
 // listRoles returns a plain array (or { items }). Use a plain array.
 const ROLES = [
@@ -50,6 +50,7 @@ test.describe("identity/roles — list", () => {
   test.beforeEach(async ({ page }) => {
     await seedAuthedSession(page, TEST_USER);
     await installShellMocks(page);
+    await grantPermissions(page, ["Permissions.Roles.Update"]);
     await mockJsonResponse(page, "**/api/v1/identity/roles?**", ROLES);
   });
 
@@ -120,6 +121,7 @@ test.describe("identity/roles/:roleId — detail", () => {
   test.beforeEach(async ({ page }) => {
     await seedAuthedSession(page, TEST_USER);
     await installShellMocks(page);
+    await grantPermissions(page, ["Permissions.Roles.Update"]);
     await mockJsonResponse(page, "**/api/v1/identity/permissions/catalog", CATALOG);
     // getRoleWithPermissions hits /identity/{roleId}/permissions (no /roles/).
     await mockJsonResponse(page, `**/api/v1/identity/${ROLE_ID}/permissions`, ROLE);

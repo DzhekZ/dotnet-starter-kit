@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { mockJsonResponse } from "../helpers/api-mocks";
 import { seedAuthedSession, TEST_USER } from "../helpers/auth-seed";
-import { installShellMocks, paged } from "../helpers/shell-mocks";
+import { grantPermissions, installShellMocks, paged } from "../helpers/shell-mocks";
 
 // listGroups returns a plain array (or { items }). Use a plain array.
 const GROUPS = [
@@ -38,6 +38,7 @@ test.describe("identity/groups — list", () => {
   test.beforeEach(async ({ page }) => {
     await seedAuthedSession(page, TEST_USER);
     await installShellMocks(page);
+    await grantPermissions(page, ["Permissions.Groups.Update"]);
     await mockJsonResponse(page, "**/api/v1/identity/groups**", GROUPS);
   });
 
@@ -101,6 +102,7 @@ test.describe("identity/groups/:groupId — detail", () => {
   test.beforeEach(async ({ page }) => {
     await seedAuthedSession(page, TEST_USER);
     await installShellMocks(page);
+    await grantPermissions(page, ["Permissions.Groups.Update"]);
     await mockJsonResponse(page, "**/api/v1/identity/roles?**", ROLES);
     // user search only fires once the Add members dialog is open.
     await mockJsonResponse(page, "**/api/v1/identity/users/search**", paged([]));

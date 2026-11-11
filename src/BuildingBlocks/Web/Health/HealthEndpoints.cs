@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using FSH.Framework.Shared.Constants;
+using FSH.Framework.Shared.Identity.Authorization;
 
 namespace FSH.Framework.Web.Health;
 
@@ -39,20 +41,8 @@ public static class HealthEndpoints
         group.MapGet("/ready",
                     async (HealthCheckService hc, CancellationToken cancellationToken) =>
                     {
-                        var report = await hc.CheckHealthAsync(cancellationToken: cancellationToken);
-                        var results = report.Entries.Select(e =>
-                    new HealthEntry(
-                        Name: e.Key,
-                        Status: e.Value.Status.ToString(),
-                        Description: e.Value.Description,
-                        DurationMs: e.Value.Duration.TotalMilliseconds,
-                        Details: e.Value.Data.ToDictionary(
-                            k => k.Key,
-                            v => v.Value is null ? "null" : v.Value
-                        )));
-
-                        var payload = new HealthResult(report.Status.ToString(), results);
-                        var statusCode = report.Status == HealthStatus.Healthy
+                        var (payload, healthy) = await BuildReportAsync(hc, cancellationToken).ConfigureAwait(false);
+                        var statusCode = healthy
                             ? StatusCodes.Status200OK
                             : StatusCodes.Status503ServiceUnavailable;
 
@@ -64,6 +54,42 @@ public static class HealthEndpoints
                     .Produces<HealthResult>(StatusCodes.Status200OK)
                     .Produces<HealthResult>(StatusCodes.Status503ServiceUnavailable);
 
+        // Permission-gated report for signed-in users (the tenant dashboard's System health page).
+        // Same payload as /health/ready, but always 200 — it's a data read, not a probe, so the
+        // overall state travels in the body. The anonymous probes above stay open for orchestrators.
+        app.MapGet("/api/v1/health",
+                async (HealthCheckService hc, CancellationToken cancellationToken) =>
+                {
+                    var (payload, _) = await BuildReportAsync(hc, cancellationToken).ConfigureAwait(false);
+                    return TypedResults.Ok(payload);
+                })
+                .WithName("GetHealthReport")
+                .WithTags("Health")
+                .WithSummary("Detailed health report for signed-in users.")
+                .WithDescription("Runs every registered health check and returns the per-check results. Always 200; the overall status is in the body.")
+                .RequireAuthorization()
+                .RequirePermission(SystemPermissions.Health.View)
+                .Produces<HealthResult>(StatusCodes.Status200OK);
+
         return app;
+    }
+
+    private static async Task<(HealthResult Payload, bool Healthy)> BuildReportAsync(
+        HealthCheckService hc,
+        CancellationToken cancellationToken)
+    {
+        var report = await hc.CheckHealthAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
+        var results = report.Entries.Select(e =>
+            new HealthEntry(
+                Name: e.Key,
+                Status: e.Value.Status.ToString(),
+                Description: e.Value.Description,
+                DurationMs: e.Value.Duration.TotalMilliseconds,
+                Details: e.Value.Data.ToDictionary(
+                    k => k.Key,
+                    v => v.Value is null ? "null" : v.Value
+                )));
+
+        return (new HealthResult(report.Status.ToString(), results), report.Status == HealthStatus.Healthy);
     }
 }

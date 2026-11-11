@@ -159,16 +159,16 @@ test.describe("system/trash", () => {
     await expect(page.getByText(/1 brands in trash/i)).toBeVisible();
   });
 
-  test("shows a no-access empty state when the user has no trash permissions", async ({
+  test("shows access denied when the user has no trash permissions", async ({
     page,
   }) => {
     await grantPermissions(page, []);
 
     await page.goto("/system/trash");
 
-    await expect(
-      page.getByRole("heading", { name: /no recycle bins available/i }),
-    ).toBeVisible();
+    // The route guard (ROUTE_GATES.trash) stops the page before it mounts.
+    await expect(page.getByTestId("forbidden-view")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Access denied" })).toBeVisible();
     // No tab rail at all.
     await expect(
       page.getByRole("navigation", { name: /trash sections/i }),

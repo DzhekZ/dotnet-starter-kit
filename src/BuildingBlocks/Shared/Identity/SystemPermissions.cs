@@ -19,6 +19,26 @@ public static class SystemPermissions
     }
 
     /// <summary>
+    /// Live activity feed — gates issuing an SSE stream token (<c>POST /api/v1/sse/token</c>),
+    /// so a user without it can't open the Server-Sent Events stream.
+    /// </summary>
+    public static class Activity
+    {
+        public const string Resource = nameof(Activity);
+        public const string View = $"Permissions.{Resource}.View";
+    }
+
+    /// <summary>
+    /// System health report for signed-in users (<c>GET /api/v1/health</c>). The anonymous
+    /// <c>/health/live</c> and <c>/health/ready</c> probes stay open for orchestrators.
+    /// </summary>
+    public static class Health
+    {
+        public const string Resource = nameof(Health);
+        public const string View = $"Permissions.{Resource}.View";
+    }
+
+    /// <summary>
     /// Platform-scoped permissions held only by the SuperAdmin (root tenant Admin role).
     /// Tagged <c>IsRoot=true</c>, which means <see cref="PermissionConstants.Admin"/> filters
     /// them out for non-root tenants and <see cref="PermissionConstants.Root"/> picks them up
@@ -40,6 +60,8 @@ public static class SystemPermissions
     [
         new("View Hangfire",  ActionConstants.View, Hangfire.Resource,  IsBasic: true),
         new("View Dashboard", ActionConstants.View, Dashboard.Resource, IsBasic: true),
+        new("View Live Activity", ActionConstants.View, Activity.Resource, IsBasic: true),
+        new("View System Health", ActionConstants.View, Health.Resource, IsBasic: true),
 
         // Platform · cross-tenant — SuperAdmin only.
         new("View All Tenants",          ActionConstants.View,   Platform.Tenants,       IsRoot: true),

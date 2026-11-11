@@ -16,7 +16,7 @@ The frontend slice. Read `.agents/rules/frontend/shared.md` plus the app file (`
 | Path constant | `const BASE = "/api/v1/..."` | inline the full path per call |
 | Forms | **react-hook-form + zod** | **hand-rolled** controlled inputs (no RHF/zod) |
 | List + create | separate routed pages (`list.tsx`, `create.tsx`) | one file with `<Dialog>` editors |
-| Route wrapper | `<RouteGuard perms={[…]}>` | `withSuspense(<X/>)` (no permission gate) |
+| Route wrapper | `<RouteGuard perms={[…]}>` | `guarded(ROUTE_GATES.x, <X/>)` (or `withSuspense(<X/>)` for an ungated page) |
 | Permissions | mirror in `src/lib/permissions.ts` | fetched from `GET /identity/permissions` (not JWT); nav gating via `perm`/`anyPerm` in `nav-data.ts`; no route guard — server 403 backstops |
 
 Shared everywhere: types are **hand-written** (no codegen); `apiFetch<T>` from `@/lib/api-client`; `cn()` from `@/lib/cn`; `env.apiBase` from runtime `/config.json`; CVA `components/ui` + `components/list` primitives; Tailwind v4 CSS-first (tokens in `src/styles/globals.css`); `toast` from `sonner`; pages are **named exports**; `placeholderData: keepPreviousData` (v5).
@@ -108,8 +108,9 @@ If you need to track the in-flight item (e.g. a per-row busy state), use `onMuta
 const {Resource}ListPage = lazyNamed(() => import("@/pages/{area}/list"), "{Resource}ListPage", ["{ns}"]);
 // admin — under AppShell.children, gated:
 { path: "{resources}", element: <RouteGuard perms={[{Module}Permissions.{Resources}.View]}><{Resource}ListPage /></RouteGuard> },
-// dashboard — under AppShell.children, suspense only:
-{ path: "{area}/{resources}", element: withSuspense(<{Resource}ListPage />) },
+// dashboard — under AppShell.children; add `{resources}: { perm: "Permissions.{Resources}.View" }` to
+// ROUTE_GATES (src/lib/route-permissions.ts) and spread the same gate into the nav-data.ts item:
+{ path: "{area}/{resources}", element: guarded(ROUTE_GATES.{resources}, <{Resource}ListPage />) },
 ```
 
 ## Step 6 — (admin only) mirror the permission
@@ -121,7 +122,7 @@ Add the constant to `src/lib/permissions.ts` (`{Module}Permissions.{Resources}.V
 ```ts
 test.beforeEach(async ({ page }) => {
   // admin: seedAuthedSession(page, { ...TEST_USER, permissions: [...ADMIN_PERMS] }); await installAdminShellMocks(page);
-  // dashboard: await seedAuthedSession(page, TEST_USER); await installShellMocks(page);
+  // dashboard: await seedAuthedSession(page, TEST_USER); await installShellMocks(page); await grantPermissions(page, ["Permissions.{Resources}.View"]);
   await mockJsonResponse(page, "**/api/v1/{module}/{resources}**", paged([SAMPLE]));   // page mocks AFTER shell mocks
 });
 ```
@@ -144,6 +145,6 @@ hand (`.agents/rules/frontend/shared.md`, Translations).
 - [ ] English keys in `src/locales/en-US/{ns}.json` (pt-BR optional); every visible string, toast and `aria-label` through `t()`
 - [ ] Page is a **named export**; `useQuery` key hierarchical + `placeholderData: keepPreviousData`
 - [ ] Mutation passes data via `mutate(arg)`, invalidates in `onSuccess`
-- [ ] Route via `lazyNamed`; admin wraps in `<RouteGuard perms>`, dashboard in `withSuspense`
+- [ ] Route via `lazyNamed`; admin wraps in `<RouteGuard perms>`, dashboard in `guarded(ROUTE_GATES.x, …)` (ungated: `withSuspense`)
 - [ ] (admin) permission mirrored in `lib/permissions.ts`
 - [ ] Playwright test: seed + shell mocks + page mocks; `lint` + `build` + `test:e2e` green

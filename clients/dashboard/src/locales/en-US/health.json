@@ -42,7 +42,7 @@
   "noDetails": "No additional details reported.",
   "moreDetails": "+{{count, number}} more",
   "error.title": "Health endpoint unreachable",
-  "error.default": "The browser couldn't reach /health/ready. The API may be down, or a network policy is blocking the request.",
+  "error.default": "The browser couldn't reach the health report (/api/v1/health). The API may be down, or a network policy is blocking the request.",
   "empty.title": "No checks registered",
   "empty.bodyPre": "Modules can register dependency checks via ",
   "empty.bodyPost": ". None are reporting yet."

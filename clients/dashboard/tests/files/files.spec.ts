@@ -13,7 +13,7 @@
 import { expect, test } from "@playwright/test";
 import { mockJsonResponse } from "../helpers/api-mocks";
 import { seedAuthedSession, TEST_USER } from "../helpers/auth-seed";
-import { installShellMocks } from "../helpers/shell-mocks";
+import { grantPermissions, installShellMocks } from "../helpers/shell-mocks";
 
 // ─── Fixtures ────────────────────────────────────────────────────────────
 
@@ -52,6 +52,7 @@ const FILE_SHARED = {
 test.beforeEach(async ({ page }) => {
   await seedAuthedSession(page, TEST_USER);
   await installShellMocks(page);
+  await grantPermissions(page, ["Permissions.Files.Upload"]);
   // The shared-file "uploaded by" attribution resolves uploader names via
   // GET /identity/users/{id}. Mock it so those rows don't 404-retry.
   await mockJsonResponse(page, "**/api/v1/identity/users/**", {

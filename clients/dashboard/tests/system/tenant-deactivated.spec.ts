@@ -14,13 +14,14 @@
 import { expect, test } from "@playwright/test";
 import { mockProblemDetails } from "../helpers/api-mocks";
 import { seedAuthedSession, TEST_USER } from "../helpers/auth-seed";
-import { installShellMocks } from "../helpers/shell-mocks";
+import { grantPermissions, installShellMocks } from "../helpers/shell-mocks";
 
 const TENANT_DEACTIVATED_CODE = "Multitenancy.TenantDeactivated";
 
 test.beforeEach(async ({ page }) => {
   await seedAuthedSession(page, TEST_USER);
   await installShellMocks(page);
+  await grantPermissions(page, ["Permissions.Catalog.Products.View"]);
 });
 
 test.describe("tenant deactivated mid-session", () => {

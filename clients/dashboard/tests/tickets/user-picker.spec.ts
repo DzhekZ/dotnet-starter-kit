@@ -62,6 +62,8 @@ test.beforeEach(async ({ page }) => {
     emailConfirmed: true,
     twoFactorEnabled: false,
   });
+  // The ticket pages are route-guarded on Tickets.View.
+  await mockJsonResponse(page, "**/api/v1/identity/permissions", ["Permissions.Tickets.View"]);
   await mockJsonResponse(page, `**/api/v1/tickets/${TICKET_ID}`, TICKET);
   // listTicketComments returns a plain array, not a paged response.
   await mockJsonResponse(page, `**/api/v1/tickets/${TICKET_ID}/comments**`, []);

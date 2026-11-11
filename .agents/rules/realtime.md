@@ -16,7 +16,7 @@
 ## SSE (`Web/Sse/`) — two-step token
 
 EventSource can't send `Authorization`, so SSE uses a token handshake:
-1. `POST /api/v1/sse/token` (authorized) → opaque Guid, **single-use, 30s TTL** in `IDistributedCache`.
+1. `POST /api/v1/sse/token` (authorized, gated on `SystemPermissions.Activity.View` — a Basic permission) → opaque Guid, **single-use, 30s TTL** in `IDistributedCache`. A user without it can't open the stream; the dashboard's `SseProvider` skips connecting rather than 403-looping.
 2. `GET /api/v1/sse/stream?token={guid}` (anonymous, consumes the token) → `text/event-stream`, `X-Accel-Buffering: no`, 15s heartbeat.
 
 `SseConnectionManager` (singleton, `ConcurrentDictionary`, bounded channel cap 100 `DropOldest`): `TrySend(userId)` (all tabs), `Broadcast(tenantId)`, `BroadcastAll()`.

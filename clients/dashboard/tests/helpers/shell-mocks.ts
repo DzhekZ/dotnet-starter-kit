@@ -74,6 +74,16 @@ export async function installShellMocks(page: Page): Promise<void> {
   });
 }
 
+/**
+ * Re-mock GET /identity/permissions with the shell defaults plus `extra`.
+ * Pages are route-guarded (src/lib/route-permissions.ts), so a spec that
+ * opens a gated page must grant that page's permission. Call AFTER
+ * installShellMocks (Playwright matches the most-recently-registered route).
+ */
+export async function grantPermissions(page: Page, extra: readonly string[]): Promise<void> {
+  await mockJsonResponse(page, "**/api/v1/identity/permissions", [...SHELL_PERMISSIONS, ...extra]);
+}
+
 /** Build a Playwright-shaped paged response body. */
 export function paged<T>(items: T[], overrides: Partial<{ pageNumber: number; pageSize: number; totalCount: number; totalPages: number }> = {}) {
   const pageSize = overrides.pageSize ?? 20;

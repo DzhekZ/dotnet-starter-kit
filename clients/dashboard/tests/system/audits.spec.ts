@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { mockJsonResponse } from "../helpers/api-mocks";
 import { seedAuthedSession, TEST_USER } from "../helpers/auth-seed";
-import { installShellMocks, paged } from "../helpers/shell-mocks";
+import { grantPermissions, installShellMocks, paged } from "../helpers/shell-mocks";
 
 // The API serializes enums as their string name (global JsonStringEnumConverter).
 // AuditEventType: EntityChange | Security | Activity | Exception
@@ -51,6 +51,7 @@ async function mockSummary(page: import("@playwright/test").Page) {
 test.beforeEach(async ({ page }) => {
   await seedAuthedSession(page, TEST_USER);
   await installShellMocks(page);
+  await grantPermissions(page, ["Permissions.AuditTrails.View"]);
 });
 
 test.describe("system/audits", () => {
