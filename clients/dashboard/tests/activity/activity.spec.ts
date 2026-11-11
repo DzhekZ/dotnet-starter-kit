@@ -10,6 +10,8 @@ import { installShellMocks, paged } from "../helpers/shell-mocks";
 //     otherwise, so users without it must never trigger the call).
 
 const AUDIT_VIEW = "Permissions.AuditTrails.View";
+// The page itself (and the SSE stream token) is gated on Activity.View.
+const ACTIVITY_VIEW = "Permissions.Activity.View";
 
 const HISTORY_ROW = {
   id: "a-1",
@@ -23,8 +25,9 @@ const HISTORY_ROW = {
   tags: 0,
 };
 
+/** Grants Activity.View (needed to open the page) plus `perms`. */
 async function grantPermissions(page: Page, perms: readonly string[]) {
-  await mockJsonResponse(page, "**/api/v1/identity/permissions", perms);
+  await mockJsonResponse(page, "**/api/v1/identity/permissions", [ACTIVITY_VIEW, ...perms]);
 }
 
 /**
@@ -70,6 +73,7 @@ test.describe("activity (/activity)", () => {
   test.beforeEach(async ({ page }) => {
     await seedAuthedSession(page, TEST_USER);
     await installShellMocks(page);
+    await grantPermissions(page, []);
   });
 
   test("with Audit trail access, history renders and survives a refresh", async ({ page }) => {
@@ -125,7 +129,7 @@ test.describe("activity (/activity)", () => {
   });
 
   test("without Audit trail access, no audits call and a live-only notice", async ({ page }) => {
-    // installShellMocks grants only SHELL_PERMISSIONS, not AuditTrails.View.
+    // beforeEach grants only Activity.View, not AuditTrails.View.
     await mockSseOnce(page);
     const audits = countAuditCalls(page);
 

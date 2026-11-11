@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { mockJsonResponse } from "../helpers/api-mocks";
 import { seedAuthedSession, TEST_USER } from "../helpers/auth-seed";
-import { installShellMocks, paged } from "../helpers/shell-mocks";
+import { grantPermissions, installShellMocks, paged } from "../helpers/shell-mocks";
 
 type SessionRow = {
   id: string;
@@ -50,6 +50,7 @@ const SESSIONS = "**/api/v1/identity/sessions**";
 test.beforeEach(async ({ page }) => {
   await seedAuthedSession(page, TEST_USER);
   await installShellMocks(page);
+  await grantPermissions(page, ["Permissions.Sessions.ViewAll"]);
 });
 
 test.describe("system/sessions", () => {

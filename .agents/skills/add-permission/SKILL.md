@@ -6,8 +6,8 @@ argument-hint: "[ModuleName] [Resource] [Action]"
 
 # Add Permission
 
-A permission spans server + the admin app. The dashboard app does **not** mirror permissions — it reads
-them from the JWT and relies on the server's 403.
+A permission spans server + both apps. The JWT carries only role names; both apps fetch the effective
+permission list after sign-in and gate pages on it, while the server's 403 stays the real enforcement.
 
 ## Step 1 — Server constant (`Modules.{X}.Contracts/Authorization/{X}Permissions.cs`)
 
@@ -61,7 +61,7 @@ So `RouteGuard` passes on first paint, add the new permission to the test seed s
 
 ## Dashboard
 
-No mirror, no `RouteGuard`. The JWT carries only role names — the app fetches the permission list from `GET /api/v1/identity/permissions` at hydration and the server enforces access; a missing permission yields a 403 the UI surfaces. Routes aren't permission-gated; to hide a nav entry, set `perm`/`anyPerm` on the item in `src/components/layout/nav-data.ts`. Permission-gated specs mock `GET /identity/permissions` with the grants they need (shell mocks stub it to `[]`).
+The app fetches the permission list from `GET /api/v1/identity/permissions` at hydration. If a **page** depends on the permission, add (or update) its entry in `ROUTE_GATES` (`src/lib/route-permissions.ts`) — the single source the sidebar (`nav-data.ts`), the command palette and the router (`guarded(ROUTE_GATES.x, …)` → Access denied) all read. A widget inside an ungated page gates its own query (`frontend/dashboard.md`). Playwright: grant it after `installShellMocks` with `grantPermissions(page, ["Permissions.X.Y"])`.
 
 ## Checklist
 
@@ -69,4 +69,5 @@ No mirror, no `RouteGuard`. The JWT carries only role names — the app fetches 
 - [ ] Endpoint gated with `.RequirePermission(...)`; no duplicate `IRequiredPermissionMetadata`
 - [ ] (admin) mirrored in `lib/permissions.ts` (only if a guard or nav item uses it; the role editor reads the server catalog)
 - [ ] (admin) route wrapped in `<RouteGuard perms={[…]}>`; permission added to `ADMIN_PERMS` test seed
+- [ ] (dashboard) page gate in `ROUTE_GATES` if a page depends on it; specs grant it via `grantPermissions`
 - [ ] Build green; admin `test:e2e` green

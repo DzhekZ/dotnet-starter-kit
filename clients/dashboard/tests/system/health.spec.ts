@@ -1,13 +1,12 @@
 import { expect, test } from "@playwright/test";
 import { mockJsonResponse } from "../helpers/api-mocks";
 import { seedAuthedSession, TEST_USER } from "../helpers/auth-seed";
-import { installShellMocks } from "../helpers/shell-mocks";
+import { grantPermissions, installShellMocks } from "../helpers/shell-mocks";
 
-// The readiness probe lives at the ORIGIN (no /api/v1 prefix) and is
-// fetched anonymously by src/api/health.ts → `${env.apiBase}/health/ready`.
-// In the test config apiBase is "" (see public/config.json), so the call
-// resolves same-origin to /health/ready.
-const READY = "**/health/ready";
+// The page reads the permission-gated report at GET /api/v1/health
+// (Permissions.Health.View) through apiFetch — not the anonymous
+// /health/ready probe, which is for orchestrators.
+const READY = "**/api/v1/health";
 
 function readiness(
   status: "Healthy" | "Degraded" | "Unhealthy",
@@ -25,6 +24,7 @@ function readiness(
 test.beforeEach(async ({ page }) => {
   await seedAuthedSession(page, TEST_USER);
   await installShellMocks(page);
+  await grantPermissions(page, ["Permissions.Health.View"]);
 });
 
 test.describe("system/health", () => {

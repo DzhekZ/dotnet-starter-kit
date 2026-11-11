@@ -1,4 +1,6 @@
 using FSH.Framework.Core.Context;
+using FSH.Framework.Shared.Constants;
+using FSH.Framework.Shared.Identity.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
@@ -10,7 +12,8 @@ public static class SseEndpoints
     private static readonly TimeSpan HeartbeatInterval = TimeSpan.FromSeconds(15);
 
     /// <summary>
-    /// Maps the SSE token exchange endpoint (<c>POST /api/v1/sse/token</c>, authenticated via JWT) and
+    /// Maps the SSE token exchange endpoint (<c>POST /api/v1/sse/token</c>, authenticated via JWT and
+    /// gated on <see cref="SystemPermissions.Activity.View"/>) and
     /// the streaming endpoint (<c>GET /api/v1/sse/stream?token=&lt;guid&gt;</c>). Browsers' EventSource
     /// API cannot send an Authorization header, so the stream authenticates via a short-lived opaque
     /// token issued from the token endpoint.
@@ -37,7 +40,8 @@ public static class SseEndpoints
         .WithName("SseToken")
         .WithSummary("Issue a short-lived SSE stream token")
         .WithTags("SSE")
-        .RequireAuthorization();
+        .RequireAuthorization()
+        .RequirePermission(SystemPermissions.Activity.View);
 
         endpoints.MapGet("/api/v1/sse/stream", async (
             HttpContext context,

@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
 import { mockJsonResponse } from "../helpers/api-mocks";
 import { seedAuthedSession, TEST_USER } from "../helpers/auth-seed";
-import { DEFAULT_PROFILE, installShellMocks, paged } from "../helpers/shell-mocks";
+import { DEFAULT_PROFILE, grantPermissions, installShellMocks, paged } from "../helpers/shell-mocks";
 
 // The count chip in EntityPageHeader translates the `unit` prop itself
 // (`t("unit." + unit, { count })`). A caller that passes an already translated
@@ -33,6 +33,7 @@ test.describe("count chip — pt-BR", () => {
   test.beforeEach(async ({ page }) => {
     await seedAuthedSession(page, TEST_USER);
     await installShellMocks(page);
+    await grantPermissions(page, ["Permissions.Tickets.View"]);
     // Keep the topbar's profile-locale sync from switching back to the default.
     await mockJsonResponse(page, "**/api/v1/identity/profile", {
       ...DEFAULT_PROFILE,

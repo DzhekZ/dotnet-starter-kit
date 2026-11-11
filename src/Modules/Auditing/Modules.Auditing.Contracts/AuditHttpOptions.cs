@@ -16,7 +16,7 @@ public sealed class AuditHttpOptions
     public HashSet<string> ExcludePathStartsWith { get; } =
         new(StringComparer.OrdinalIgnoreCase)
         {
-            "/health", "/metrics", "/_framework", "/swagger", "/scalar", "/openapi"
+            "/health", "/api/v1/health", "/metrics", "/_framework", "/swagger", "/scalar", "/openapi"
         };
 
     public AuditSeverity MinExceptionSeverity { get; set; } = AuditSeverity.Error;

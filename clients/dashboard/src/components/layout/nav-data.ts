@@ -20,7 +20,7 @@ import {
   Wifi,
 } from "lucide-react";
 import type { ParseKeys } from "i18next";
-import { ALL_TRASH_PERMISSIONS } from "@/lib/trash-permissions";
+import { isGateSatisfied, ROUTE_GATES } from "@/lib/route-permissions";
 
 export type NavSpec = {
   to: string;
@@ -60,8 +60,8 @@ export const topNavTop: NavSpec[] = [
   // Each gate mirrors the permission the page's primary list endpoint enforces
   // server-side (Chat → channels list, Files → /files/mine). Same convention
   // as trash-permissions.ts: if the endpoint's permission changes, mirror it.
-  { to: "/chat", labelKey: "nav.chat", icon: MessageCircle, perm: "Permissions.Chat.Channels.View" },
-  { to: "/files", labelKey: "nav.myFiles", icon: FolderOpen, perm: "Permissions.Files.Upload" },
+  { to: "/chat", labelKey: "nav.chat", icon: MessageCircle, ...ROUTE_GATES.chat },
+  { to: "/files", labelKey: "nav.myFiles", icon: FolderOpen, ...ROUTE_GATES.files },
 ];
 
 export const topNavBottom: NavSpec[] = [
@@ -75,11 +75,10 @@ export const sections: NavSection[] = [
     captionKey: "nav.section.operations",
     icon: Activity,
     items: [
-      // Live activity is SSE-backed; the stream is auth-only (no permission), so no gate.
-      { to: "/activity", labelKey: "nav.liveActivity", icon: Activity },
-      { to: "/subscription", labelKey: "nav.subscription", icon: CreditCard, perm: "Permissions.Billing.View" },
-      { to: "/wallet", labelKey: "nav.wallet", icon: Wallet, perm: "Permissions.Billing.View" },
-      { to: "/invoices", labelKey: "nav.invoices", icon: Receipt, perm: "Permissions.Billing.View" },
+      { to: "/activity", labelKey: "nav.liveActivity", icon: Activity, ...ROUTE_GATES.activity },
+      { to: "/subscription", labelKey: "nav.subscription", icon: CreditCard, ...ROUTE_GATES.billing },
+      { to: "/wallet", labelKey: "nav.wallet", icon: Wallet, ...ROUTE_GATES.billing },
+      { to: "/invoices", labelKey: "nav.invoices", icon: Receipt, ...ROUTE_GATES.billing },
     ],
   },
   {
@@ -87,9 +86,9 @@ export const sections: NavSection[] = [
     captionKey: "nav.section.catalog",
     icon: Package,
     items: [
-      { to: "/catalog/products", labelKey: "nav.products", icon: Package, perm: "Permissions.Catalog.Products.View" },
-      { to: "/catalog/brands", labelKey: "nav.brands", icon: Tags, perm: "Permissions.Catalog.Brands.View" },
-      { to: "/catalog/categories", labelKey: "nav.categories", icon: FolderTree, perm: "Permissions.Catalog.Categories.View" },
+      { to: "/catalog/products", labelKey: "nav.products", icon: Package, ...ROUTE_GATES.products },
+      { to: "/catalog/brands", labelKey: "nav.brands", icon: Tags, ...ROUTE_GATES.brands },
+      { to: "/catalog/categories", labelKey: "nav.categories", icon: FolderTree, ...ROUTE_GATES.categories },
     ],
   },
   {
@@ -97,7 +96,7 @@ export const sections: NavSection[] = [
     captionKey: "nav.section.helpdesk",
     icon: Ticket,
     items: [
-      { to: "/tickets", labelKey: "nav.tickets", icon: Ticket, perm: "Permissions.Tickets.View" },
+      { to: "/tickets", labelKey: "nav.tickets", icon: Ticket, ...ROUTE_GATES.tickets },
     ],
   },
   {
@@ -108,9 +107,9 @@ export const sections: NavSection[] = [
       // Gate the identity-management pages on a manage permission (not View): View Users/Roles/Groups
       // are IsBasic so every member holds them (the chat/user picker relies on Users.View), but only
       // managers should see these admin pages. Basic lacks the *.Update perms, so the items hide for them.
-      { to: "/identity/users", labelKey: "nav.users", icon: Users, perm: "Permissions.Users.Update" },
-      { to: "/identity/roles", labelKey: "nav.roles", icon: ShieldCheck, perm: "Permissions.Roles.Update" },
-      { to: "/identity/groups", labelKey: "nav.groups", icon: UsersRound, perm: "Permissions.Groups.Update" },
+      { to: "/identity/users", labelKey: "nav.users", icon: Users, ...ROUTE_GATES.users },
+      { to: "/identity/roles", labelKey: "nav.roles", icon: ShieldCheck, ...ROUTE_GATES.roles },
+      { to: "/identity/groups", labelKey: "nav.groups", icon: UsersRound, ...ROUTE_GATES.groups },
     ],
   },
   {
@@ -118,14 +117,13 @@ export const sections: NavSection[] = [
     captionKey: "nav.section.system",
     icon: HeartPulse,
     items: [
-      // Health hits the anonymous /health/ready probe — visible to everyone.
-      { to: "/system/health", labelKey: "nav.health", icon: HeartPulse },
-      { to: "/system/audits", labelKey: "nav.audits", icon: ScrollText, perm: "Permissions.AuditTrails.View" },
-      { to: "/system/sessions", labelKey: "nav.sessions", icon: Wifi, perm: "Permissions.Sessions.ViewAll" },
+      { to: "/system/health", labelKey: "nav.health", icon: HeartPulse, ...ROUTE_GATES.health },
+      { to: "/system/audits", labelKey: "nav.audits", icon: ScrollText, ...ROUTE_GATES.audits },
+      { to: "/system/sessions", labelKey: "nav.sessions", icon: Wifi, ...ROUTE_GATES.sessions },
       // Trash fronts five tabs, each gated on a different resource's restore /
       // view-trash permission. Show the entry if the user can reach any tab; the
       // page hides the individual tabs they can't (see trash-permissions.ts).
-      { to: "/system/trash", labelKey: "nav.trash", icon: Trash2, anyPerm: ALL_TRASH_PERMISSIONS },
+      { to: "/system/trash", labelKey: "nav.trash", icon: Trash2, ...ROUTE_GATES.trash },
     ],
   },
 ];
@@ -133,9 +131,7 @@ export const sections: NavSection[] = [
 /** True when the user satisfies the item's gates: the single `perm` (if any)
  *  AND at least one of `anyPerm` (if any). Ungated items are always visible. */
 function isNavItemVisible(item: NavSpec, permissions: readonly string[]): boolean {
-  if (item.perm && !permissions.includes(item.perm)) return false;
-  if (item.anyPerm && !item.anyPerm.some((p) => permissions.includes(p))) return false;
-  return true;
+  return isGateSatisfied(item, permissions);
 }
 
 /** Drop items the user can't access, then drop any section left empty. */

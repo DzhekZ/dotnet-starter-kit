@@ -18,11 +18,12 @@ import {
   OPERATOR_ACTOR,
   seedImpersonationSession,
 } from "../helpers/auth-seed";
-import { installShellMocks } from "../helpers/shell-mocks";
+import { grantPermissions, installShellMocks } from "../helpers/shell-mocks";
 
 test.beforeEach(async ({ page }) => {
   await seedImpersonationSession(page, IMPERSONATED_USER, OPERATOR_ACTOR);
   await installShellMocks(page);
+  await grantPermissions(page, ["Permissions.Catalog.Products.View"]);
 });
 
 test.describe("impersonation revoked mid-session", () => {

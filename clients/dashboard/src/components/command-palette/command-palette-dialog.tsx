@@ -38,7 +38,7 @@ import {
 import { useAuth } from "@/auth/use-auth";
 import { useTheme } from "@/components/theme/theme-provider";
 import { accents } from "@/components/theme/appearance-options";
-import { ALL_TRASH_PERMISSIONS } from "@/lib/trash-permissions";
+import { isGateSatisfied, ROUTE_GATES, type PermissionGate } from "@/lib/route-permissions";
 import { cn } from "@/lib/cn";
 
 /**
@@ -66,6 +66,12 @@ type ActionItem = {
    */
   perm?: string;
   anyPerm?: readonly string[];
+  /**
+   * The destination page's route gate (an entry of ROUTE_GATES, shared with the
+   * sidebar and the router). Checked in addition to `perm`/`anyPerm`, so a
+   * create action needs both its endpoint permission and access to the page.
+   */
+  gate?: PermissionGate;
 };
 
 type ActionGroup = {
@@ -97,8 +103,8 @@ export function CommandPaletteDialog({
     };
     // Mirrors isNavItemVisible in layout/nav-data.ts.
     const visible = (item: ActionItem) => {
-      if (item.perm && !permissions.includes(item.perm)) return false;
-      if (item.anyPerm && !item.anyPerm.some((p) => permissions.includes(p))) return false;
+      if (!isGateSatisfied(item, permissions)) return false;
+      if (item.gate && !isGateSatisfied(item.gate, permissions)) return false;
       return true;
     };
     const allGroups: ActionGroup[] = [
@@ -120,6 +126,7 @@ export function CommandPaletteDialog({
             Icon: Activity,
             keywords: t("keywords.nav-activity").split(" "),
             perform: go("/activity"),
+            gate: ROUTE_GATES.activity,
           },
           {
             id: "nav-chat",
@@ -128,7 +135,7 @@ export function CommandPaletteDialog({
             Icon: MessageSquare,
             keywords: t("keywords.nav-chat").split(" "),
             perform: go("/chat"),
-            perm: "Permissions.Chat.Channels.View",
+            gate: ROUTE_GATES.chat,
           },
           {
             id: "nav-files",
@@ -137,7 +144,7 @@ export function CommandPaletteDialog({
             Icon: Folder,
             keywords: t("keywords.nav-files").split(" "),
             perform: go("/files"),
-            perm: "Permissions.Files.Upload",
+            gate: ROUTE_GATES.files,
           },
           {
             id: "nav-users",
@@ -146,7 +153,7 @@ export function CommandPaletteDialog({
             Icon: Users,
             keywords: t("keywords.nav-users").split(" "),
             perform: go("/identity/users"),
-            perm: "Permissions.Users.Update",
+            gate: ROUTE_GATES.users,
           },
           {
             id: "nav-roles",
@@ -155,7 +162,7 @@ export function CommandPaletteDialog({
             Icon: ShieldCheck,
             keywords: t("keywords.nav-roles").split(" "),
             perform: go("/identity/roles"),
-            perm: "Permissions.Roles.Update",
+            gate: ROUTE_GATES.roles,
           },
           {
             id: "nav-groups",
@@ -164,7 +171,7 @@ export function CommandPaletteDialog({
             Icon: Users,
             keywords: t("keywords.nav-groups").split(" "),
             perform: go("/identity/groups"),
-            perm: "Permissions.Groups.Update",
+            gate: ROUTE_GATES.groups,
           },
           {
             id: "nav-products",
@@ -173,7 +180,7 @@ export function CommandPaletteDialog({
             Icon: Package,
             keywords: t("keywords.nav-products").split(" "),
             perform: go("/catalog/products"),
-            perm: "Permissions.Catalog.Products.View",
+            gate: ROUTE_GATES.products,
           },
           {
             id: "nav-brands",
@@ -182,7 +189,7 @@ export function CommandPaletteDialog({
             Icon: Tag,
             keywords: t("keywords.nav-brands").split(" "),
             perform: go("/catalog/brands"),
-            perm: "Permissions.Catalog.Brands.View",
+            gate: ROUTE_GATES.brands,
           },
           {
             id: "nav-categories",
@@ -191,7 +198,7 @@ export function CommandPaletteDialog({
             Icon: Boxes,
             keywords: t("keywords.nav-categories").split(" "),
             perform: go("/catalog/categories"),
-            perm: "Permissions.Catalog.Categories.View",
+            gate: ROUTE_GATES.categories,
           },
           {
             id: "nav-tickets",
@@ -200,7 +207,7 @@ export function CommandPaletteDialog({
             Icon: LifeBuoy,
             keywords: t("keywords.nav-tickets").split(" "),
             perform: go("/tickets"),
-            perm: "Permissions.Tickets.View",
+            gate: ROUTE_GATES.tickets,
           },
           {
             id: "nav-invoices",
@@ -209,7 +216,7 @@ export function CommandPaletteDialog({
             Icon: Receipt,
             keywords: t("keywords.nav-invoices").split(" "),
             perform: go("/invoices"),
-            perm: "Permissions.Billing.View",
+            gate: ROUTE_GATES.billing,
           },
           {
             id: "nav-health",
@@ -218,6 +225,7 @@ export function CommandPaletteDialog({
             Icon: HeartPulse,
             keywords: t("keywords.nav-health").split(" "),
             perform: go("/system/health"),
+            gate: ROUTE_GATES.health,
           },
           {
             id: "nav-audits",
@@ -226,7 +234,7 @@ export function CommandPaletteDialog({
             Icon: ScrollText,
             keywords: t("keywords.nav-audits").split(" "),
             perform: go("/system/audits"),
-            perm: "Permissions.AuditTrails.View",
+            gate: ROUTE_GATES.audits,
           },
           {
             id: "nav-trash",
@@ -235,7 +243,7 @@ export function CommandPaletteDialog({
             Icon: ScrollText,
             keywords: t("keywords.nav-trash").split(" "),
             perform: go("/system/trash"),
-            anyPerm: ALL_TRASH_PERMISSIONS,
+            gate: ROUTE_GATES.trash,
           },
           {
             id: "nav-sessions",
@@ -244,7 +252,7 @@ export function CommandPaletteDialog({
             Icon: Shield,
             keywords: t("keywords.nav-sessions").split(" "),
             perform: go("/system/sessions"),
-            perm: "Permissions.Sessions.ViewAll",
+            gate: ROUTE_GATES.sessions,
           },
           {
             id: "nav-settings",
@@ -265,6 +273,7 @@ export function CommandPaletteDialog({
             Icon: Plus,
             keywords: t("keywords.create-user").split(" "),
             perform: go("/identity/users?action=create"),
+            gate: ROUTE_GATES.users,
             perm: "Permissions.Users.Create",
           },
           {
@@ -274,6 +283,7 @@ export function CommandPaletteDialog({
             Icon: Plus,
             keywords: t("keywords.create-role").split(" "),
             perform: go("/identity/roles?action=create"),
+            gate: ROUTE_GATES.roles,
             perm: "Permissions.Roles.Create",
           },
           {
@@ -283,6 +293,7 @@ export function CommandPaletteDialog({
             Icon: Plus,
             keywords: t("keywords.create-group").split(" "),
             perform: go("/identity/groups?action=create"),
+            gate: ROUTE_GATES.groups,
             perm: "Permissions.Groups.Create",
           },
           {
@@ -292,6 +303,7 @@ export function CommandPaletteDialog({
             Icon: Plus,
             keywords: t("keywords.create-product").split(" "),
             perform: go("/catalog/products?action=create"),
+            gate: ROUTE_GATES.products,
             perm: "Permissions.Catalog.Products.Create",
           },
           {
@@ -301,6 +313,7 @@ export function CommandPaletteDialog({
             Icon: Plus,
             keywords: t("keywords.create-brand").split(" "),
             perform: go("/catalog/brands?action=create"),
+            gate: ROUTE_GATES.brands,
             perm: "Permissions.Catalog.Brands.Create",
           },
           {
@@ -310,6 +323,7 @@ export function CommandPaletteDialog({
             Icon: Plus,
             keywords: t("keywords.create-category").split(" "),
             perform: go("/catalog/categories?action=create"),
+            gate: ROUTE_GATES.categories,
             perm: "Permissions.Catalog.Categories.Create",
           },
           {
@@ -319,6 +333,7 @@ export function CommandPaletteDialog({
             Icon: Plus,
             keywords: t("keywords.create-ticket").split(" "),
             perform: go("/tickets?action=create"),
+            gate: ROUTE_GATES.tickets,
             perm: "Permissions.Tickets.Create",
           },
           {
@@ -328,6 +343,7 @@ export function CommandPaletteDialog({
             Icon: Plus,
             keywords: t("keywords.create-channel").split(" "),
             perform: go("/chat?action=create-channel"),
+            gate: ROUTE_GATES.chat,
             perm: "Permissions.Chat.Channels.Create",
           },
           {
@@ -337,6 +353,7 @@ export function CommandPaletteDialog({
             Icon: Plus,
             keywords: t("keywords.create-file").split(" "),
             perform: go("/files?action=upload"),
+            gate: ROUTE_GATES.files,
             perm: "Permissions.Files.Upload",
           },
         ],

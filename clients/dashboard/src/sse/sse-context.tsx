@@ -10,6 +10,8 @@ import {
 } from "react";
 import { env } from "@/env";
 import { tokenStore } from "@/auth/token-store";
+import { useAuth } from "@/auth/use-auth";
+import { ROUTE_GATES } from "@/lib/route-permissions";
 import { issueSseToken } from "@/sse/sse-api";
 
 export type SseStatus = "idle" | "connecting" | "connected" | "reconnecting" | "error";
@@ -105,6 +107,13 @@ export function SseProvider({ children }: { children: ReactNode }) {
   const abortRef = useRef<AbortController | null>(null);
   const stoppedRef = useRef(false);
 
+  // POST /sse/token requires Activity.View — without it, don't open the stream
+  // at all (every reconnect attempt would be a 403 the API logs). Status stays
+  // "idle", which the topbar and Overview already render as a quiet state.
+  const { user, permissionsHydrated } = useAuth();
+  const canStream =
+    permissionsHydrated && (user?.permissions.includes(ROUTE_GATES.activity.perm) ?? false);
+
   const appendEvent = useCallback((ev: { type: string; data: string; id?: string }) => {
     const entry: SseEvent = {
       id: ev.id ?? randomId(),
@@ -121,6 +130,7 @@ export function SseProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
+    if (!canStream) return;
     stoppedRef.current = false;
     let backoff = INITIAL_BACKOFF_MS;
 
@@ -190,7 +200,7 @@ export function SseProvider({ children }: { children: ReactNode }) {
       abortRef.current?.abort();
       setStatus("idle");
     };
-  }, [appendEvent]);
+  }, [appendEvent, canStream]);
 
   const statusValue = useMemo<SseStatusValue>(
     () => ({ status, eventCount }),
