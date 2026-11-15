@@ -122,7 +122,7 @@ public sealed class TypingIndicatorTests
                     options.Headers["tenant"] = TestConstants.RootTenantId;
                 })
             .Build();
-        await connection.StartAsync();
+        await connection.StartAndWaitForServerAsync();
         return connection;
     }
 
