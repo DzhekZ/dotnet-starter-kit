@@ -11,7 +11,6 @@
 		<PackageReference Include="Hangfire.MemoryStorage" />
 		<PackageReference Include="Hangfire.PostgreSql" />
 		<PackageReference Include="Microsoft.Extensions.Configuration.Binder" />
-		<PackageReference Include="Microsoft.Extensions.Options" />
 		<PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" />
 		<PackageReference Include="Newtonsoft.Json" />
 	</ItemGroup>

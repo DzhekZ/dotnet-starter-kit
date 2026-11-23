@@ -198,7 +198,7 @@ public sealed class AuditBackgroundWorkerTests
 
     private sealed class RecordingSink(Func<int, IReadOnlyList<AuditEnvelope>, Exception?> script) : IAuditSink
     {
-        private readonly object _gate = new();
+        private readonly Lock _gate = new();
         private readonly List<Guid[]> _calls = [];
 
         public IReadOnlyList<Guid[]> Calls
@@ -228,7 +228,7 @@ public sealed class AuditBackgroundWorkerTests
 
     private sealed class RecordingDlq : IAuditDlqSink
     {
-        private readonly object _gate = new();
+        private readonly Lock _gate = new();
         private readonly List<Guid[]> _batches = [];
 
         public IReadOnlyList<Guid[]> Batches

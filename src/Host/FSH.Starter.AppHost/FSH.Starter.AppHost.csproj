@@ -1,4 +1,4 @@
-<Project Sdk="Aspire.AppHost.Sdk/13.6.5">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -10,15 +10,15 @@
     <NoWarn>$(NoWarn);ASPIRE010</NoWarn>
   </PropertyGroup>
 
+  <!-- Aspire 17: the AppHost is a plain Microsoft.NET.Sdk project (Aspire.AppHost.Sdk is obsolete, ASPIRE012).
+       .NET services are added by path via AddDotnetProject(name, path) in AppHost.cs, so the API and DbMigrator
+       are no longer ProjectReferences here. -->
   <ItemGroup>
+    <PackageReference Include="Aspire.Hosting.AppHost" />
+    <PackageReference Include="Aspire.Hosting.Dotnet" />
     <PackageReference Include="Aspire.Hosting.JavaScript" />
     <PackageReference Include="Aspire.Hosting.PostgreSQL" />
     <PackageReference Include="Aspire.Hosting.Redis" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\FSH.Starter.Api\FSH.Starter.Api.csproj" />
-    <ProjectReference Include="..\FSH.Starter.DbMigrator\FSH.Starter.DbMigrator.csproj" />
   </ItemGroup>
 
 </Project>

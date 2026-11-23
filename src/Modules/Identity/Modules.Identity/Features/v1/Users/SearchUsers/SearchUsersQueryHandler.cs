@@ -131,7 +131,7 @@ public sealed class SearchUsersQueryHandler : IQueryHandler<SearchUsersQuery, Pa
 
     private static (string field, bool descending) ParseSortField(string part)
     {
-        var descending = part.StartsWith('-');
+        var descending = part.StartsWith('-', StringComparison.Ordinal);
         var field = descending ? part[1..] : part;
         return (field, descending);
     }

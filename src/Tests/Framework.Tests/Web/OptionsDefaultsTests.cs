@@ -86,7 +86,7 @@ public sealed class OptionsDefaultsTests
     [InlineData("ReservationTtl", "48:00:00", "ReservationTtl must not exceed DefaultTtl")]
     [InlineData("MaxKeyLength", "0", "MaxKeyLength must be greater than zero")]
     [InlineData("HeaderName", "", "HeaderName is required")]
-    public void AddHeroIdempotency_Should_FailAtStartup_When_OptionsAreInvalid(string key, string value, string expectedFailure)
+    public async Task AddHeroIdempotency_Should_FailAtStartup_When_OptionsAreInvalid(string key, string value, string expectedFailure)
     {
         // Arrange
         var configuration = new ConfigurationBuilder()
@@ -97,18 +97,18 @@ public sealed class OptionsDefaultsTests
         services.AddHeroIdempotency(configuration);
         var provider = services.BuildServiceProvider();
 
-        // Act — through IStartupValidator, which is what .ValidateOnStart() registers and what the host
+        // Act — through IAsyncStartupValidator, which is what .ValidateOnStart() registers and what the host
         // runs before serving traffic. Resolving IOptions<>.Value instead would validate lazily and pass
         // with .ValidateOnStart() deleted, moving the failure from boot to the first keyed request.
-        var act = () => provider.GetRequiredService<IStartupValidator>().Validate();
+        Func<Task> act = () => provider.GetRequiredService<IAsyncStartupValidator>().ValidateAsync(TestContext.Current.CancellationToken);
 
         // Assert — the failure has to be the clause this row targets, not any clause that happens to trip
-        act.ShouldThrow<OptionsValidationException>()
+        (await act.ShouldThrowAsync<OptionsValidationException>())
             .Failures.ShouldContain(failure => failure.Contains(expectedFailure, StringComparison.Ordinal));
     }
 
     [Fact]
-    public void AddHeroIdempotency_Should_Bind_When_OptionsAreValid()
+    public async Task AddHeroIdempotency_Should_Bind_When_OptionsAreValid()
     {
         // Arrange
         var configuration = new ConfigurationBuilder()
@@ -120,7 +120,7 @@ public sealed class OptionsDefaultsTests
         var provider = services.BuildServiceProvider();
 
         // Act
-        provider.GetRequiredService<IStartupValidator>().Validate();
+        await provider.GetRequiredService<IAsyncStartupValidator>().ValidateAsync(TestContext.Current.CancellationToken);
         var options = provider.GetRequiredService<IOptions<IdempotencyOptions>>().Value;
 
         // Assert — sanity: the validators above reject bad values without rejecting good ones, and the

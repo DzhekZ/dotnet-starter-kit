@@ -87,7 +87,7 @@ var s3Init = builder.AddContainer("rustfs-init", "amazon/aws-cli", "latest")
 var s3ApiEndpoint = rustfs.GetEndpoint("api");
 
 // DB migrator: applies pending migrations + seeds the root admin (admin@root.com), then exits; the API waits for its completion so it never starts against an unmigrated DB. Seed password is a dev-only default.
-var migrator = builder.AddProject<Projects.FSH_Starter_DbMigrator>($"{appPrefix}-db-migrator")
+var migrator = builder.AddDotnetProject($"{appPrefix}-db-migrator", "../FSH.Starter.DbMigrator/FSH.Starter.DbMigrator.csproj")
     .WithReference(postgres)
     .WaitFor(postgres)
     .WithEnvironment("DatabaseOptions__Provider", "POSTGRESQL")
@@ -97,7 +97,7 @@ var migrator = builder.AddProject<Projects.FSH_Starter_DbMigrator>($"{appPrefix}
     .WithArgs("apply", "--seed");
 
 // Demo seeder (dev-only): provisions the acme/globex tenants + demo-login users via seed-demo. DOTNET_ENVIRONMENT=Development is required (console host ignores ASPNETCORE_ENVIRONMENT) or seed-demo refuses to run.
-////var demoSeeder = builder.AddProject<Projects.FSH_Starter_DbMigrator>($"{appPrefix}-demo-seeder")
+////var demoSeeder = builder.AddDotnetProject($"{appPrefix}-demo-seeder", "../FSH.Starter.DbMigrator/FSH.Starter.DbMigrator.csproj")
 ////    .WithReference(postgres)
 ////    .WaitFor(postgres)
 ////    .WaitForCompletion(migrator)
@@ -109,7 +109,7 @@ var migrator = builder.AddProject<Projects.FSH_Starter_DbMigrator>($"{appPrefix}
 ////    .WithArgs("seed-demo");
 
 // API Service
-var api = builder.AddProject<Projects.FSH_Starter_Api>($"{appPrefix}-api")
+var api = builder.AddDotnetProject($"{appPrefix}-api", "../FSH.Starter.Api/FSH.Starter.Api.csproj")
     .WithReference(postgres)
     .WaitFor(postgres)
     .WaitFor(redis)

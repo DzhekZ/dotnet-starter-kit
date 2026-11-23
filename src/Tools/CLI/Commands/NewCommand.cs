@@ -364,7 +364,7 @@ public sealed class NewCommand : AsyncCommand<NewCommand.Settings>
         for (int i = 0; i < lines.Length; i++)
         {
             string line = lines[i];
-            if (line.TrimStart().StartsWith('#')) continue;
+            if (line.TrimStart().StartsWith('#', StringComparison.Ordinal)) continue;
             int eq = line.IndexOf('=', StringComparison.Ordinal);
             if (eq <= 0) continue;
             string key = line[..eq];

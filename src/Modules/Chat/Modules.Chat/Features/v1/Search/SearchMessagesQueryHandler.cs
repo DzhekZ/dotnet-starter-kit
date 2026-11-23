@@ -62,7 +62,7 @@ LIMIT {pageSize} OFFSET {offset}
 ";
 
         var rows = await db.Messages
-            .FromSqlInterpolated(sql)
+            .FromSql(sql)
             .AsNoTracking()
             .Include(m => m.Attachments)
             .Include(m => m.Mentions)

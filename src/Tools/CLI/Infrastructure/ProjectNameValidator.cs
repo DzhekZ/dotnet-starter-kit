@@ -21,7 +21,7 @@ internal static partial class ProjectNameValidator
         if (!ValidNamePattern().IsMatch(name))
             return "Project name must start with a letter and contain only letters, digits, dots, hyphens, or underscores.";
 
-        if (name.StartsWith('.') || name.EndsWith('.'))
+        if (name.StartsWith('.', StringComparison.Ordinal) || name.EndsWith('.', StringComparison.Ordinal))
             return "Project name cannot start or end with a dot.";
 
         if (name.Contains("..", StringComparison.Ordinal))

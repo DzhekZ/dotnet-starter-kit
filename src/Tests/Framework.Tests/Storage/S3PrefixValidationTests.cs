@@ -19,13 +19,13 @@ public sealed class S3PrefixValidationTests
     [InlineData("apps/fsh")]
     [InlineData("publicity")]
     [InlineData("files/public")]
-    public void AddHeroStorage_Should_PassStartupValidation_When_PrefixDoesNotStartWithAVisibilityRoot(string? prefix)
+    public async Task AddHeroStorage_Should_PassStartupValidation_When_PrefixDoesNotStartWithAVisibilityRoot(string? prefix)
     {
         // Arrange
         using var provider = BuildProvider(prefix);
 
         // Act
-        provider.GetRequiredService<IStartupValidator>().Validate();
+        await provider.GetRequiredService<IAsyncStartupValidator>().ValidateAsync(TestContext.Current.CancellationToken);
 
         // Assert
         provider.GetRequiredService<IOptions<FSH.Framework.Storage.S3.S3StorageOptions>>().Value.Prefix.ShouldBe(prefix);
@@ -39,22 +39,22 @@ public sealed class S3PrefixValidationTests
     [InlineData("public/apps")]
     [InlineData("/private/apps")]
     [InlineData("  public  ")]
-    public void AddHeroStorage_Should_FailAtStartup_When_PrefixStartsWithAVisibilityRoot(string prefix)
+    public async Task AddHeroStorage_Should_FailAtStartup_When_PrefixStartsWithAVisibilityRoot(string prefix)
     {
         // Arrange
         using var provider = BuildProvider(prefix);
 
         // Act
-        var act = () => provider.GetRequiredService<IStartupValidator>().Validate();
+        Func<Task> act = () => provider.GetRequiredService<IAsyncStartupValidator>().ValidateAsync(TestContext.Current.CancellationToken);
 
         // Assert
-        act.ShouldThrow<OptionsValidationException>()
+        (await act.ShouldThrowAsync<OptionsValidationException>())
             .Failures.ShouldContain(failure => failure.Contains("Storage:S3:Prefix", StringComparison.Ordinal));
     }
 
     // The rule belongs to the S3 provider; a host on local storage (the DbMigrator, dev) never sees it.
     [Fact]
-    public void AddHeroStorage_Should_NotValidatePrefix_When_ProviderIsLocal()
+    public async Task AddHeroStorage_Should_NotValidatePrefix_When_ProviderIsLocal()
     {
         // Arrange
         var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
@@ -68,10 +68,11 @@ public sealed class S3PrefixValidationTests
         using var provider = services.BuildServiceProvider();
 
         // Act — local storage registers no S3 options validation, so there may be no validator at all.
-        var act = () => provider.GetService<IStartupValidator>()?.Validate();
+        var validator = provider.GetService<IAsyncStartupValidator>();
+        Func<Task> act = () => validator?.ValidateAsync(TestContext.Current.CancellationToken) ?? Task.CompletedTask;
 
         // Assert
-        act.ShouldNotThrow();
+        await act.ShouldNotThrowAsync();
     }
 
     private static ServiceProvider BuildProvider(string? prefix)

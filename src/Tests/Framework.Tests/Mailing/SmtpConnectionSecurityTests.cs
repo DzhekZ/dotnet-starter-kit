@@ -172,24 +172,24 @@ public sealed class SmtpConnectionSecurityTests
 
             try
             {
-                await writer.WriteLineAsync("220 localhost ESMTP test");
+                await writer.WriteLineAsync("220 localhost ESMTP test".AsMemory(), ct);
                 while (await reader.ReadLineAsync(ct) is { } line)
                 {
                     _commands.Add(line);
                     string verb = line.Split(' ', 2)[0].ToUpperInvariant();
                     if (verb == "QUIT")
                     {
-                        await writer.WriteLineAsync("221 bye");
+                        await writer.WriteLineAsync("221 bye".AsMemory(), ct);
                         return;
                     }
 
                     if (verb == "DATA")
                     {
-                        await writer.WriteLineAsync("354 end with <CRLF>.<CRLF>");
+                        await writer.WriteLineAsync("354 end with <CRLF>.<CRLF>".AsMemory(), ct);
                         await ReadDataAsync(reader, ct);
                     }
 
-                    await writer.WriteLineAsync("250 ok");
+                    await writer.WriteLineAsync("250 ok".AsMemory(), ct);
                 }
             }
             // A client dropping the socket mid-dialogue is the refused-connection path under test, not a

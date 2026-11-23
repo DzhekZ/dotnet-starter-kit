@@ -1,3 +1,4 @@
+using MailKit;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using MimeKit;
@@ -141,7 +142,7 @@ public class SmtpMailService(IOptions<MailOptions> settings, ILogger<SmtpMailSer
             {
                 await client.AuthenticateAsync(_settings.Smtp.UserName, _settings.Smtp.Password, ct);
             }
-            await client.SendAsync(email, ct);
+            await client.SendAsync(new SendRequest(email), ct);
         }
         // Broad catch is intentional: any SMTP failure (auth, network, protocol) is logged
         // and wrapped in a consistent exception for callers.
